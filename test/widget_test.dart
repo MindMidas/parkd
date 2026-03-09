@@ -8,6 +8,6 @@ void main() {
     await tester.pumpWidget(const ProviderScope(child: ParkdApp()));
     await tester.pumpAndSettle();
 
-    expect(find.text('Parkd UI Component Preview'), findsOneWidget);
+    expect(find.text('Color Tokens'), findsOneWidget);
   });
 }
