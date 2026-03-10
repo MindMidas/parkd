@@ -1,42 +1,35 @@
-# Core Widgets Guide
+# Widgets README
 
-This folder stores shared UI building blocks used across features.
+This folder is for shared widgets we can reuse in different screens.
 
-## Location
-- `lib/core/widgets/`
+Path: `lib/core/widgets/`
 
-## Current Widget Catalog
-| File | Main Class(es) | Purpose |
-| --- | --- | --- |
-| `app_bottom_nav.dart` | `AppBottomNav` | Bottom navigation for Map/Profile tabs. |
-| `app_buttons.dart` | `AppPrimaryButton`, `AppSecondaryButton` | Shared action button styles. |
-| `app_card.dart` | `AppCard` | Consistent card container with padding. |
-| `app_text_field.dart` | `AppTextField` | Shared text input wrapper for forms. |
-| `app_top_bar.dart` | `AppTopBar` | App bar with optional back button. |
-| `section_title.dart` | `SectionTitle` | Standard section heading text style. |
+## What is here right now
+- `app_bottom_nav.dart` -> bottom nav (map/profile)
+- `app_buttons.dart` -> primary + secondary buttons
+- `app_card.dart` -> common card with padding
+- `app_text_field.dart` -> common text field
+- `app_top_bar.dart` -> top app bar with optional back button
+- `section_title.dart` -> section heading text
 
-## Import Style (Recommended)
-Import shared widgets through the barrel file:
+## How to import widgets
+Use the barrel file:
 
 ```dart
 import 'package:parkd/core/widgets/widgets.dart';
 ```
 
-This keeps imports consistent and makes widgets easier to discover.
+## How to add a new widget
+1. Make a new file in this folder using `snake_case.dart`.
+2. Name the class clearly (example: `AppStatusChip`).
+3. Keep it reusable (no feature-specific logic inside).
+4. Add export in `widgets.dart`.
+5. If needed, add tests in `test/`.
 
-## How To Add A New Widget
-1. Add a new Dart file in `lib/core/widgets/` using `snake_case.dart`.
-2. Use a clear, reusable class name (for example `AppStatusChip`).
-3. Keep business logic out of shared widgets; accept data and callbacks via constructor parameters.
-4. Add a short file-level comment describing the widget's role.
-5. Export the new file from `lib/core/widgets/widgets.dart`.
-6. If behavior is non-trivial, add/extend tests in `test/`.
-
-## Widget Template
+## Quick template
 ```dart
 import 'package:flutter/material.dart';
 
-// Reusable [what this widget standardizes].
 class AppExampleWidget extends StatelessWidget {
   const AppExampleWidget({
     super.key,
@@ -57,8 +50,7 @@ class AppExampleWidget extends StatelessWidget {
 }
 ```
 
-## Team Checklist Before Merge
-- Widget is generic enough for reuse (not feature-specific).
-- Naming follows app conventions (`App...` for app-level shared components).
-- Export added in `widgets.dart`.
-- Any required usage updates are included in the same merge request.
+## Before you open MR
+- widget should be reusable
+- export is added in `widgets.dart`
+- any screen using it is updated
