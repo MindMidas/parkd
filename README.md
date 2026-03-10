@@ -21,3 +21,6 @@ CIS*4030 Group 14 mobile app.
 - `lib/features/profile/`
 
 These are placeholder folders. Add workflow subfolders inside them.
+
+## Shared Widgets
+- See `lib/core/widgets/README.md` for widget catalog, conventions, and how to add new shared widgets.
