@@ -7,16 +7,19 @@ class AppTopBar extends StatelessWidget implements PreferredSizeWidget {
     required this.title,
     this.showBack = true,
     this.onBack,
+    this.actions,
   });
 
   final String title;
   final bool showBack;
   final VoidCallback? onBack;
+  final List<Widget>? actions;
 
   @override
   Widget build(BuildContext context) {
     return AppBar(
       title: Text(title),
+      actions: actions,
       leading: showBack
           ? IconButton(
               icon: const Icon(Icons.arrow_back_ios_new_rounded),
