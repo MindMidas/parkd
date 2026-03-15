@@ -58,3 +58,6 @@ app.*.map.json
 
 # Local environment secrets
 .env
+
+# Local IDE/editor context (do not commit)
+CONTEXT.md
