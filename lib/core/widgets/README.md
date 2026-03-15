@@ -1,32 +1,55 @@
-# Widgets README
+# Shared widgets
 
-This folder is for shared widgets we can reuse in different screens.
+This folder has all the reusable UI bits we use across the app. If you need a button, a list row, a calendar, etc., check here first—chances are we’ve already got something you can use. Keep everything generic (no feature-specific stuff) so anyone can drop it into any screen.
 
 Path: `lib/core/widgets/`
 
-## What is here right now
-- `app_bottom_nav.dart` -> bottom nav (map/profile)
-- `app_buttons.dart` -> primary + secondary buttons
-- `app_card.dart` -> common card with padding
-- `app_text_field.dart` -> common text field
-- `app_top_bar.dart` -> top app bar with optional back button
-- `section_title.dart` -> section heading text
+## Quick reference – what’s in here
 
-## How to import widgets
-Use the barrel file:
+- **`app_annotate_photo.dart`** – Image with a draggable parking-spot marker. Use `AppAnnotatePhoto` + `AppAnnotatePhotoInstruction` (e.g. Edit Photo, Create Listing).
+- **`app_availability_slots.dart`** – Shows scheduled slots: **date-range** (From/To) or **weekly** (day + time). Use `AppAvailabilitySlots.dateRanges()`, `.weekly()`, or `.combined()` with `DateRangeSlot` / `WeeklySlot`.
+- **`app_bottom_nav.dart`** – Bottom nav (map / profile).
+- **`app_buttons.dart`** – Primary and secondary buttons.
+- **`app_card.dart`** – Basic card with padding.
+- **`app_confirm_dialog.dart`** – Yes/no style dialog (title, message, Cancel + Confirm). Good for stuff like Delete Listing.
+- **`app_day_checkboxes.dart`** – Row of day chips (Mon–Sun). Use `AppDayCheckboxes` with `selectedIndices` and `onChanged`; `kWeekdayLabels` for the labels.
+- **`app_divider.dart`** – Thin line between list items.
+- **`app_editable_row.dart`** – Label + value + optional Edit button. Use on edit/detail screens.
+- **`app_failure_view.dart`** – Failure/error screen: red circle with X, title, message, Close button. Same layout as success view; use when something goes wrong.
+- **`app_info_text.dart`** – Grey disclaimer / info text (e.g. “Changes only apply to future reservations…”).
+- **`app_list_item.dart`** – Simple row with label + chevron. Optional top/bottom borders.
+- **`app_month_calendar.dart`** – One month, prev/next, day grid. Used in the set-availability dates flow.
+- **`app_photo_action_button.dart`** – Full-width button with an icon (“Take photo”, “Upload photo”).
+- **`app_price_stepper.dart`** – Label + minus / value / plus. Use for hourly or daily price.
+- **`app_search_field.dart`** – Rounded search bar with magnifying glass.
+- **`app_section_divider_title.dart`** – Horizontal line with centered text (e.g. “Scheduled time slots”).
+- **`app_slot_card_remove.dart`** – Card for a slot with an X to remove it. Use `AppSlotCardRemove` with `child` and `onRemove`. Helpers: `AppSlotCardRemoveDateRange(from, to)` and `AppSlotCardRemoveWeekly(day, timeRange)`.
+- **`app_success_view.dart`** – Success screen: icon, title, message, Close button. Just swap the text.
+- **`app_text_field.dart`** – Standard text field.
+- **`app_time_stepper_row.dart`** – Label + time + minus/plus buttons (blue, white icons). Use for Start time / End time.
+- **`app_top_bar.dart`** – Top bar with optional back button.
+- **`section_title.dart`** – Section heading.
+
+## How to use them
+
+Import the barrel file so you don’t have to remember every path:
 
 ```dart
 import 'package:parkd/core/widgets/widgets.dart';
 ```
 
-## How to add a new widget
-1. Make a new file in this folder using `snake_case.dart`.
-2. Name the class clearly (example: `AppStatusChip`).
-3. Keep it reusable (no feature-specific logic inside).
-4. Add export in `widgets.dart`.
-5. If needed, add tests in `test/`.
+Then grab whatever widget you need from the list above.
 
-## Quick template
+## Adding a new widget
+
+1. New file in this folder, `snake_case.dart`.
+2. Name the class something obvious (e.g. `AppStatusChip`).
+3. Keep it generic—no feature-specific logic.
+4. Add it to the exports in `widgets.dart`.
+5. Add tests in `test/` if it’s not trivial.
+
+Copy-paste template:
+
 ```dart
 import 'package:flutter/material.dart';
 
@@ -50,7 +73,4 @@ class AppExampleWidget extends StatelessWidget {
 }
 ```
 
-## Before you open MR
-- widget should be reusable
-- export is added in `widgets.dart`
-- any screen using it is updated
+Before you open a PR: make sure it’s reusable, it’s in `widgets.dart`, and any screen that uses it is updated.
