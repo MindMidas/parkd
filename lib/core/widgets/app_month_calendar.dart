@@ -51,7 +51,7 @@ class AppMonthCalendar extends StatelessWidget {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppColors.secondaryGrey.withOpacity(0.5)),
+        border: Border.all(color: AppColors.secondaryGrey.withValues(alpha: 0.5)),
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
@@ -149,7 +149,7 @@ class AppMonthCalendar extends StatelessWidget {
                     color: selected
                         ? (isPrimary
                             ? AppColors.primaryBlue
-                            : AppColors.secondaryGrey.withOpacity(0.4))
+                            : AppColors.secondaryGrey.withValues(alpha: 0.4))
                         : null,
                     shape: BoxShape.circle,
                   ),
@@ -157,7 +157,7 @@ class AppMonthCalendar extends StatelessWidget {
                     '$day',
                     style: AppTypography.caption.copyWith(
                       color: isPast
-                          ? AppColors.textSecondary.withOpacity(0.5)
+                          ? AppColors.textSecondary.withValues(alpha: 0.5)
                           : (selected && isPrimary
                               ? Colors.white
                               : AppColors.textPrimary),

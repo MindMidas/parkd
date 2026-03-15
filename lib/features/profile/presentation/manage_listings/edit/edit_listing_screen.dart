@@ -75,7 +75,7 @@ class EditListingScreen extends ConsumerWidget {
           );
         },
         loading: () => const Center(child: CircularProgressIndicator()),
-        error: (_, __) => Center(
+        error: (e, st) => Center(
           child: Text(
             'Something went wrong',
             style: AppTypography.body.copyWith(color: AppColors.textSecondary),
@@ -110,7 +110,7 @@ class _HeroPhotoSection extends StatelessWidget {
         AspectRatio(
           aspectRatio: 16 / 9,
           child: Container(
-            color: AppColors.secondaryBlue.withOpacity(0.35),
+            color: AppColors.secondaryBlue.withValues(alpha: 0.35),
             child: const Center(
               child: Icon(
                 Icons.photo_camera_outlined,
@@ -168,21 +168,21 @@ class _EditListingDetails extends StatelessWidget {
               ? '1 photo'
               : '${photos.length} photos',
       loading: () => '…',
-      error: (_, __) => 'Photo',
+      error: (e, st) => 'Photo',
     );
     final dateRangeSlots = specificAsync.when(
       data: (list) => list
           .map((s) => DateRangeSlot(from: s.fromDisplay, to: s.toDisplay))
           .toList(),
       loading: () => <DateRangeSlot>[],
-      error: (_, __) => <DateRangeSlot>[],
+      error: (e, st) => <DateRangeSlot>[],
     );
     final weeklySlots = weeklyAsync.when(
       data: (list) => list
           .map((w) => WeeklySlot(day: w.dayLabel, timeRange: w.timeRangeDisplay))
           .toList(),
       loading: () => <WeeklySlot>[],
-      error: (_, __) => <WeeklySlot>[],
+      error: (e, st) => <WeeklySlot>[],
     );
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,

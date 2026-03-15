@@ -116,7 +116,7 @@ class _SearchField extends StatelessWidget {
         ),
         prefixIcon: const Icon(Icons.search, color: AppColors.iconGrey),
         filled: true,
-        fillColor: AppColors.secondaryBlue.withOpacity(0.15),
+        fillColor: AppColors.secondaryBlue.withValues(alpha: 0.15),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(32),
           borderSide: BorderSide.none,
@@ -172,14 +172,14 @@ class _ListingThumbnail extends StatelessWidget {
       height: 56,
       decoration: BoxDecoration(
         shape: BoxShape.circle,
-        color: AppColors.secondaryBlue.withOpacity(0.2),
+        color: AppColors.secondaryBlue.withValues(alpha: 0.2),
         border: Border.all(
           color: Colors.white,
           width: 2,
         ),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.08),
+            color: Colors.black.withValues(alpha: 0.08),
             blurRadius: 4,
             offset: const Offset(0, 2),
           ),

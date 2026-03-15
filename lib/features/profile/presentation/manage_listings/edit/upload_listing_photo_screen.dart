@@ -48,7 +48,7 @@ class _UploadListingPhotoScreenState extends State<UploadListingPhotoScreen> {
                 child: Container(
                   width: double.infinity,
                   decoration: BoxDecoration(
-                    color: AppColors.secondaryBlue.withOpacity(0.35),
+                    color: AppColors.secondaryBlue.withValues(alpha: 0.35),
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: _hasPhoto
@@ -57,14 +57,14 @@ class _UploadListingPhotoScreenState extends State<UploadListingPhotoScreen> {
                           child: Icon(
                             Icons.image_rounded,
                             size: 80,
-                            color: AppColors.primaryBlue.withOpacity(0.6),
+                            color: AppColors.primaryBlue.withValues(alpha: 0.6),
                           ),
                         )
                       : Center(
                           child: Icon(
                             Icons.add_photo_alternate_outlined,
                             size: 64,
-                            color: AppColors.primaryBlue.withOpacity(0.5),
+                            color: AppColors.primaryBlue.withValues(alpha: 0.5),
                           ),
                         ),
                 ),

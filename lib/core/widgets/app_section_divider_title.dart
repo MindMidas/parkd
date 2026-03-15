@@ -22,7 +22,7 @@ class AppSectionDividerTitle extends StatelessWidget {
           Expanded(
             child: Container(
               height: 1,
-              color: AppColors.secondaryGrey.withOpacity(0.5),
+              color: AppColors.secondaryGrey.withValues(alpha: 0.5),
             ),
           ),
           Padding(
@@ -37,7 +37,7 @@ class AppSectionDividerTitle extends StatelessWidget {
           Expanded(
             child: Container(
               height: 1,
-              color: AppColors.secondaryGrey.withOpacity(0.5),
+              color: AppColors.secondaryGrey.withValues(alpha: 0.5),
             ),
           ),
         ],

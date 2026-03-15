@@ -22,7 +22,7 @@ class AvailabilitySpecific {
     final hour = dt.hour == 0 ? 12 : (dt.hour > 12 ? dt.hour - 12 : dt.hour);
     final ampm = dt.hour < 12 ? 'AM' : 'PM';
     final min = dt.minute.toString().padLeft(2, '0');
-    return '${m} ${dt.day}, ${dt.year} • $hour:$min $ampm';
+    return '$m ${dt.day}, ${dt.year} • $hour:$min $ampm';
   }
 
   String get fromDisplay => formatDateTime(startDatetime);

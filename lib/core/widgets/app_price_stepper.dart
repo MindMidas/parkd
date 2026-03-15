@@ -98,7 +98,7 @@ class _StepperButton extends StatelessWidget {
           decoration: BoxDecoration(
             color: enabled
                 ? AppColors.primaryBlue
-                : AppColors.secondaryGrey.withOpacity(0.2),
+                : AppColors.secondaryGrey.withValues(alpha: 0.2),
             shape: BoxShape.circle,
           ),
           child: Icon(

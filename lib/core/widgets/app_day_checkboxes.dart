@@ -94,7 +94,7 @@ class _DayChip extends StatelessWidget {
                 : AppColors.surface,
             borderRadius: BorderRadius.circular(8),
             border: Border.all(
-              color: AppColors.secondaryGrey.withOpacity(0.6),
+              color: AppColors.secondaryGrey.withValues(alpha: 0.6),
             ),
           ),
           child: Row(
@@ -108,7 +108,7 @@ class _DayChip extends StatelessWidget {
                   shape: BoxShape.circle,
                   color: selected
                       ? AppColors.primaryBlue
-                      : AppColors.secondaryGrey.withOpacity(0.3),
+                      : AppColors.secondaryGrey.withValues(alpha: 0.3),
                 ),
                 child: Icon(
                   selected ? Icons.check : Icons.close,

@@ -107,7 +107,7 @@ class _ProfileHeader extends StatelessWidget {
             width: 96,
             height: 96,
             decoration: BoxDecoration(
-              color: AppColors.secondaryBlue.withOpacity(0.3),
+              color: AppColors.secondaryBlue.withValues(alpha: 0.3),
               borderRadius: BorderRadius.circular(48),
             ),
             child: const Center(
@@ -122,7 +122,7 @@ class _ProfileHeader extends StatelessWidget {
           Text('Loading…', style: AppTypography.title),
         ],
       ),
-      error: (_, __) => Column(
+      error: (e, st) => Column(
         children: [
           Container(
             width: 96,

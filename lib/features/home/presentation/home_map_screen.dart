@@ -3,10 +3,8 @@ import 'package:flutter_map/flutter_map.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:latlong2/latlong.dart';
 
-import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_spacing.dart';
 import '../../../core/widgets/widgets.dart';
-import '../../auth/providers/auth_providers.dart';
 import '../../profile/presentation/profile_menu/profile_menu_screen.dart';
 
 class HomeMapScreen extends ConsumerStatefulWidget {
@@ -38,8 +36,6 @@ class _HomeMapScreenState extends ConsumerState<HomeMapScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final authRepository = ref.watch(authRepositoryProvider);
-
     return Scaffold(
       backgroundColor: Colors.white,
       body: _selectedIndex == 0

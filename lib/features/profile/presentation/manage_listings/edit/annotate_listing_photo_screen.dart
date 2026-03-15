@@ -36,14 +36,14 @@ class AnnotateListingPhotoScreen extends StatelessWidget {
                       width: double.infinity,
                       height: double.infinity,
                       decoration: BoxDecoration(
-                        color: AppColors.secondaryBlue.withOpacity(0.35),
+                        color: AppColors.secondaryBlue.withValues(alpha: 0.35),
                         borderRadius: BorderRadius.circular(12),
                       ),
                       child: Center(
                         child: Icon(
                           Icons.home_rounded,
                           size: 80,
-                          color: AppColors.primaryBlue.withOpacity(0.5),
+                          color: AppColors.primaryBlue.withValues(alpha: 0.5),
                         ),
                       ),
                     ),

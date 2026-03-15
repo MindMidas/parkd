@@ -25,7 +25,7 @@ class AppSearchField extends StatelessWidget {
         ),
         prefixIcon: const Icon(Icons.search, color: AppColors.iconGrey),
         filled: true,
-        fillColor: AppColors.secondaryBlue.withOpacity(0.15),
+        fillColor: AppColors.secondaryBlue.withValues(alpha: 0.15),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(32),
           borderSide: BorderSide.none,
