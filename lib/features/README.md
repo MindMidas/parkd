@@ -1,10 +1,13 @@
-# Features (Placeholder Scaffold)
+# Features
 
-This folder currently contains only placeholder structure.
+Feature modules for the app. Each folder is a slice of the product (auth, home, profile).
 
-Top-level feature roots:
-- `auth/` (signup + login)
-- `home/`
-- `profile/`
+## What’s in here
 
-TODO(team): Add workflow subfolders under these roots and implement real screens, state, and data layers.
+- **`auth/`** – Signup and login (when we wire Supabase auth).
+- **`home/`** – Main map and home UI.
+- **`profile/`** – Profile menu, listings menu, manage listings, and edit-listing flows (photo, price, availability, delete). Screens are wired to providers; data comes from `profile/data/` (dummy for now) and is ready to swap to Supabase.
+
+## Adding new flows
+
+When you add a new flow (e.g. under profile or home), keep the same pattern: put presentation (screens) under `presentation/`, data (repos, dummy or Supabase) under `data/`, and providers in `providers/`. That way everything stays in one place and easy to find.

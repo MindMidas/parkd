@@ -15,6 +15,7 @@ cache:
 
 before_script:
   - flutter --version
+  - if [ ! -f .env ]; then cp .env.example .env; fi
   - flutter pub get
 
 analyze:

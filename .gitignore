@@ -55,3 +55,9 @@ app.*.map.json
 /android/app/profile
 /android/app/release
 /android/local.properties
+
+# Local environment secrets
+.env
+
+# Local IDE/editor context (do not commit)
+CONTEXT.md
