@@ -10,15 +10,13 @@ Notes for when we hook the app up to real Supabase data. Right now we’re on du
 
 So you don’t have to guess:
 
-| Supabase table              | Our Dart model | Where we use it |
-|----------------------------|----------------|-----------------|
-| `public.profiles`          | `lib/core/models/profile.dart` | Profile menu, header |
-| `public.listings`          | `lib/core/models/listing.dart` | Manage Listings, Edit Listing |
-| `public.listing_photos`    | `lib/core/models/listing_photo.dart` | Hero photo, gallery |
-| `public.availability_weekly`   | `lib/core/models/availability_weekly.dart` | Weekly slots UI |
-| `public.availability_specific`| `lib/core/models/availability_specific.dart` | Date-range slots UI |
-| `public.reservations`      | (later) `reservation_status` in `lib/core/models/reservation_status.dart` | When we do bookings |
-| `public.host_earnings`     | (later) | When we do earnings |
+- **`public.profiles`** → `lib/core/models/profile.dart` (Profile menu, header)
+- **`public.listings`** → `lib/core/models/listing.dart` (Manage Listings, Edit Listing)
+- **`public.listing_photos`** → `lib/core/models/listing_photo.dart` (Hero photo, gallery)
+- **`public.availability_weekly`** → `lib/core/models/availability_weekly.dart` (Weekly slots UI)
+- **`public.availability_specific`** → `lib/core/models/availability_specific.dart` (Date-range slots UI)
+- **`public.reservations`** → (later) `lib/core/models/reservation_status.dart` (bookings)
+- **`public.host_earnings`** → (later, when we do earnings)
 
 Models use `fromJson` / `toJson` with Supabase’s snake_case (`host_id`, `price_hour`, etc.).
 
