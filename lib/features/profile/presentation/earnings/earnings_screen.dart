@@ -69,7 +69,7 @@ class _EarningsScreenState extends State<EarningsScreen> {
                 scrollDirection: Axis.horizontal,
                 padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
                 itemCount: _months.length,
-                separatorBuilder: (_, __) => const SizedBox(width: AppSpacing.xs),
+                separatorBuilder: (_, _) => const SizedBox(width: AppSpacing.xs),
                 itemBuilder: (context, index) {
                   final isSelected = index == _selectedMonthIndex;
                   return GestureDetector(
@@ -108,7 +108,7 @@ class _EarningsScreenState extends State<EarningsScreen> {
               shrinkWrap: true,
               physics: const NeverScrollableScrollPhysics(),
               itemCount: _transactions.length,
-              separatorBuilder: (_, __) => const AppDivider(),
+              separatorBuilder: (_, _) => const AppDivider(),
               itemBuilder: (_, index) {
                 final tx = _transactions[index];
                 return _TransactionRow(transaction: tx);
