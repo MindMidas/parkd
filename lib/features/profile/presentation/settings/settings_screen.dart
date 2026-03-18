@@ -8,6 +8,7 @@ import '../../../../core/models/profile.dart';
 import '../../../../core/widgets/widgets.dart';
 import '../../providers/profile_providers.dart';
 import '../../../home/presentation/home_map_screen.dart';
+import 'all_cards_screen.dart';
 import 'edit_profile_screen.dart';
 
 class SettingsScreen extends ConsumerWidget {
@@ -43,10 +44,14 @@ class SettingsScreen extends ConsumerWidget {
             },
           ),
           _SettingsItem(
-            icon: Icons.account_balance_wallet_outlined,
+            icon: Icons.credit_card_outlined,
             label: 'Payment Preferences',
             onTap: () {
-              // TODO: navigate to Payment Preferences
+              Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (_) => const AllCardsScreen(),
+                ),
+              );
             },
           ),
           _SettingsItem(
