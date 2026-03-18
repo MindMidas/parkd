@@ -33,15 +33,15 @@ class ParkdApp extends ConsumerWidget {
       redirect: (context, state) {
         final isOnAuthRoute = state.matchedLocation == '/auth';
         final isAuthenticated = session != null;
-
+      
         if (!isAuthenticated && !isOnAuthRoute) {
           return '/auth';
         }
-
+      
         if (isAuthenticated && isOnAuthRoute) {
           return '/home';
         }
-
+      
         return null;
       },
     );
