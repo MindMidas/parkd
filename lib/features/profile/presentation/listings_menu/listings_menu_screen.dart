@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/widgets/widgets.dart';
 import '../../../home/presentation/home_map_screen.dart';
+import '../earnings/earnings_screen.dart';
 import '../manage_listings/manage_listings_screen.dart';
 
 class ListingsMenuScreen extends StatelessWidget {
@@ -43,10 +44,17 @@ class ListingsMenuScreen extends StatelessWidget {
             label: 'Past Bookings',
             showTopBorder: true,
           ),
-          const AppListItem(
+          AppListItem(
             label: 'Earnings',
             showTopBorder: true,
             showBottomBorder: true,
+            onTap: () {
+              Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (_) => const EarningsScreen(),
+                ),
+              );
+            },
           ),
         ],
       ),

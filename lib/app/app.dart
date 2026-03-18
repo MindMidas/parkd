@@ -6,6 +6,7 @@ import '../core/theme/app_theme.dart';
 import '../features/auth/presentation/auth_screen.dart';
 import '../features/auth/providers/auth_providers.dart';
 import '../features/home/presentation/home_map_screen.dart';
+import '../features/profile/presentation/earnings/earnings_screen.dart';
 
 class ParkdApp extends ConsumerWidget {
   const ParkdApp({super.key});
@@ -15,7 +16,7 @@ class ParkdApp extends ConsumerWidget {
     final session = ref.watch(currentSessionProvider);
 
     final router = GoRouter(
-      initialLocation: '/',
+      initialLocation: '/earnings', // TODO: revert to '/'
       routes: [
         GoRoute(
           path: '/',
@@ -29,21 +30,25 @@ class ParkdApp extends ConsumerWidget {
           path: '/home',
           builder: (context, state) => const HomeMapScreen(),
         ),
+        GoRoute(
+          path: '/earnings',
+          builder: (context, state) => const EarningsScreen(),
+        ),
       ],
-      redirect: (context, state) {
-        final isOnAuthRoute = state.matchedLocation == '/auth';
-        final isAuthenticated = session != null;
+      // redirect: (context, state) {
+      //   final isOnAuthRoute = state.matchedLocation == '/auth';
+      //   final isAuthenticated = session != null;
 
-        if (!isAuthenticated && !isOnAuthRoute) {
-          return '/auth';
-        }
+      //   if (!isAuthenticated && !isOnAuthRoute) {
+      //     return '/auth';
+      //   }
 
-        if (isAuthenticated && isOnAuthRoute) {
-          return '/home';
-        }
+      //   if (isAuthenticated && isOnAuthRoute) {
+      //     return '/home';
+      //   }
 
-        return null;
-      },
+      //   return null;
+      // },
     );
 
     return MaterialApp.router(
