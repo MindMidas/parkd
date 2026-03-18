@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:parkd/core/widgets/app_step_top_bar.dart';
 
 import '../../../../../core/theme/app_colors.dart';
 import '../../../../../core/theme/app_spacing.dart';
@@ -7,9 +8,18 @@ import 'annotate_listing_photo_screen.dart';
 
 /// Step 1: Upload or take a photo. Continue is disabled until a photo is selected.
 class UploadListingPhotoScreen extends StatefulWidget {
-  const UploadListingPhotoScreen({super.key, required this.listingId});
+  const UploadListingPhotoScreen({
+    super.key,
+    required this.listingId,
+    this.currentStep,
+    this.totalSteps,
+    this.selectedAddress,
+  });
 
   final String listingId;
+  final int? currentStep;
+  final int? totalSteps;
+  final String? selectedAddress;
 
   @override
   State<UploadListingPhotoScreen> createState() =>
@@ -23,7 +33,12 @@ class _UploadListingPhotoScreenState extends State<UploadListingPhotoScreen> {
     if (!_hasPhoto) return;
     Navigator.of(context).push(
       MaterialPageRoute<void>(
-        builder: (_) => AnnotateListingPhotoScreen(listingId: widget.listingId),
+        builder: (_) => AnnotateListingPhotoScreen(
+          listingId: widget.listingId,
+          currentStep: widget.currentStep != null ? 3 : null,
+          totalSteps: widget.totalSteps,
+          selectedAddress: widget.selectedAddress,
+        ),
       ),
     );
   }
@@ -32,10 +47,16 @@ class _UploadListingPhotoScreenState extends State<UploadListingPhotoScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.white,
-      appBar: const AppTopBar(
-        title: 'Upload a photo',
-        showBack: true,
-      ),
+      appBar: widget.currentStep != null && widget.totalSteps != null
+          ? AppStepTopBar(
+              title: 'Upload a photo of the parking spot',
+              currentStep: widget.currentStep!,
+              totalSteps: widget.totalSteps!,
+            )
+          : AppTopBar(
+              title: 'Upload a photo of the parking spot',
+              showBack: true,
+            ),
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
@@ -87,15 +108,9 @@ class _UploadListingPhotoScreenState extends State<UploadListingPhotoScreen> {
               ),
               const SizedBox(height: AppSpacing.xl),
               if (_hasPhoto)
-                AppPrimaryButton(
-                  label: 'Continue',
-                  onPressed: _onContinue,
-                )
+                AppPrimaryButton(label: 'Continue', onPressed: _onContinue)
               else
-                AppSecondaryButton(
-                  label: 'Continue',
-                  onPressed: null,
-                ),
+                AppSecondaryButton(label: 'Continue', onPressed: null),
               const SizedBox(height: AppSpacing.lg),
             ],
           ),

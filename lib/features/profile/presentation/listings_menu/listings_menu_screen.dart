@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../create_listing/create_listing_screen.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/widgets/widgets.dart';
 import '../../../home/presentation/home_map_screen.dart';
@@ -20,9 +21,16 @@ class ListingsMenuScreen extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           const SizedBox(height: AppSpacing.xl),
-          const AppListItem(
+          AppListItem(
             label: 'Create Listing',
             showTopBorder: true,
+            onTap: () {
+              Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (_) => const CreateListingScreen(),
+                ),
+              );
+            },
           ),
           AppListItem(
             label: 'Manage Listings',
