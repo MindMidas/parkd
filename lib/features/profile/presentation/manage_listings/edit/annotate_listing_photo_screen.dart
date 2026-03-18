@@ -2,14 +2,25 @@ import 'package:flutter/material.dart';
 
 import '../../../../../core/theme/app_colors.dart';
 import '../../../../../core/theme/app_spacing.dart';
+import '../../../../../core/widgets/app_step_top_bar.dart';
 import '../../../../../core/widgets/widgets.dart';
 import 'confirmation_success_screen.dart';
+import '../../create_listing/create_listing_flow/set_availability_screen.dart';
 
 /// Step 2: Annotate the uploaded photo by dragging the marker to the parking spot.
 class AnnotateListingPhotoScreen extends StatelessWidget {
-  const AnnotateListingPhotoScreen({super.key, required this.listingId});
+  const AnnotateListingPhotoScreen({
+    super.key,
+    required this.listingId,
+    this.currentStep,
+    this.totalSteps,
+    this.selectedAddress,
+  });
 
   final String listingId;
+  final int? currentStep;
+  final int? totalSteps;
+  final String? selectedAddress;
 
   static void _noopClose() {}
 
@@ -17,10 +28,16 @@ class AnnotateListingPhotoScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.white,
-      appBar: const AppTopBar(
-        title: 'Move the marker to the exact parking spot',
-        showBack: true,
-      ),
+      appBar: currentStep != null
+          ? AppStepTopBar(
+              title: 'Move the marker to the exact parking spot',
+              currentStep: currentStep!,
+              totalSteps: totalSteps!,
+            )
+          : const AppTopBar(
+              title: 'Move the marker to the exact parking spot',
+              showBack: true,
+            ),
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
@@ -56,20 +73,47 @@ class AnnotateListingPhotoScreen extends StatelessWidget {
                     'Drivers will park at this exact location when they book.',
               ),
               const SizedBox(height: AppSpacing.xl),
-              AppPrimaryButton(
-                label: 'Confirm',
-                onPressed: () {
-                  Navigator.of(context).push(
-                    MaterialPageRoute<void>(
-                      builder: (_) => const ConfirmationSuccessScreen(
-                        message: 'Photo updated',
-                        onClose: _noopClose,
-                        popsOnClose: 3,
-                      ),
+              currentStep != null
+                  ? AppPrimaryButton(
+                      label: 'Continue',
+                      onPressed: () {
+                        Navigator.of(context).push(
+                          MaterialPageRoute<void>(
+                            builder: (_) => const SetAvailabilityScreen(
+                              listingId: 'temp-id',
+                            ),
+                          ),
+                        );
+                      },
+                    )
+                  : AppPrimaryButton(
+                      label: 'Confirm',
+                      onPressed: () {
+                        Navigator.of(context).push(
+                          MaterialPageRoute<void>(
+                            builder: (_) => const ConfirmationSuccessScreen(
+                              message: 'Photo updated',
+                              onClose: _noopClose,
+                              popsOnClose: 3,
+                            ),
+                          ),
+                        );
+                      },
                     ),
-                  );
-                },
-              ),
+              // AppPrimaryButton(
+              //   label: 'Confirm',
+              //   onPressed: () {
+              //     Navigator.of(context).push(
+              //       MaterialPageRoute<void>(
+              //         builder: (_) => const ConfirmationSuccessScreen(
+              //           message: 'Photo updated',
+              //           onClose: _noopClose,
+              //           popsOnClose: 3,
+              //         ),
+              //       ),
+              //     );
+              //   },
+              // ),
               const SizedBox(height: AppSpacing.lg),
             ],
           ),
