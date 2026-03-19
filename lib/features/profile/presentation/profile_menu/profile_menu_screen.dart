@@ -8,6 +8,7 @@ import '../../../../core/models/profile.dart';
 import '../../../../core/widgets/widgets.dart';
 import '../../providers/profile_providers.dart';
 import '../listings_menu/listings_menu_screen.dart';
+import '../settings/settings_screen.dart';
 
 class ProfileMenuScreen extends ConsumerWidget {
   const ProfileMenuScreen({super.key});
@@ -53,10 +54,17 @@ class ProfileMenuScreen extends ConsumerWidget {
               label: 'Reservations',
               showTopBorder: true,
             ),
-            const AppListItem(
+            AppListItem(
               label: 'Settings',
               showTopBorder: true,
               showBottomBorder: true,
+              onTap: () {
+                Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (_) => const SettingsScreen(),
+                  ),
+                );
+              },
             ),
             const SizedBox(height: AppSpacing.lg),
           ],
