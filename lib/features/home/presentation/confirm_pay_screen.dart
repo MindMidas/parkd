@@ -39,9 +39,7 @@ class _ConfirmPayScreenState extends State<ConfirmPayScreen> {
   double get _total => widget.subtotal + _serviceFee;
 
   String _formatDateTime(DateTime dt) {
-    return DateFormat('MMM d, y').format(dt) +
-        ' • ' +
-        DateFormat('h:mm a').format(dt);
+    return '${DateFormat('MMM d, y').format(dt)} • ${DateFormat('h:mm a').format(dt)}';
   }
 
   @override
