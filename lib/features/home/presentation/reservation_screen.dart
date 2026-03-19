@@ -4,6 +4,7 @@ import 'package:intl/intl.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_spacing.dart';
 import '../../../core/theme/app_typography.dart';
+import 'confirm_pay_screen.dart';
 
 class ReservationScreen extends StatefulWidget {
   const ReservationScreen({
@@ -11,10 +12,18 @@ class ReservationScreen extends StatefulWidget {
     required this.hourlyRate,
     required this.dailyRate,
     required this.availableWeekdays,
+    required this.streetAddress,
+    required this.cityLine,
+    required this.latitude,
+    required this.longitude,
   });
 
   final double hourlyRate;
   final double dailyRate;
+  final String streetAddress;
+  final String cityLine;
+  final double latitude;
+  final double longitude;
 
   /// Set of weekday numbers that are available (DateTime.monday == 1 .. DateTime.sunday == 7).
   final Set<int> availableWeekdays;
@@ -394,7 +403,42 @@ class _ReservationScreenState extends State<ReservationScreen> {
                   onPressed:
                       (_startDate != null && _endDate != null)
                           ? () {
-                              // TODO: navigate to next screen
+                              final start = DateTime(
+                                _startDate!.year,
+                                _startDate!.month,
+                                _startDate!.day,
+                                _startTime.hour,
+                                _startTime.minute,
+                              );
+                              final end = DateTime(
+                                _endDate!.year,
+                                _endDate!.month,
+                                _endDate!.day,
+                                _endTime.hour,
+                                _endTime.minute,
+                              );
+                              final diff = end.difference(start);
+                              final fullDays = diff.inDays;
+                              final remainingHours =
+                                  (diff.inMinutes / 60.0 - fullDays * 24)
+                                      .ceil();
+                              final subtotal = fullDays * widget.dailyRate +
+                                  remainingHours * widget.hourlyRate;
+
+                              Navigator.of(context).push(
+                                MaterialPageRoute(
+                                  builder: (_) => ConfirmPayScreen(
+                                    streetAddress: widget.streetAddress,
+                                    cityLine: widget.cityLine,
+                                    latitude: widget.latitude,
+                                    longitude: widget.longitude,
+                                    startDateTime: start,
+                                    endDateTime: end,
+                                    durationLabel: _durationLabel,
+                                    subtotal: subtotal,
+                                  ),
+                                ),
+                              );
                             }
                           : null,
                   style: ElevatedButton.styleFrom(

@@ -296,6 +296,10 @@ class ListingDetailsScreen extends StatelessWidget {
                         builder: (_) => ReservationScreen(
                           hourlyRate: 10,
                           dailyRate: 30,
+                          streetAddress: streetAddress,
+                          cityLine: cityLine,
+                          latitude: latitude,
+                          longitude: longitude,
                           availableWeekdays: {
                             DateTime.now().weekday, // Today
                             DateTime.tuesday,
