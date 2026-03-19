@@ -449,7 +449,6 @@ on public.messages(sender_id);
 
 -- =========================================================
 -- REVIEWS
--- Optional but useful since host ratings appear in the UI
 -- =========================================================
 
 create table if not exists public.reviews (
