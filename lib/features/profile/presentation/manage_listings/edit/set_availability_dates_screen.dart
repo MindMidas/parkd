@@ -5,24 +5,34 @@ import '../../../../../core/theme/app_spacing.dart';
 import '../../../../../core/theme/app_typography.dart';
 import '../../../../../core/widgets/widgets.dart';
 import 'confirmation_success_screen.dart';
+import 'modify_price_screen.dart';
 
 /// Set availability using specific dates: calendar, start/end date time, add slots, list with remove, confirm.
 class SetAvailabilityDatesScreen extends StatefulWidget {
-  const SetAvailabilityDatesScreen({super.key, required this.listingId});
+  const SetAvailabilityDatesScreen({
+    super.key,
+    required this.listingId,
+    this.currentStep,
+    this.totalSteps,
+  });
 
   final String listingId;
+  final int? currentStep;
+  final int? totalSteps;
 
   @override
   State<SetAvailabilityDatesScreen> createState() =>
       _SetAvailabilityDatesScreenState();
 }
 
-class _SetAvailabilityDatesScreenState extends State<SetAvailabilityDatesScreen> {
+class _SetAvailabilityDatesScreenState
+    extends State<SetAvailabilityDatesScreen> {
   late DateTime _currentMonth;
   DateTime? _rangeStart;
   DateTime? _rangeEnd;
 
-  static DateTime get _today => DateTime(DateTime.now().year, DateTime.now().month, DateTime.now().day);
+  static DateTime get _today =>
+      DateTime(DateTime.now().year, DateTime.now().month, DateTime.now().day);
   String _startDateTime = '9:15 AM';
   String _endDateTime = '3:00 PM';
   final List<({String from, String to})> _slots = [
@@ -39,7 +49,11 @@ class _SetAvailabilityDatesScreenState extends State<SetAvailabilityDatesScreen>
   /// All dates in the selected range for calendar highlighting (start through end inclusive).
   Set<DateTime> get _selectedDatesForCalendar {
     if (_rangeStart == null || _rangeEnd == null) {
-      if (_rangeStart != null) return {DateTime(_rangeStart!.year, _rangeStart!.month, _rangeStart!.day)};
+      if (_rangeStart != null) {
+        return {
+          DateTime(_rangeStart!.year, _rangeStart!.month, _rangeStart!.day),
+        };
+      }
       return {};
     }
     final start = _rangeStart!.isBefore(_rangeEnd!) ? _rangeStart! : _rangeEnd!;
@@ -57,21 +71,38 @@ class _SetAvailabilityDatesScreenState extends State<SetAvailabilityDatesScreen>
   static void _noopClose() {}
 
   void _onConfirm() {
-    Navigator.of(context).push(
-      MaterialPageRoute<void>(
-        builder: (_) => ConfirmationSuccessScreen(
-          message: 'Availability updated',
-          onClose: _noopClose,
-          popsOnClose: 3,
+    if (widget.currentStep != null) {
+      Navigator.of(context).push(
+        MaterialPageRoute<void>(
+          builder: (_) => ModifyPriceScreen(
+            listingId: widget.listingId,
+            slots: _slots.map((s) => '${s.from}  ${s.to}').toList(),
+            currentStep: 4,
+            totalSteps: 4,
+          ),
         ),
-      ),
-    );
+      );
+    } else {
+      Navigator.of(context).push(
+        MaterialPageRoute<void>(
+          builder: (_) => ConfirmationSuccessScreen(
+            message: 'Availability updated',
+            onClose: _noopClose,
+            popsOnClose: 3,
+          ),
+        ),
+      );
+    }
   }
 
   void _addSlot() {
     setState(() {
-      DateTime? start = _rangeStart != null ? DateTime(_rangeStart!.year, _rangeStart!.month, _rangeStart!.day) : null;
-      DateTime? end = _rangeEnd != null ? DateTime(_rangeEnd!.year, _rangeEnd!.month, _rangeEnd!.day) : null;
+      DateTime? start = _rangeStart != null
+          ? DateTime(_rangeStart!.year, _rangeStart!.month, _rangeStart!.day)
+          : null;
+      DateTime? end = _rangeEnd != null
+          ? DateTime(_rangeEnd!.year, _rangeEnd!.month, _rangeEnd!.day)
+          : null;
       if (start != null && end != null && start.isAfter(end)) {
         final t = start;
         start = end;
@@ -92,7 +123,20 @@ class _SetAvailabilityDatesScreenState extends State<SetAvailabilityDatesScreen>
   }
 
   static String _formatDate(DateTime d) {
-    const m = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    const m = [
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec',
+    ];
     return '${m[d.month - 1]} ${d.day}, ${d.year}';
   }
 
@@ -100,10 +144,7 @@ class _SetAvailabilityDatesScreenState extends State<SetAvailabilityDatesScreen>
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.white,
-      appBar: const AppTopBar(
-        title: 'Set your specific dates',
-        showBack: true,
-      ),
+      appBar: const AppTopBar(title: 'Set your specific dates', showBack: true),
       body: SafeArea(
         child: Center(
           child: ConstrainedBox(
@@ -155,7 +196,11 @@ class _SetAvailabilityDatesScreenState extends State<SetAvailabilityDatesScreen>
                       }),
                       onDayTap: (date) {
                         setState(() {
-                          final dayOnly = DateTime(date.year, date.month, date.day);
+                          final dayOnly = DateTime(
+                            date.year,
+                            date.month,
+                            date.day,
+                          );
                           if (_rangeStart == null) {
                             _rangeStart = dayOnly;
                             _rangeEnd = dayOnly;
@@ -177,15 +222,19 @@ class _SetAvailabilityDatesScreenState extends State<SetAvailabilityDatesScreen>
                       label: 'Start date time',
                       value: _startDateTime,
                       labelWidth: 120,
-                      onDecrement: () => setState(() => _startDateTime = '9:00 AM'),
-                      onIncrement: () => setState(() => _startDateTime = '9:30 AM'),
+                      onDecrement: () =>
+                          setState(() => _startDateTime = '9:00 AM'),
+                      onIncrement: () =>
+                          setState(() => _startDateTime = '9:30 AM'),
                     ),
                     AppTimeStepperRow(
                       label: 'End date time',
                       value: _endDateTime,
                       labelWidth: 120,
-                      onDecrement: () => setState(() => _endDateTime = '2:30 PM'),
-                      onIncrement: () => setState(() => _endDateTime = '3:30 PM'),
+                      onDecrement: () =>
+                          setState(() => _endDateTime = '2:30 PM'),
+                      onIncrement: () =>
+                          setState(() => _endDateTime = '3:30 PM'),
                     ),
                     const SizedBox(height: AppSpacing.md),
                     AppPrimaryButton(label: 'Add slot', onPressed: _addSlot),

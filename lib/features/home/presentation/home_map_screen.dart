@@ -72,7 +72,7 @@ class _HomeMapScreenState extends ConsumerState<HomeMapScreen> {
   Future<void> _searchAddress(String query) async {
     try {
       final uri = Uri.parse(
-        'https://nominatim.openstreetmap.org/search?q=${Uri.encodeQueryComponent('$query, Guelph, Ontario')}&format=json&limit=5&addressdetails=1&countrycodes=ca',
+        'https://corsproxy.io/?https://nominatim.openstreetmap.org/search?q=${Uri.encodeQueryComponent('$query, Guelph, Ontario')}&format=json&limit=5&addressdetails=1&countrycodes=ca',
       );
       final response = await http.get(uri, headers: {
         'User-Agent': 'parkd-app/1.0',
