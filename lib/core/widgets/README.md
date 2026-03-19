@@ -1,6 +1,6 @@
 # Shared widgets
 
-This folder has all the reusable UI bits we use across the app. If you need a button, a list row, a calendar, etc., check here first—chances are we’ve already got something you can use. Keep everything generic (no feature-specific stuff) so anyone can drop it into any screen.
+SHARED WIDGETS TO BE RESUED ACROSS THE APP
 
 Path: `lib/core/widgets/`
 
