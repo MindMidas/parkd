@@ -22,7 +22,6 @@ class AddLocationScreen extends ConsumerStatefulWidget {
 
 class _AddLocationScreenState extends ConsumerState<AddLocationScreen> {
   final TextEditingController _searchController = TextEditingController();
-  String _selectedAddress = '';
   List<SearchResult> _cachedResults = []; // store full results here
 
   @override
@@ -101,8 +100,6 @@ class _AddLocationScreenState extends ConsumerState<AddLocationScreen> {
                       final address = result.houseNumber.isNotEmpty
                           ? '${result.houseNumber} ${result.road}'
                           : result.road;
-
-                      setState(() => _selectedAddress = result.displayName);
                       Navigator.of(context).push(
                         MaterialPageRoute(
                           builder: (_) => UploadListingPhotoScreen(
