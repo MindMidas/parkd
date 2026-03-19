@@ -4,6 +4,7 @@ import 'package:intl/intl.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_spacing.dart';
 import '../../../core/theme/app_typography.dart';
+import '../../../core/widgets/widgets.dart';
 import 'confirm_pay_screen.dart';
 
 class ReservationScreen extends StatefulWidget {
@@ -37,14 +38,6 @@ class _ReservationScreenState extends State<ReservationScreen> {
   DateTime? _endDate;
   TimeOfDay _startTime = const TimeOfDay(hour: 9, minute: 0);
   TimeOfDay _endTime = const TimeOfDay(hour: 15, minute: 0);
-
-  late DateTime _displayedMonth;
-
-  @override
-  void initState() {
-    super.initState();
-    _displayedMonth = DateTime(DateTime.now().year, DateTime.now().month);
-  }
 
   // -----------------------------------------------------------------------
   // Price calculation: $dailyRate per full day + $hourlyRate per extra hour
@@ -113,58 +106,6 @@ class _ReservationScreenState extends State<ReservationScreen> {
     return parts.join(' and ');
   }
 
-  // -----------------------------------------------------------------------
-  // Calendar helpers
-  // -----------------------------------------------------------------------
-  int _daysInMonth(DateTime month) =>
-      DateTime(month.year, month.month + 1, 0).day;
-
-  int _firstWeekdayOffset(DateTime month) =>
-      DateTime(month.year, month.month, 1).weekday; // Mon=1 .. Sun=7
-
-  void _prevMonth() {
-    setState(() {
-      _displayedMonth =
-          DateTime(_displayedMonth.year, _displayedMonth.month - 1);
-    });
-  }
-
-  void _nextMonth() {
-    setState(() {
-      _displayedMonth =
-          DateTime(_displayedMonth.year, _displayedMonth.month + 1);
-    });
-  }
-
-  bool _isAvailable(DateTime day) {
-    return widget.availableWeekdays.contains(day.weekday);
-  }
-
-  void _onDayTapped(DateTime day) {
-    if (!_isAvailable(day)) return;
-    setState(() {
-      if (_startDate == null || (_startDate != null && _endDate != null)) {
-        _startDate = day;
-        _endDate = null;
-      } else {
-        if (day.isBefore(_startDate!)) {
-          _endDate = _startDate;
-          _startDate = day;
-        } else {
-          _endDate = day;
-        }
-      }
-    });
-  }
-
-  bool _isInRange(DateTime day) {
-    if (_startDate == null || _endDate == null) return false;
-    return day.isAfter(_startDate!) && day.isBefore(_endDate!);
-  }
-
-  bool _isSameDay(DateTime a, DateTime b) =>
-      a.year == b.year && a.month == b.month && a.day == b.day;
-
   Future<void> _pickTime({required bool isStart}) async {
     final initial = isStart ? _startTime : _endTime;
     final picked = await showTimePicker(
@@ -204,11 +145,6 @@ class _ReservationScreenState extends State<ReservationScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final monthLabel =
-        DateFormat('MMM yyyy').format(_displayedMonth);
-    final daysInMonth = _daysInMonth(_displayedMonth);
-    final offset = _firstWeekdayOffset(_displayedMonth); // 1=Mon..7=Sun
-
     return Scaffold(
       backgroundColor: Colors.white,
       body: SafeArea(
@@ -256,127 +192,45 @@ class _ReservationScreenState extends State<ReservationScreen> {
                   children: [
                     const SizedBox(height: AppSpacing.lg),
                     // --- Set start and end dates label ---
-                    Center(
-                      child: Text(
-                        'Set start and end dates',
-                        style: AppTypography.caption.copyWith(
-                          color: AppColors.textSecondary,
-                        ),
-                      ),
+                    const Center(
+                      child: AppSectionLabel('Set start and end dates'),
                     ),
                     const SizedBox(height: AppSpacing.sm),
                     // --- Calendar card ---
-                    Container(
-                      decoration: BoxDecoration(
-                        border: Border.all(
-                          color: AppColors.secondaryGrey.withValues(
-                            alpha: 0.5,
-                          ),
-                        ),
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      padding: const EdgeInsets.all(AppSpacing.md),
-                      child: Column(
-                        children: [
-                          // Month nav
-                          Row(
-                            mainAxisAlignment:
-                                MainAxisAlignment.spaceBetween,
-                            children: [
-                              Text(
-                                monthLabel,
-                                style: AppTypography.body.copyWith(
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
-                              Row(
-                                children: [
-                                  GestureDetector(
-                                    onTap: _prevMonth,
-                                    child: const Icon(
-                                      Icons.chevron_left,
-                                      size: 22,
-                                      color: AppColors.textPrimary,
-                                    ),
-                                  ),
-                                  const SizedBox(width: 8),
-                                  GestureDetector(
-                                    onTap: _nextMonth,
-                                    child: const Icon(
-                                      Icons.chevron_right,
-                                      size: 22,
-                                      color: AppColors.textPrimary,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: AppSpacing.md),
-                          // Weekday headers
-                          Row(
-                            mainAxisAlignment:
-                                MainAxisAlignment.spaceAround,
-                            children: ['MO', 'TU', 'WE', 'TH', 'FR', 'SA', 'SU']
-                                .map(
-                                  (d) => SizedBox(
-                                    width: 36,
-                                    child: Center(
-                                      child: Text(
-                                        d,
-                                        style:
-                                            AppTypography.caption.copyWith(
-                                          fontWeight: FontWeight.w600,
-                                          color: AppColors.textSecondary,
-                                          fontSize: 11,
-                                        ),
-                                      ),
-                                    ),
-                                  ),
-                                )
-                                .toList(),
-                          ),
-                          const SizedBox(height: AppSpacing.sm),
-                          // Day grid
-                          _buildDayGrid(daysInMonth, offset),
-                        ],
-                      ),
+                    AppDateRangeCalendar(
+                      startDate: _startDate,
+                      endDate: _endDate,
+                      availableWeekdays: widget.availableWeekdays,
+                      onRangeChanged: (start, end) {
+                        setState(() {
+                          _startDate = start;
+                          _endDate = end;
+                        });
+                      },
                     ),
                     const SizedBox(height: AppSpacing.lg),
                     // --- Set start and end time label ---
-                    Center(
-                      child: Text(
-                        'Set start and end time',
-                        style: AppTypography.caption.copyWith(
-                          color: AppColors.textSecondary,
-                        ),
-                      ),
+                    const Center(
+                      child: AppSectionLabel('Set start and end time'),
                     ),
                     const Divider(height: AppSpacing.lg),
                     // --- Start time ---
-                    _buildTimeRow(
+                    AppTimePickerRow(
                       label: 'Start time',
-                      value:
-                          '${_formatDate(_startDate)} • ${_formatTime(_startTime)}',
+                      value: '${_formatDate(_startDate)} • ${_formatTime(_startTime)}',
                       onTap: () => _pickTime(isStart: true),
                     ),
                     const SizedBox(height: AppSpacing.sm),
                     // --- End time ---
-                    _buildTimeRow(
+                    AppTimePickerRow(
                       label: 'End time',
-                      value:
-                          '${_formatDate(_endDate)} • ${_formatTime(_endTime)}',
+                      value: '${_formatDate(_endDate)} • ${_formatTime(_endTime)}',
                       onTap: () => _pickTime(isStart: false),
                     ),
                     const SizedBox(height: AppSpacing.lg),
                     // --- Reservation total ---
-                    Center(
-                      child: Text(
-                        'Reservation total',
-                        style: AppTypography.caption.copyWith(
-                          color: AppColors.textSecondary,
-                        ),
-                      ),
+                    const Center(
+                      child: AppSectionLabel('Reservation total'),
                     ),
                     const Divider(height: AppSpacing.lg),
                     Text(
@@ -467,117 +321,4 @@ class _ReservationScreenState extends State<ReservationScreen> {
     );
   }
 
-  // -----------------------------------------------------------------------
-  // Calendar grid
-  // -----------------------------------------------------------------------
-  Widget _buildDayGrid(int daysInMonth, int firstWeekday) {
-    // firstWeekday: Mon=1..Sun=7  →  blanks before day 1 = firstWeekday - 1
-    final blanks = firstWeekday - 1;
-    final totalCells = blanks + daysInMonth;
-    final rows = (totalCells / 7).ceil();
-
-    return Column(
-      children: List.generate(rows, (row) {
-        return Padding(
-          padding: const EdgeInsets.only(bottom: 4),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceAround,
-            children: List.generate(7, (col) {
-              final index = row * 7 + col;
-              if (index < blanks || index >= blanks + daysInMonth) {
-                return const SizedBox(width: 36, height: 36);
-              }
-              final day = index - blanks + 1;
-              final date = DateTime(
-                _displayedMonth.year,
-                _displayedMonth.month,
-                day,
-              );
-
-              final available = _isAvailable(date);
-              final isStart =
-                  _startDate != null && _isSameDay(date, _startDate!);
-              final isEnd =
-                  _endDate != null && _isSameDay(date, _endDate!);
-              final inRange = _isInRange(date);
-
-              Color bgColor = Colors.transparent;
-              Color textColor = available
-                  ? AppColors.textPrimary
-                  : AppColors.textSecondary.withValues(alpha: 0.35);
-
-              if (available) {
-                if (isStart) {
-                  bgColor =
-                      AppColors.textSecondary.withValues(alpha: 0.3);
-                  textColor = AppColors.textPrimary;
-                } else if (isEnd) {
-                  bgColor = AppColors.primaryBlue;
-                  textColor = Colors.white;
-                } else if (inRange) {
-                  bgColor =
-                      AppColors.primaryBlue.withValues(alpha: 0.1);
-                }
-              }
-
-              return GestureDetector(
-                onTap: () => _onDayTapped(date),
-                child: Container(
-                  width: 36,
-                  height: 36,
-                  decoration: BoxDecoration(
-                    color: bgColor,
-                    shape: BoxShape.circle,
-                  ),
-                  alignment: Alignment.center,
-                  child: Text(
-                    '$day',
-                    style: AppTypography.body.copyWith(
-                      color: textColor,
-                      fontWeight:
-                          (isStart || isEnd) ? FontWeight.w600 : null,
-                    ),
-                  ),
-                ),
-              );
-            }),
-          ),
-        );
-      }),
-    );
-  }
-
-  // -----------------------------------------------------------------------
-  // Time row
-  // -----------------------------------------------------------------------
-  Widget _buildTimeRow({
-    required String label,
-    required String value,
-    required VoidCallback onTap,
-  }) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Row(
-        children: [
-          SizedBox(
-            width: 80,
-            child: Text(
-              label,
-              style: AppTypography.body.copyWith(
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-          ),
-          const SizedBox(width: AppSpacing.md),
-          Expanded(
-            child: Text(value, style: AppTypography.body),
-          ),
-          const Icon(
-            Icons.keyboard_arrow_down,
-            color: AppColors.primaryBlue,
-          ),
-        ],
-      ),
-    );
-  }
 }

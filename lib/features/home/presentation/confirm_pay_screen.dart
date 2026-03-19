@@ -4,6 +4,7 @@ import 'package:intl/intl.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_spacing.dart';
 import '../../../core/theme/app_typography.dart';
+import '../../../core/widgets/widgets.dart';
 import 'payment_success_screen.dart';
 
 class ConfirmPayScreen extends StatefulWidget {
@@ -89,7 +90,7 @@ class _ConfirmPayScreenState extends State<ConfirmPayScreen> {
                   children: [
                     const SizedBox(height: AppSpacing.lg),
                     // --- Parking spot ---
-                    _buildSectionLabel('Parking spot'),
+                    const AppSectionLabel('Parking spot'),
                     const SizedBox(height: AppSpacing.sm),
                     Text(
                       widget.streetAddress,
@@ -107,23 +108,23 @@ class _ConfirmPayScreenState extends State<ConfirmPayScreen> {
                     const Divider(),
                     const SizedBox(height: AppSpacing.md),
                     // --- Reservation ---
-                    _buildSectionLabel('Reservation'),
+                    const AppSectionLabel('Reservation'),
                     const SizedBox(height: AppSpacing.sm),
-                    _buildRow('From', _formatDateTime(widget.startDateTime)),
+                    AppLabelValueRow(label: 'From', value: _formatDateTime(widget.startDateTime)),
                     const SizedBox(height: AppSpacing.xs),
-                    _buildRow('To', _formatDateTime(widget.endDateTime)),
+                    AppLabelValueRow(label: 'To', value: _formatDateTime(widget.endDateTime)),
                     const SizedBox(height: AppSpacing.md),
                     const Divider(),
                     const SizedBox(height: AppSpacing.md),
                     // --- Duration ---
-                    _buildSectionLabel('Duration'),
+                    const AppSectionLabel('Duration'),
                     const SizedBox(height: AppSpacing.sm),
                     Text(widget.durationLabel, style: AppTypography.body),
                     const SizedBox(height: AppSpacing.md),
                     const Divider(),
                     const SizedBox(height: AppSpacing.md),
                     // --- Price Breakdown ---
-                    _buildSectionLabel('Price Breakdown'),
+                    const AppSectionLabel('Price Breakdown'),
                     const SizedBox(height: AppSpacing.sm),
                     Text(
                       'Subtotal: \$${widget.subtotal.toStringAsFixed(2)}',
@@ -143,67 +144,20 @@ class _ConfirmPayScreenState extends State<ConfirmPayScreen> {
                     const Divider(),
                     const SizedBox(height: AppSpacing.md),
                     // --- Payment Method ---
-                    _buildSectionLabel('Payment Method'),
+                    const AppSectionLabel('Payment Method'),
                     const SizedBox(height: AppSpacing.sm),
-                    _buildPaymentMethodCard(),
+                    const AppPaymentMethodPill(brand: 'Visa', lastFour: '4242'),
                     const SizedBox(height: AppSpacing.lg),
                     // --- Terms ---
-                    Text(
-                      "By completing this reservation, you agree to Parkd's Terms of Service and Parking Policies.",
-                      style: AppTypography.body.copyWith(
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                    const SizedBox(height: AppSpacing.sm),
-                    Container(
-                      padding: const EdgeInsets.all(AppSpacing.md),
-                      decoration: BoxDecoration(
-                        color: AppColors.secondaryGrey.withValues(alpha: 0.15),
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      height: 100,
-                      child: SingleChildScrollView(
-                        child: Text(
-                          'Please read the following terms carefully before '
+                    AppTermsCheckbox(
+                      heading: "By completing this reservation, you agree to Parkd's Terms of Service and Parking Policies.",
+                      termsText: 'Please read the following terms carefully before '
                           'publishing your parking listing on Parkd. By '
                           'creating and publishing a listing, you agree to '
                           'comply with these terms.',
-                          style: AppTypography.caption.copyWith(
-                            color: AppColors.textSecondary,
-                          ),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: AppSpacing.md),
-                    // --- Checkbox ---
-                    Row(
-                      children: [
-                        SizedBox(
-                          width: 24,
-                          height: 24,
-                          child: Checkbox(
-                            value: _agreedToTerms,
-                            onChanged: (v) =>
-                                setState(() => _agreedToTerms = v ?? false),
-                            activeColor: AppColors.primaryBlue,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(4),
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: AppSpacing.sm),
-                        Expanded(
-                          child: GestureDetector(
-                            onTap: () => setState(
-                              () => _agreedToTerms = !_agreedToTerms,
-                            ),
-                            child: Text(
-                              'I agree to the Parkd Terms and Conditions',
-                              style: AppTypography.body,
-                            ),
-                          ),
-                        ),
-                      ],
+                      checkboxLabel: 'I agree to the Parkd Terms and Conditions',
+                      value: _agreedToTerms,
+                      onChanged: (v) => setState(() => _agreedToTerms = v),
                     ),
                     const SizedBox(height: AppSpacing.lg),
                   ],
@@ -267,72 +221,4 @@ class _ConfirmPayScreenState extends State<ConfirmPayScreen> {
     );
   }
 
-  Widget _buildSectionLabel(String text) {
-    return Text(
-      text,
-      style: AppTypography.caption.copyWith(
-        color: AppColors.textSecondary,
-      ),
-    );
-  }
-
-  Widget _buildRow(String label, String value) {
-    return Row(
-      children: [
-        SizedBox(
-          width: 60,
-          child: Text(
-            label,
-            style: AppTypography.body.copyWith(
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-        ),
-        const SizedBox(width: AppSpacing.lg),
-        Expanded(
-          child: Text(value, style: AppTypography.body),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildPaymentMethodCard() {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.symmetric(
-        horizontal: AppSpacing.lg,
-        vertical: AppSpacing.md,
-      ),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(26),
-        border: Border.all(color: AppColors.primaryBlue),
-      ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Text(
-            'Visa',
-            style: AppTypography.body.copyWith(
-              color: AppColors.primaryBlue,
-              fontWeight: FontWeight.w700,
-              fontStyle: FontStyle.italic,
-            ),
-          ),
-          Text(
-            ' •••• 4242',
-            style: AppTypography.body.copyWith(
-              color: AppColors.primaryBlue,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-          const SizedBox(width: 4),
-          const Icon(
-            Icons.chevron_right,
-            size: 18,
-            color: AppColors.primaryBlue,
-          ),
-        ],
-      ),
-    );
-  }
 }
