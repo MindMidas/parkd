@@ -3,7 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../core/theme/app_theme.dart';
-import '../features/auth/presentation/auth_screen.dart';
+import '../features/auth/presentation/login_signup_screen.dart';
 import '../features/auth/providers/auth_providers.dart';
 import '../features/home/presentation/home_map_screen.dart';
 
@@ -23,7 +23,7 @@ class ParkdApp extends ConsumerWidget {
         ),
         GoRoute(
           path: '/auth',
-          builder: (context, state) => const AuthScreen(),
+          builder: (context, state) => const LoginSignupScreen(),
         ),
         GoRoute(
           path: '/home',
