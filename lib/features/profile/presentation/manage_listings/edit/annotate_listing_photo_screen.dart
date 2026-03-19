@@ -5,7 +5,7 @@ import '../../../../../core/theme/app_spacing.dart';
 import '../../../../../core/widgets/app_step_top_bar.dart';
 import '../../../../../core/widgets/widgets.dart';
 import 'confirmation_success_screen.dart';
-import '../../create_listing/create_listing_flow/set_availability_screen.dart';
+import 'set_availability_chooser_screen.dart';
 
 /// Step 2: Annotate the uploaded photo by dragging the marker to the parking spot.
 class AnnotateListingPhotoScreen extends StatelessWidget {
@@ -49,19 +49,13 @@ class AnnotateListingPhotoScreen extends StatelessWidget {
                 child: AspectRatio(
                   aspectRatio: 4 / 3,
                   child: AppAnnotatePhoto(
-                    image: Container(
-                      width: double.infinity,
-                      height: double.infinity,
-                      decoration: BoxDecoration(
-                        color: AppColors.secondaryBlue.withValues(alpha: 0.35),
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: Center(
-                        child: Icon(
-                          Icons.home_rounded,
-                          size: 80,
-                          color: AppColors.primaryBlue.withValues(alpha: 0.5),
-                        ),
+                    image: ClipRRect(
+                      borderRadius: BorderRadius.circular(12),
+                      child: Image.asset(
+                        'assets/house-with-concrete-driveway-05-090318.jpg',
+                        width: double.infinity,
+                        height: double.infinity,
+                        fit: BoxFit.cover,
                       ),
                     ),
                   ),
@@ -79,7 +73,7 @@ class AnnotateListingPhotoScreen extends StatelessWidget {
                       onPressed: () {
                         Navigator.of(context).push(
                           MaterialPageRoute<void>(
-                            builder: (_) => const SetAvailabilityScreen(
+                            builder: (_) => const SetAvailabilityChooserScreen(
                               listingId: 'temp-id',
                             ),
                           ),

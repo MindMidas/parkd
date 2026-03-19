@@ -5,12 +5,20 @@ import '../../../../../core/theme/app_spacing.dart';
 import '../../../../../core/theme/app_typography.dart';
 import '../../../../../core/widgets/widgets.dart';
 import 'confirmation_success_screen.dart';
+import 'modify_price_screen.dart';
 
 /// Set availability using weekly schedule: days + start/end time, add slots, list with remove, confirm.
 class SetAvailabilityWeeklyScreen extends StatefulWidget {
-  const SetAvailabilityWeeklyScreen({super.key, required this.listingId});
+  const SetAvailabilityWeeklyScreen({
+    super.key,
+    required this.listingId,
+    this.currentStep,
+    this.totalSteps,
+  });
 
   final String listingId;
+  final int? currentStep;
+  final int? totalSteps;
 
   @override
   State<SetAvailabilityWeeklyScreen> createState() =>
@@ -31,15 +39,28 @@ class _SetAvailabilityWeeklyScreenState
   static void _noopClose() {}
 
   void _onConfirm() {
-    Navigator.of(context).push(
-      MaterialPageRoute<void>(
-        builder: (_) => ConfirmationSuccessScreen(
-          message: 'Availability updated',
-          onClose: _noopClose,
-          popsOnClose: 3,
+    if (widget.currentStep != null) {
+      Navigator.of(context).push(
+        MaterialPageRoute<void>(
+          builder: (_) => ModifyPriceScreen(
+            listingId: widget.listingId,
+            slots: _slots.map((s) => '${s.day}  ${s.timeRange}').toList(),
+            currentStep: 4,
+            totalSteps: 4,
+          ),
         ),
-      ),
-    );
+      );
+    } else {
+      Navigator.of(context).push(
+        MaterialPageRoute<void>(
+          builder: (_) => ConfirmationSuccessScreen(
+            message: 'Availability updated',
+            onClose: _noopClose,
+            popsOnClose: 3,
+          ),
+        ),
+      );
+    }
   }
 
   void _addSlot() {

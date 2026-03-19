@@ -75,10 +75,11 @@ class _UploadListingPhotoScreenState extends State<UploadListingPhotoScreen> {
                   child: _hasPhoto
                       ? ClipRRect(
                           borderRadius: BorderRadius.circular(12),
-                          child: Icon(
-                            Icons.image_rounded,
-                            size: 80,
-                            color: AppColors.primaryBlue.withValues(alpha: 0.6),
+                          child: Image.asset(
+                            'assets/house-with-concrete-driveway-05-090318.jpg',
+                            width: double.infinity,
+                            height: double.infinity,
+                            fit: BoxFit.cover,
                           ),
                         )
                       : Center(
