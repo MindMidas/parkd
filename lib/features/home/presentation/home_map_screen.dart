@@ -4,7 +4,6 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:http/http.dart' as http;
-import 'package:latlong2/latlong.dart';
 
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_spacing.dart';
@@ -12,6 +11,7 @@ import '../../../core/theme/app_typography.dart';
 import '../../../core/widgets/widgets.dart';
 import '../../profile/presentation/profile_menu/profile_menu_screen.dart';
 import 'book_listing_screen.dart';
+import 'map.dart';
 
 class HomeMapScreen extends ConsumerStatefulWidget {
   const HomeMapScreen({super.key, this.initialIndex = 0});
@@ -147,96 +147,88 @@ class _HomeMapScreenState extends ConsumerState<HomeMapScreen> {
                 child: Stack(
                   children: [
                     const MapView(),
+                    // Search bar + results overlay
                     Positioned(
                       top: 0,
                       left: 0,
                       right: 0,
-                      child: Container(
-                        width: double.infinity,
-                        color: Colors.white,
-                        padding: const EdgeInsets.all(AppSpacing.lg),
-                        child: const AppSearchField(),
-                      ),
-                    ],
-                  ),
-                  // Search bar + results overlay
-                  Positioned(
-                    top: 0,
-                    left: 0,
-                    right: 0,
-                    child: Column(
-                      children: [
-                        Container(
-                          width: double.infinity,
-                          color: Colors.white,
-                          padding: const EdgeInsets.all(AppSpacing.lg),
-                          child: AppSearchField(
-                            controller: _searchController,
-                            hintText: 'Search address',
-                            onChanged: _onSearchChanged,
-                          ),
-                        ),
-                        if (_isSearching)
+                      child: Column(
+                        children: [
                           Container(
                             width: double.infinity,
                             color: Colors.white,
-                            padding: const EdgeInsets.symmetric(
-                              vertical: AppSpacing.sm,
+                            padding: const EdgeInsets.all(AppSpacing.lg),
+                            child: AppSearchField(
+                              controller: _searchController,
+                              hintText: 'Search address',
+                              onChanged: _onSearchChanged,
                             ),
-                            child: const Center(
-                              child: SizedBox(
-                                width: 20,
-                                height: 20,
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 2,
-                                  color: AppColors.primaryBlue,
+                          ),
+                          if (_isSearching)
+                            Container(
+                              width: double.infinity,
+                              color: Colors.white,
+                              padding: const EdgeInsets.symmetric(
+                                vertical: AppSpacing.sm,
+                              ),
+                              child: const Center(
+                                child: SizedBox(
+                                  width: 20,
+                                  height: 20,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    color: AppColors.primaryBlue,
+                                  ),
                                 ),
                               ),
                             ),
-                          ),
-                        if (_showResults && _searchResults.isNotEmpty)
-                          Container(
-                            constraints: const BoxConstraints(maxHeight: 300),
-                            margin: const EdgeInsets.symmetric(
-                              horizontal: AppSpacing.lg,
-                            ),
-                            decoration: BoxDecoration(
-                              color: Colors.white,
-                              borderRadius: BorderRadius.circular(12),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: Colors.black.withValues(alpha: 0.1),
-                                  blurRadius: 8,
-                                  offset: const Offset(0, 4),
-                                ),
-                              ],
-                            ),
-                            child: ListView.separated(
-                              shrinkWrap: true,
-                              padding: EdgeInsets.zero,
-                              itemCount: _searchResults.length,
-                              separatorBuilder: (_, _) => const AppDivider(),
-                              itemBuilder: (context, index) {
-                                final result = _searchResults[index];
-                                return ListTile(
-                                  leading: const Icon(
-                                    Icons.location_on_outlined,
-                                    color: AppColors.primaryBlue,
-                                    size: 20,
+                          if (_showResults && _searchResults.isNotEmpty)
+                            Container(
+                              constraints:
+                                  const BoxConstraints(maxHeight: 300),
+                              margin: const EdgeInsets.symmetric(
+                                horizontal: AppSpacing.lg,
+                              ),
+                              decoration: BoxDecoration(
+                                color: Colors.white,
+                                borderRadius: BorderRadius.circular(12),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color:
+                                        Colors.black.withValues(alpha: 0.1),
+                                    blurRadius: 8,
+                                    offset: const Offset(0, 4),
                                   ),
-                                  title: Text(
-                                    result.displayName,
-                                    style: AppTypography.body,
-                                    maxLines: 2,
-                                    overflow: TextOverflow.ellipsis,
-                                  ),
-                                  dense: true,
-                                  onTap: () => _onResultTapped(result),
-                                );
-                              },
+                                ],
+                              ),
+                              child: ListView.separated(
+                                shrinkWrap: true,
+                                padding: EdgeInsets.zero,
+                                itemCount: _searchResults.length,
+                                separatorBuilder: (_, i) =>
+                                    const AppDivider(),
+                                itemBuilder: (context, index) {
+                                  final result = _searchResults[index];
+                                  return ListTile(
+                                    leading: const Icon(
+                                      Icons.location_on_outlined,
+                                      color: AppColors.primaryBlue,
+                                      size: 20,
+                                    ),
+                                    title: Text(
+                                      result.displayName,
+                                      style: AppTypography.body,
+                                      maxLines: 2,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                    dense: true,
+                                    onTap: () => _onResultTapped(result),
+                                  );
+                                },
+                              ),
                             ),
-                          ),
-                      ],
+                        ],
+                      ),
                     ),
                   ],
                 ),
