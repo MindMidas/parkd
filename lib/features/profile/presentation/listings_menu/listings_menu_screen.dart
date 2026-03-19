@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
 
+import '../create_listing/create_listing_screen.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/widgets/widgets.dart';
 import '../../../home/presentation/home_map_screen.dart';
+import '../active_bookings/active_bookings_screen.dart';
 import '../manage_listings/manage_listings_screen.dart';
+import '../past_bookings/past_bookings_screen.dart';
 
 class ListingsMenuScreen extends StatelessWidget {
   const ListingsMenuScreen({super.key});
@@ -20,9 +23,16 @@ class ListingsMenuScreen extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           const SizedBox(height: AppSpacing.xl),
-          const AppListItem(
+          AppListItem(
             label: 'Create Listing',
             showTopBorder: true,
+            onTap: () {
+              Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (_) => const CreateListingScreen(),
+                ),
+              );
+            },
           ),
           AppListItem(
             label: 'Manage Listings',
@@ -35,13 +45,27 @@ class ListingsMenuScreen extends StatelessWidget {
               );
             },
           ),
-          const AppListItem(
+          AppListItem(
             label: 'Active Bookings',
             showTopBorder: true,
+            onTap: () {
+              Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (_) => const ActiveBookingsScreen(),
+                ),
+              );
+            },
           ),
-          const AppListItem(
+          AppListItem(
             label: 'Past Bookings',
             showTopBorder: true,
+            onTap: () {
+              Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (_) => const PastBookingsScreen(),
+                ),
+              );
+            },
           ),
           const AppListItem(
             label: 'Earnings',

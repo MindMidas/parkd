@@ -55,11 +55,11 @@ class AppTheme {
         style: FilledButton.styleFrom(
           backgroundColor: AppColors.primaryBlue,
           foregroundColor: Colors.white,
-          minimumSize: const Size.fromHeight(48),
+          minimumSize: const Size.fromHeight(52),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(12),
           ),
-          textStyle: AppTypography.button,
+          textStyle: AppTypography.button.copyWith(fontSize: 14),
         ),
       ),
       outlinedButtonTheme: OutlinedButtonThemeData(
