@@ -71,7 +71,6 @@ class BookingConversationScreen extends StatelessWidget {
               ],
             ),
           ),
-          const _MessageComposer(),
         ],
       ),
     );
@@ -129,58 +128,3 @@ class _MessageBubble extends StatelessWidget {
   }
 }
 
-class _MessageComposer extends StatelessWidget {
-  const _MessageComposer();
-
-  @override
-  Widget build(BuildContext context) {
-    return SafeArea(
-      top: false,
-      child: Container(
-        padding: const EdgeInsets.fromLTRB(
-          AppSpacing.md,
-          AppSpacing.sm,
-          AppSpacing.md,
-          AppSpacing.sm,
-        ),
-        decoration: const BoxDecoration(
-          color: Colors.white,
-          border: Border(
-            top: BorderSide(color: AppColors.secondaryGrey),
-          ),
-        ),
-        child: Row(
-          children: [
-            IconButton(
-              onPressed: () {},
-              icon: const Icon(
-                Icons.add_circle_rounded,
-                color: AppColors.primaryBlue,
-                size: 28,
-              ),
-            ),
-            const SizedBox(width: AppSpacing.xs),
-            Expanded(
-              child: TextField(
-                decoration: InputDecoration(
-                  hintText: 'Type a message',
-                  hintStyle: AppTypography.body.copyWith(
-                    color: AppColors.textSecondary,
-                  ),
-                ),
-              ),
-            ),
-            const SizedBox(width: AppSpacing.xs),
-            IconButton(
-              onPressed: () {},
-              icon: const Icon(
-                Icons.send_rounded,
-                color: AppColors.primaryBlue,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}

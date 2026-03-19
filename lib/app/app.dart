@@ -15,7 +15,7 @@ class ParkdApp extends ConsumerWidget {
     final session = ref.watch(currentSessionProvider);
 
     final router = GoRouter(
-      initialLocation: '/all-cards', // TODO: revert to '/'
+      initialLocation: '/', // TODO: revert to '/'
       routes: [
         GoRoute(
           path: '/',
