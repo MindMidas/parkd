@@ -33,11 +33,13 @@ class AppSecondaryButton extends StatelessWidget {
   const AppSecondaryButton({
     super.key,
     required this.label,
+    this.icon,
     required this.onPressed,
   });
 
   final String label;
   final VoidCallback? onPressed;
+  final IconData? icon;
 
   static String _formatLabel(String text) {
     if (text.isEmpty) return text;

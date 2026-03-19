@@ -8,13 +8,23 @@ import '../../../../../core/theme/app_typography.dart';
 import '../../../../../core/widgets/widgets.dart';
 import '../../../providers/profile_providers.dart';
 import 'confirmation_success_screen.dart';
+import '../../create_listing/create_listing_flow/terms_and_conditions_screen.dart';
 
 /// Edit listing price: hourly and daily steppers, then confirm -> success.
 /// Initial values come from [listingId] via [listingByIdProvider] when available.
 class ModifyPriceScreen extends ConsumerStatefulWidget {
-  const ModifyPriceScreen({super.key, required this.listingId});
+  const ModifyPriceScreen({
+    super.key,
+    required this.listingId,
+    this.slots = const [],
+    this.currentStep,
+    this.totalSteps,
+  });
 
   final String listingId;
+  final int? currentStep;
+  final int? totalSteps;
+  final List<String> slots;
 
   @override
   ConsumerState<ModifyPriceScreen> createState() => _ModifyPriceScreenState();
@@ -35,15 +45,36 @@ class _ModifyPriceScreenState extends ConsumerState<ModifyPriceScreen> {
   }
 
   void _onConfirm() {
-    Navigator.of(context).push(
-      MaterialPageRoute<void>(
-        builder: (_) => ConfirmationSuccessScreen(
-          message: 'Price updated',
-          onClose: () {},
-          popsOnClose: 2,
+    if (widget.currentStep != null) {
+      Navigator.of(context).push(
+        MaterialPageRoute<void>(
+          builder: (_) => TermsAndConditionsScreen(
+            onPublish: () {
+              // handle publish
+              Navigator.of(context).push(
+                MaterialPageRoute<void>(
+                  builder: (_) => ConfirmationSuccessScreen(
+                    message: 'Listing Publish',
+                    onClose: () {},
+                    popsOnClose: 9,
+                  ),
+                ),
+              );
+            },
+          ),
         ),
-      ),
-    );
+      );
+    } else {
+      Navigator.of(context).push(
+        MaterialPageRoute<void>(
+          builder: (_) => ConfirmationSuccessScreen(
+            message: 'Price updated',
+            onClose: () {},
+            popsOnClose: 2,
+          ),
+        ),
+      );
+    }
   }
 
   @override
@@ -58,10 +89,7 @@ class _ModifyPriceScreenState extends ConsumerState<ModifyPriceScreen> {
     }
     return Scaffold(
       backgroundColor: Colors.white,
-      appBar: const AppTopBar(
-        title: 'Modify Price',
-        showBack: true,
-      ),
+      appBar: const AppTopBar(title: 'Modify Price', showBack: true),
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
@@ -97,11 +125,39 @@ class _ModifyPriceScreenState extends ConsumerState<ModifyPriceScreen> {
                 'Existing or ongoing bookings will not be affected.',
                 textAlign: TextAlign.center,
               ),
-              const Spacer(),
-              AppPrimaryButton(
-                label: 'Confirm',
-                onPressed: _onConfirm,
+              const AppSectionDividerTitle('Scheduled time slots'),
+              ...widget.slots.map((slot) {
+                final parts = slot.split('  ');
+                return Card(
+                  margin: const EdgeInsets.only(bottom: AppSpacing.sm),
+                  elevation: 0,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    side: BorderSide(
+                      color: AppColors.iconGrey.withValues(alpha: 0.2),
+                    ),
+                  ),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: AppSpacing.sm,
+                      vertical: AppSpacing.sm,
+                    ),
+                    child: AppSlotCardRemoveWeekly(
+                      day: parts.first,
+                      timeRange: parts.length > 1 ? parts.last : '',
+                    ),
+                  ),
+                );
+              }),
+              const SizedBox(height: AppSpacing.md),
+              AppSecondaryButton(
+                label: 'Edit',
+                icon: Icons.edit_outlined,
+                onPressed: () =>
+                    Navigator.of(context).pop(), // goes back to weekly screen
               ),
+              const Spacer(),
+              AppPrimaryButton(label: 'Confirm', onPressed: _onConfirm),
               const SizedBox(height: AppSpacing.lg),
             ],
           ),
