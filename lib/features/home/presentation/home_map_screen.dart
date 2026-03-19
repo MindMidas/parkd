@@ -2,7 +2,6 @@ import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
-import 'package:flutter_map/flutter_map.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:http/http.dart' as http;
 import 'package:latlong2/latlong.dart';
@@ -17,7 +16,7 @@ import 'book_listing_screen.dart';
 class HomeMapScreen extends ConsumerStatefulWidget {
   const HomeMapScreen({super.key, this.initialIndex = 0});
 
-  /// 0 = Map, 1 = Profile. Used when navigating back to home with a specific tab (e.g. from listings menu).
+  /// 0 = Map, 1 = Profile.
   final int initialIndex;
 
   @override
@@ -146,16 +145,17 @@ class _HomeMapScreenState extends ConsumerState<HomeMapScreen> {
                 top: true,
                 bottom: false,
                 child: Stack(
-                children: [
-                  FlutterMap(
-                    options: const MapOptions(
-                      initialCenter: LatLng(28.6139, 77.2090),
-                      initialZoom: 13,
-                    ),
-                    children: [
-                      TileLayer(
-                        urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-                        userAgentPackageName: 'com.parkd.app',
+                  children: [
+                    const MapView(),
+                    Positioned(
+                      top: 0,
+                      left: 0,
+                      right: 0,
+                      child: Container(
+                        width: double.infinity,
+                        color: Colors.white,
+                        padding: const EdgeInsets.all(AppSpacing.lg),
+                        child: const AppSearchField(),
                       ),
                     ],
                   ),
@@ -238,11 +238,10 @@ class _HomeMapScreenState extends ConsumerState<HomeMapScreen> {
                           ),
                       ],
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
-            ),
-          )
+            )
           : const ProfileMenuScreen(),
       bottomNavigationBar: AppBottomNav(
         selectedIndex: _selectedIndex,

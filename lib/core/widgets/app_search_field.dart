@@ -1,10 +1,9 @@
 import 'package:flutter/material.dart';
-
 import '../theme/app_colors.dart';
 import '../theme/app_spacing.dart';
 import '../theme/app_typography.dart';
 
-class AppSearchField extends StatelessWidget {
+class AppSearchField extends StatefulWidget {
   const AppSearchField({
     super.key,
     this.hintText = 'Search',
@@ -26,19 +25,31 @@ class AppSearchField extends StatelessWidget {
         hintStyle: AppTypography.body.copyWith(
           color: AppColors.textSecondary,
         ),
-        prefixIcon: const Icon(Icons.search, color: AppColors.iconGrey),
-        filled: true,
-        fillColor: AppColors.secondaryBlue.withValues(alpha: 0.15),
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(32),
-          borderSide: BorderSide.none,
-        ),
-        contentPadding: const EdgeInsets.symmetric(
-          horizontal: AppSpacing.lg,
-          vertical: AppSpacing.sm,
-        ),
-      ),
+
+        // ── Filter button (optional) ──────────────────────────────────────
+        if (widget.showFilterButton) ...[
+          const SizedBox(width: AppSpacing.sm),
+          GestureDetector(
+            onTap: widget.onFilterTap,
+            child: Container(
+              width: 44,
+              height: 44,
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(
+                  color: AppColors.iconGrey.withValues(alpha: 0.2),
+                ),
+              ),
+              child: const Icon(
+                Icons.tune_rounded,
+                color: AppColors.iconGrey,
+                size: 20,
+              ),
+            ),
+          ),
+        ],
+      ],
     );
   }
 }
-

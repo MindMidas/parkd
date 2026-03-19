@@ -32,7 +32,7 @@ class ManageListingsScreen extends ConsumerWidget {
               AppSpacing.lg,
               AppSpacing.sm,
             ),
-            child: const _SearchField(),
+            child: const AppSearchField(),
           ),
           Expanded(
             child: listingsAsync.when(
@@ -98,33 +98,6 @@ class ManageListingsScreen extends ConsumerWidget {
             (route) => false,
           );
         },
-      ),
-    );
-  }
-}
-
-class _SearchField extends StatelessWidget {
-  const _SearchField();
-
-  @override
-  Widget build(BuildContext context) {
-    return TextField(
-      decoration: InputDecoration(
-        hintText: 'Search',
-        hintStyle: AppTypography.body.copyWith(
-          color: AppColors.textSecondary,
-        ),
-        prefixIcon: const Icon(Icons.search, color: AppColors.iconGrey),
-        filled: true,
-        fillColor: AppColors.secondaryBlue.withValues(alpha: 0.15),
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(32),
-          borderSide: BorderSide.none,
-        ),
-        contentPadding: const EdgeInsets.symmetric(
-          horizontal: AppSpacing.lg,
-          vertical: AppSpacing.sm,
-        ),
       ),
     );
   }
