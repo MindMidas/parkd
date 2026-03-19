@@ -8,6 +8,7 @@ import '../../../../core/models/profile.dart';
 import '../../../../core/widgets/widgets.dart';
 import '../../providers/profile_providers.dart';
 import '../listings_menu/listings_menu_screen.dart';
+import '../reservations_menu/reservations_menu_screen.dart';
 import '../settings/settings_screen.dart';
 
 class ProfileMenuScreen extends ConsumerWidget {
@@ -50,9 +51,16 @@ class ProfileMenuScreen extends ConsumerWidget {
                 );
               },
             ),
-            const AppListItem(
+            AppListItem(
               label: 'Reservations',
               showTopBorder: true,
+              onTap: () {
+                Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (_) => const ReservationsMenuScreen(),
+                  ),
+                );
+              },
             ),
             AppListItem(
               label: 'Settings',
