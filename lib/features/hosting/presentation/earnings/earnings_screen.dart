@@ -16,7 +16,6 @@ import '../active_bookings/booking_details_screen.dart';
 
 final _paidDateFmt = DateFormat('MMM d, y');
 
-// monthly host_earnings plus paid trip lines (search filters the list only)
 class EarningsScreen extends ConsumerStatefulWidget {
   const EarningsScreen({super.key});
 
@@ -89,11 +88,8 @@ class _EarningsScreenState extends ConsumerState<EarningsScreen> {
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
                       const AppFormHelperText(
-                        'Up to three recent calendar months: your parking earnings '
-                        '(sum of trip prices) grouped by when each reservation '
-                        'starts. Trip count includes confirmed, active, and '
-                        'completed bookings. The list below shows individual paid '
-                        'trips (search applies there only).',
+                        'Up to three months, by when each booking starts. '
+                        'Search only filters the paid trips below.',
                       ),
                       const SizedBox(height: AppSpacing.md),
                       for (var i = 0; i < top.length; i++) ...[
@@ -167,7 +163,9 @@ class _MonthSummaryRow extends StatelessWidget {
           ),
         ),
         Text(
-          '${row.reservationCount} trips',
+          row.reservationCount == 1
+              ? '1 trip'
+              : '${row.reservationCount} trips',
           style: AppTypography.caption,
         ),
         const SizedBox(width: AppSpacing.md),
