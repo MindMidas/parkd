@@ -1,0 +1,13 @@
+# verify_jwt false: gateway JWT quirks; each handler still checks auth.getUser() in code
+# redeploy after edits: supabase functions deploy …
+[functions.create-setup-intent]
+verify_jwt = false
+
+[functions.complete-payment-method-setup]
+verify_jwt = false
+
+[functions.create-payment-intent]
+verify_jwt = false
+
+[functions.finalize-reservation-payment]
+verify_jwt = false

@@ -5,7 +5,7 @@ import '../theme/app_spacing.dart';
 import '../theme/app_typography.dart';
 import 'app_buttons.dart';
 
-/// Reusable confirmation dialog: title, message, Cancel and Confirm buttons. Styled card with rounded corners and shadow.
+// Card-style confirm dialog (Cancel / Confirm)
 class AppConfirmDialog extends StatelessWidget {
   const AppConfirmDialog({
     super.key,
@@ -13,6 +13,7 @@ class AppConfirmDialog extends StatelessWidget {
     required this.message,
     this.cancelLabel = 'Cancel',
     this.confirmLabel = 'Confirm',
+    this.confirmDestructive = false,
     required this.onCancel,
     required this.onConfirm,
   });
@@ -21,22 +22,23 @@ class AppConfirmDialog extends StatelessWidget {
   final String message;
   final String cancelLabel;
   final String confirmLabel;
+  final bool confirmDestructive;
   final VoidCallback onCancel;
   final VoidCallback onConfirm;
 
   @override
   Widget build(BuildContext context) {
     return Dialog(
-      backgroundColor: Colors.transparent,
+      backgroundColor: AppColors.transparent,
       child: Container(
         constraints: const BoxConstraints(maxWidth: 340),
         padding: const EdgeInsets.all(AppSpacing.lg),
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: AppColors.surface,
           borderRadius: BorderRadius.circular(16),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withValues(alpha: 0.12),
+              color: AppColors.shadowMedium,
               blurRadius: 24,
               offset: const Offset(0, 8),
             ),
@@ -48,19 +50,13 @@ class AppConfirmDialog extends StatelessWidget {
           children: [
             Text(
               title,
-              style: AppTypography.title.copyWith(
-                color: AppColors.textPrimary,
-                fontWeight: FontWeight.w600,
-              ),
+              style: AppTypography.hubTitle,
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: AppSpacing.md),
             Text(
               message,
-              style: AppTypography.body.copyWith(
-                color: AppColors.textSecondary,
-                height: 1.4,
-              ),
+              style: AppTypography.bodyMuted,
               textAlign: TextAlign.left,
             ),
             const SizedBox(height: AppSpacing.xl),
@@ -74,10 +70,16 @@ class AppConfirmDialog extends StatelessWidget {
                 ),
                 const SizedBox(width: AppSpacing.md),
                 Expanded(
-                  child: AppPrimaryButton(
-                    label: confirmLabel,
-                    onPressed: onConfirm,
-                  ),
+                  child: confirmDestructive
+                      ? AppSecondaryButton(
+                          label: confirmLabel,
+                          onPressed: onConfirm,
+                          destructive: true,
+                        )
+                      : AppPrimaryButton(
+                          label: confirmLabel,
+                          onPressed: onConfirm,
+                        ),
                 ),
               ],
             ),

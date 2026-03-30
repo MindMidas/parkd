@@ -22,3 +22,9 @@ final currentSessionProvider = Provider<Session?>((ref) {
   final authRepository = ref.watch(authRepositoryProvider);
   return authRepository.currentSession();
 });
+
+final needsMfaChallengeProvider = Provider<bool>((ref) {
+  ref.watch(authStateChangesProvider);
+  final authRepository = ref.watch(authRepositoryProvider);
+  return authRepository.needsMfaChallenge();
+});

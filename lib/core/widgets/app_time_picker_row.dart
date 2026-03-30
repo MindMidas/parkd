@@ -4,8 +4,7 @@ import '../theme/app_colors.dart';
 import '../theme/app_spacing.dart';
 import '../theme/app_typography.dart';
 
-/// Tappable row with a bold label, a date/time value string, and a dropdown arrow.
-/// Used for "Start time" / "End time" rows.
+// Tappable "Start time" style row
 class AppTimePickerRow extends StatelessWidget {
   const AppTimePickerRow({
     super.key,
@@ -30,15 +29,13 @@ class AppTimePickerRow extends StatelessWidget {
             width: labelWidth,
             child: Text(
               label,
-              style: AppTypography.body.copyWith(
-                fontWeight: FontWeight.w600,
-              ),
+              style: AppTypography.bodyStrong,
             ),
           ),
           const SizedBox(width: AppSpacing.md),
-          Expanded(
-            child: Text(value, style: AppTypography.body),
-          ),
+          const Spacer(),
+          Text(value, style: AppTypography.body),
+          const SizedBox(width: AppSpacing.xs),
           const Icon(
             Icons.keyboard_arrow_down,
             color: AppColors.primaryBlue,

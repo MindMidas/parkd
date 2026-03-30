@@ -1,4 +1,4 @@
-/// Mirrors public.reservation_status enum in database/schema.sql
+// Mirrors public.reservation_status
 enum ReservationStatus {
   pending,
   confirmed,

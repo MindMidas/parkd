@@ -4,24 +4,29 @@ import '../theme/app_colors.dart';
 import '../theme/app_spacing.dart';
 import '../theme/app_typography.dart';
 
-/// Displays an image with a draggable marker (e.g. car icon) for annotating the parking spot.
-/// Reusable for Edit Listing photo and Create Listing. Reports marker position for later submit.
+// draggable car marker on photo, reports 0-1 position for save
 class AppAnnotatePhoto extends StatefulWidget {
   const AppAnnotatePhoto({
     super.key,
     required this.image,
     this.initialMarkerPosition,
     this.onMarkerPositionChanged,
+    this.markerDiameter = 56,
+    this.markerIconSize = 28,
+    this.borderRadius = 12,
   });
 
-  /// The image to display (Widget so we can use placeholder or Image.file/network).
+  // img widget (file, network, placeholder,..)
   final Widget image;
 
-  /// Initial marker position as fraction of width/height (0–1). Defaults to center.
+  // 0-1 in the frame, default center
   final Offset? initialMarkerPosition;
 
-  /// Called when the user drags the marker. Offset is fractional (0–1).
+  // fires while dragging, offset is 0-1
   final void Function(Offset fractional)? onMarkerPositionChanged;
+  final double markerDiameter;
+  final double markerIconSize;
+  final double borderRadius;
 
   @override
   State<AppAnnotatePhoto> createState() => _AppAnnotatePhotoState();
@@ -65,10 +70,10 @@ class _AppAnnotatePhotoState extends State<AppAnnotatePhoto> {
         final h = constraints.maxHeight;
         final markerX = _fractional.dx * w;
         final markerY = _fractional.dy * h;
-        const markerRadius = 28.0;
+        final markerRadius = widget.markerDiameter / 2;
 
         return ClipRRect(
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(widget.borderRadius),
           child: Stack(
             clipBehavior: Clip.none,
             children: [
@@ -83,23 +88,23 @@ class _AppAnnotatePhotoState extends State<AppAnnotatePhoto> {
                     height: markerRadius * 2,
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
-                      color: Colors.white,
+                      color: AppColors.onPrimary,
                       border: Border.all(
                         color: AppColors.primaryBlue,
                         width: 2,
                       ),
                       boxShadow: [
                         BoxShadow(
-                          color: Colors.black.withValues(alpha: 0.15),
+                          color: AppColors.shadowPin,
                           blurRadius: 6,
                           offset: const Offset(0, 2),
                         ),
                       ],
                     ),
-                    child: const Icon(
+                    child: Icon(
                       Icons.directions_car_rounded,
                       color: AppColors.primaryBlue,
-                      size: 28,
+                      size: widget.markerIconSize,
                     ),
                   ),
                 ),
@@ -112,7 +117,7 @@ class _AppAnnotatePhotoState extends State<AppAnnotatePhoto> {
   }
 }
 
-/// Optional instruction text to show below the annotate area.
+// hint under the annotate box
 class AppAnnotatePhotoInstruction extends StatelessWidget {
   const AppAnnotatePhotoInstruction({
     super.key,

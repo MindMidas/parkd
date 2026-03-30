@@ -2,56 +2,48 @@ import 'package:flutter/material.dart';
 
 import '../theme/app_colors.dart';
 import '../theme/app_typography.dart';
+import '../utils/display_formatting.dart';
 
-// Reusable top app bar with optional back button. Title wraps up to 2 lines and bar height grows to fit.
-// Titles are automatically formatted in title case (first letter of each word capitalized).
+// top bar + optional back
 class AppTopBar extends StatelessWidget implements PreferredSizeWidget {
   const AppTopBar({
     super.key,
     required this.title,
     this.showBack = true,
+    this.centerTitle = false,
     this.onBack,
     this.actions,
   });
 
   final String title;
   final bool showBack;
+
+  final bool centerTitle;
   final VoidCallback? onBack;
   final List<Widget>? actions;
+  static const double kToolbarHeight = 80;
+  static const double _leadingWidthWhenBack = 56;
 
-  static const double _toolbarHeight = 80;
-
-  /// Standard title-case formatting for app bar: first letter of each word capitalized.
-  static String formatTitle(String text) {
-    if (text.isEmpty) return text;
-    return text.split(' ').map((word) {
-      if (word.isEmpty) return word;
-      return word[0].toUpperCase() + word.substring(1).toLowerCase();
-    }).join(' ');
-  }
+  static String formatTitle(String text) => formatTitleCaseWords(text);
 
   @override
   Widget build(BuildContext context) {
-    final displayTitle = formatTitle(title);
+    final displayTitle = formatTitleCaseWords(title);
     return AppBar(
-      backgroundColor: Colors.white,
+      backgroundColor: AppColors.surface,
       elevation: 0,
-      centerTitle: false,
-      toolbarHeight: _toolbarHeight,
+      centerTitle: centerTitle,
+      toolbarHeight: kToolbarHeight,
       foregroundColor: AppColors.black,
-      title: SizedBox(
-        width: double.infinity,
-        child: Align(
-          alignment: Alignment.centerLeft,
-          child: Text(
-            displayTitle,
-            style: AppTypography.title.copyWith(color: AppColors.black),
-            maxLines: 2,
-            softWrap: true,
-            overflow: TextOverflow.ellipsis,
-            textAlign: TextAlign.left,
-          ),
-        ),
+      automaticallyImplyLeading: false,
+      leadingWidth: showBack ? _leadingWidthWhenBack : 0,
+      title: Text(
+        displayTitle,
+        style: AppTypography.navTitle.copyWith(color: AppColors.black),
+        maxLines: 2,
+        softWrap: true,
+        overflow: TextOverflow.ellipsis,
+        textAlign: centerTitle ? TextAlign.center : TextAlign.left,
       ),
       actions: actions,
       leading: showBack
@@ -67,5 +59,5 @@ class AppTopBar extends StatelessWidget implements PreferredSizeWidget {
   }
 
   @override
-  Size get preferredSize => const Size.fromHeight(_toolbarHeight);
+  Size get preferredSize => const Size.fromHeight(kToolbarHeight);
 }

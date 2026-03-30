@@ -1,5 +1,4 @@
-/// Mirrors public.profiles (auth.users 1:1).
-/// Schema: database/schema.sql
+// mirrors public.profiles (auth.users 1:1)
 class Profile {
   const Profile({
     required this.id,
@@ -27,7 +26,7 @@ class Profile {
   final DateTime? createdAt;
   final DateTime? updatedAt;
 
-  /// Display name: full_name or username or email fallback.
+  // display name: full_name or username or email fallback
   String get displayName => fullName?.trim().isNotEmpty == true
       ? fullName!
       : (username?.trim().isNotEmpty == true ? '@$username' : (email ?? 'User'));

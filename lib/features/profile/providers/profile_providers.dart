@@ -4,23 +4,39 @@ import '../../../core/models/availability_specific.dart';
 import '../../../core/models/availability_weekly.dart';
 import '../../../core/models/listing.dart';
 import '../../../core/models/listing_photo.dart';
+import '../../../core/models/payment_method_row.dart';
 import '../../../core/models/profile.dart';
+import '../../../core/cloudinary/cloudinary_provider.dart';
 import '../../auth/providers/auth_providers.dart';
-import '../data/dummy_listings_repository.dart';
-import '../data/dummy_profile_repository.dart';
-import '../data/listings_repository.dart';
+import '../data/payment_methods_repository.dart';
 import '../data/profile_repository.dart';
+import '../../listings/data/listings_repository.dart';
+import '../../listings/data/supabase_listings_repository.dart';
+import '../data/supabase_payment_methods_repository.dart';
+import '../data/supabase_profile_repository.dart';
 
-/// Repository implementations. Swap Dummy* for Supabase* when wiring (see database/README.md).
 final listingsRepositoryProvider = Provider<ListingsRepository>((ref) {
-  return DummyListingsRepository();
+  final client = ref.watch(supabaseClientProvider);
+  final cloudinary = ref.watch(cloudinaryUploaderProvider);
+  return SupabaseListingsRepository(client, cloudinary: cloudinary);
 });
 
 final profileRepositoryProvider = Provider<ProfileRepository>((ref) {
-  return DummyProfileRepository();
+  final client = ref.watch(supabaseClientProvider);
+  final cloudinary = ref.watch(cloudinaryUploaderProvider);
+  return SupabaseProfileRepository(client, cloudinary: cloudinary);
 });
 
-/// Current user's profile. All profile screens should use this for display data.
+final paymentMethodsRepositoryProvider =
+    Provider<PaymentMethodsRepository>((ref) {
+  return SupabasePaymentMethodsRepository(ref.watch(supabaseClientProvider));
+});
+
+final profileByUserIdProvider =
+    FutureProvider.family<Profile?, String>((ref, userId) async {
+  return ref.read(profileRepositoryProvider).getProfile(userId);
+});
+
 final currentProfileProvider = FutureProvider<Profile?>((ref) async {
   final session = ref.watch(currentSessionProvider);
   final userId = session?.user.id;
@@ -28,34 +44,57 @@ final currentProfileProvider = FutureProvider<Profile?>((ref) async {
   return ref.read(profileRepositoryProvider).getProfile(userId);
 });
 
-/// Current user's listings (host). Uses current session; use for Manage Listings screen.
-final myListingsForCurrentUserProvider = FutureProvider<List<Listing>>((ref) async {
+final paymentMethodsForCurrentUserProvider =
+    FutureProvider<List<PaymentMethodRow>>((ref) async {
+  final uid = ref.watch(currentSessionProvider)?.user.id;
+  if (uid == null) return [];
+  return ref.read(paymentMethodsRepositoryProvider).listForUser(uid);
+});
+
+final myListingsForCurrentUserProvider = FutureProvider<List<Listing>>((
+  ref,
+) async {
   final session = ref.watch(currentSessionProvider);
   final userId = session?.user.id;
   if (userId == null) return [];
   return ref.read(listingsRepositoryProvider).getMyListings(userId);
 });
 
-/// Single listing by id. Use for Edit Listing and any screen that needs one listing.
-final listingByIdProvider =
-    FutureProvider.family<Listing?, String>((ref, id) async {
+final listingByIdProvider = FutureProvider.family<Listing?, String>((
+  ref,
+  id,
+) async {
   return ref.read(listingsRepositoryProvider).getListingById(id);
 });
 
-/// Photos for a listing (hero/gallery). Use for Edit Listing photo row.
-final listingPhotosProvider =
-    FutureProvider.family<List<ListingPhoto>, String>((ref, listingId) async {
-  return ref.read(listingsRepositoryProvider).getListingPhotos(listingId);
-});
+final listingPhotosProvider = FutureProvider.family<List<ListingPhoto>, String>(
+  (ref, listingId) async {
+    return ref.read(listingsRepositoryProvider).getListingPhotos(listingId);
+  },
+);
 
-/// Weekly availability for a listing. Use for Edit Listing availability section.
 final listingAvailabilityWeeklyProvider =
-    FutureProvider.family<List<AvailabilityWeekly>, String>((ref, listingId) async {
-  return ref.read(listingsRepositoryProvider).getAvailabilityWeekly(listingId);
-});
+    FutureProvider.family<List<AvailabilityWeekly>, String>((
+      ref,
+      listingId,
+    ) async {
+      return ref
+          .read(listingsRepositoryProvider)
+          .getAvailabilityWeekly(listingId);
+    });
 
-/// Specific (date-range) availability for a listing. Use for Edit Listing availability section.
 final listingAvailabilitySpecificProvider =
-    FutureProvider.family<List<AvailabilitySpecific>, String>((ref, listingId) async {
-  return ref.read(listingsRepositoryProvider).getAvailabilitySpecific(listingId);
-});
+    FutureProvider.family<List<AvailabilitySpecific>, String>((
+      ref,
+      listingId,
+    ) async {
+      return ref
+          .read(listingsRepositoryProvider)
+          .getAvailabilitySpecific(listingId);
+    });
+
+// Refetch profile everywhere it is shown (account, edit form, chats, trip cards)
+void invalidateProfileSurfaces(WidgetRef ref, String userId) {
+  ref.invalidate(currentProfileProvider);
+  ref.invalidate(profileByUserIdProvider(userId));
+}
