@@ -1,5 +1,6 @@
-/// Mirrors public.availability_weekly. day_of_week: 0 = Sunday … 6 = Saturday.
-/// Schema: database/schema.sql
+import '../utils/time_step_minutes.dart';
+
+// mirrors public.availability_weekly (day_of_week 0=Mon to 6=Sun)
 class AvailabilityWeekly {
   const AvailabilityWeekly({
     required this.id,
@@ -7,6 +8,8 @@ class AvailabilityWeekly {
     required this.dayOfWeek,
     required this.startTime,
     required this.endTime,
+    this.priceHour = 0,
+    this.priceDay,
     this.createdAt,
   });
 
@@ -15,16 +18,26 @@ class AvailabilityWeekly {
   final int dayOfWeek;
   final String startTime;
   final String endTime;
+  final double priceHour;
+  final double? priceDay;
   final DateTime? createdAt;
 
-  static const List<String> _dayNames = [
-    'Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'
+  static const List<String> _dayNamesMonFirst = [
+    'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun',
   ];
 
-  String get dayLabel => _dayNames[dayOfWeek.clamp(0, 6)];
+  /// DB 0=Mon to 6=Sun to DateTime.weekday (Mon=1 to Sun=7)
+  static int toDartWeekday(int dbDayOfWeek) {
+    final d = dbDayOfWeek.clamp(0, 6);
+    return d == 6 ? DateTime.sunday : d + 1;
+  }
 
-  /// For UI: "9:15 AM to 1:00 PM" (assumes startTime/endTime are ISO time or "HH:mm").
-  String get timeRangeDisplay => '$startTime to $endTime';
+  String get dayLabel => _dayNamesMonFirst[dayOfWeek.clamp(0, 6)];
+
+  // For UI: "9:15 AM - 1:00 PM"
+  String get timeRangeDisplay =>
+      '${TimeStepMinutes.formatHhMmOrAmPmToDisplay(startTime)} – '
+      '${TimeStepMinutes.formatHhMmOrAmPmToDisplay(endTime)}';
 
   static AvailabilityWeekly fromJson(Map<String, dynamic> json) {
     return AvailabilityWeekly(
@@ -33,6 +46,8 @@ class AvailabilityWeekly {
       dayOfWeek: json['day_of_week'] as int,
       startTime: _formatTime(json['start_time']),
       endTime: _formatTime(json['end_time']),
+      priceHour: (json['price_hour'] as num?)?.toDouble() ?? 0,
+      priceDay: (json['price_day'] as num?)?.toDouble(),
       createdAt: json['created_at'] != null
           ? DateTime.parse(json['created_at'] as String)
           : null,
@@ -52,6 +67,8 @@ class AvailabilityWeekly {
         'day_of_week': dayOfWeek,
         'start_time': startTime,
         'end_time': endTime,
+        'price_hour': priceHour,
+        'price_day': priceDay,
         'created_at': createdAt?.toIso8601String(),
       };
 }

@@ -1,22 +1,23 @@
+// tappable pill
 import 'package:flutter/material.dart';
 
 import '../theme/app_colors.dart';
 import '../theme/app_spacing.dart';
 import '../theme/app_typography.dart';
 
-/// Outlined pill showing a card brand, masked number, and a chevron.
-/// e.g. "Visa •••• 4242 >"
 class AppPaymentMethodPill extends StatelessWidget {
   const AppPaymentMethodPill({
     super.key,
     required this.brand,
     required this.lastFour,
     this.onTap,
+    this.selected = false,
   });
 
   final String brand;
   final String lastFour;
   final VoidCallback? onTap;
+  final bool selected;
 
   @override
   Widget build(BuildContext context) {
@@ -37,22 +38,15 @@ class AppPaymentMethodPill extends StatelessWidget {
           children: [
             Text(
               brand,
-              style: AppTypography.body.copyWith(
-                color: AppColors.primaryBlue,
-                fontWeight: FontWeight.w700,
-                fontStyle: FontStyle.italic,
-              ),
+              style: AppTypography.paymentBrandItalic,
             ),
             Text(
               ' •••• $lastFour',
-              style: AppTypography.body.copyWith(
-                color: AppColors.primaryBlue,
-                fontWeight: FontWeight.w600,
-              ),
+              style: AppTypography.paymentPanBlue,
             ),
             const SizedBox(width: 4),
-            const Icon(
-              Icons.chevron_right,
+            Icon(
+              selected ? Icons.check_circle_rounded : Icons.chevron_right,
               size: 18,
               color: AppColors.primaryBlue,
             ),

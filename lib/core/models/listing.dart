@@ -1,5 +1,9 @@
-/// Mirrors public.listings.
-/// Schema: database/schema.sql
+// public.listings (+ embed hero url)
+class ListingAvailabilityMode {
+  static const weekly = 'weekly';
+  static const specific = 'specific';
+}
+
 class Listing {
   const Listing({
     required this.id,
@@ -11,14 +15,15 @@ class Listing {
     this.spotNumber,
     required this.latitude,
     required this.longitude,
-    this.priceHour = 0,
-    this.priceDay,
+    this.availabilityMode = ListingAvailabilityMode.weekly,
     this.isActive = false,
     this.isPublished = false,
     this.termsAccepted = false,
     this.termsAcceptedAt,
     this.createdAt,
     this.updatedAt,
+    // hero image URL for list rows (from embedded 'listing_photos', not DB column)
+    this.heroPhotoUrl,
   });
 
   final String id;
@@ -30,8 +35,7 @@ class Listing {
   final String? spotNumber;
   final double latitude;
   final double longitude;
-  final double priceHour;
-  final double? priceDay;
+  final String availabilityMode;
   final bool isActive;
   final bool isPublished;
   final bool termsAccepted;
@@ -39,27 +43,45 @@ class Listing {
   final DateTime? createdAt;
   final DateTime? updatedAt;
 
-  /// Single-line address for list rows (e.g. "25 Macdonell Street").
+  final String? heroPhotoUrl;
+
   String get addressLine => address;
 
-  /// Subtitle for list rows (e.g. "Guelph, ON N1L 0M5\nSpot #345").
-  String get subtitle {
-    final parts = <String>[];
-    if (city.isNotEmpty) parts.add(city);
-    if (postalCode != null && postalCode!.isNotEmpty) parts.add(postalCode!);
-    final line1 = parts.join(', ');
-    if (spotNumber != null && spotNumber!.isNotEmpty) {
-      return line1.isEmpty ? 'Spot #$spotNumber' : '$line1\nSpot #$spotNumber';
-    }
-    return line1;
+  String get localityLine => formatPostalLocalityLine(
+    city: city,
+    region: null,
+    country: country,
+    postalCode: postalCode,
+  );
+
+  String? get spotLabel {
+    final s = spotNumber?.trim();
+    if (s == null || s.isEmpty) return null;
+    return 'Spot #$s';
   }
 
-  /// Price summary for display (e.g. "$10/hr • $30/day").
-  String get priceSummary {
-    final hr = '\$${priceHour.toStringAsFixed(0)}/hr';
-    if (priceDay != null) return '$hr • \$${priceDay!.toStringAsFixed(0)}/day';
-    return hr;
+  static String formatPostalLocalityLine({
+    required String city,
+    String? region,
+    required String country,
+    String? postalCode,
+  }) {
+    final parts = <String>[];
+    final c = city.trim();
+    if (c.isNotEmpty) parts.add(c);
+    final r = region?.trim();
+    if (r != null && r.isNotEmpty) parts.add(r);
+    final co = country.trim();
+    if (co.isNotEmpty) parts.add(co);
+    final p = postalCode?.trim();
+    if (p != null && p.isNotEmpty) parts.add(p);
+    return parts.join(', ');
   }
+
+  bool get isWeeklyAvailability =>
+      availabilityMode == ListingAvailabilityMode.weekly;
+  bool get isSpecificAvailability =>
+      availabilityMode == ListingAvailabilityMode.specific;
 
   static Listing fromJson(Map<String, dynamic> json) {
     return Listing(
@@ -72,8 +94,9 @@ class Listing {
       spotNumber: json['spot_number'] as String?,
       latitude: (json['latitude'] as num).toDouble(),
       longitude: (json['longitude'] as num).toDouble(),
-      priceHour: (json['price_hour'] as num?)?.toDouble() ?? 0,
-      priceDay: (json['price_day'] as num?)?.toDouble(),
+      availabilityMode:
+          (json['availability_mode'] as String?) ??
+          ListingAvailabilityMode.weekly,
       isActive: json['is_active'] as bool? ?? false,
       isPublished: json['is_published'] as bool? ?? false,
       termsAccepted: json['terms_accepted'] as bool? ?? false,
@@ -86,26 +109,33 @@ class Listing {
       updatedAt: json['updated_at'] != null
           ? DateTime.parse(json['updated_at'] as String)
           : null,
+      heroPhotoUrl: _nonEmptyString(json['hero_photo_url']),
     );
   }
 
+  static String? _nonEmptyString(dynamic v) {
+    if (v is! String) return null;
+    final t = v.trim();
+    return t.isEmpty ? null : t;
+  }
+
   Map<String, dynamic> toJson() => {
-        'id': id,
-        'host_id': hostId,
-        'address': address,
-        'city': city,
-        'postal_code': postalCode,
-        'country': country,
-        'spot_number': spotNumber,
-        'latitude': latitude,
-        'longitude': longitude,
-        'price_hour': priceHour,
-        'price_day': priceDay,
-        'is_active': isActive,
-        'is_published': isPublished,
-        'terms_accepted': termsAccepted,
-        'terms_accepted_at': termsAcceptedAt?.toIso8601String(),
-        'created_at': createdAt?.toIso8601String(),
-        'updated_at': updatedAt?.toIso8601String(),
-      };
+    'id': id,
+    'host_id': hostId,
+    'address': address,
+    'city': city,
+    'postal_code': postalCode,
+    'country': country,
+    'spot_number': spotNumber,
+    'latitude': latitude,
+    'longitude': longitude,
+    'availability_mode': availabilityMode,
+    'is_active': isActive,
+    'is_published': isPublished,
+    'terms_accepted': termsAccepted,
+    'terms_accepted_at': termsAcceptedAt?.toIso8601String(),
+    'created_at': createdAt?.toIso8601String(),
+    'updated_at': updatedAt?.toIso8601String(),
+    if (heroPhotoUrl != null) 'hero_photo_url': heroPhotoUrl,
+  };
 }

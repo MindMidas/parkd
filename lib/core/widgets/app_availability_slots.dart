@@ -1,26 +1,42 @@
 import 'package:flutter/material.dart';
 
-import '../theme/app_colors.dart';
 import '../theme/app_spacing.dart';
-import '../theme/app_typography.dart';
+import '../utils/display_formatting.dart';
 import 'app_buttons.dart';
+import 'app_display_fields.dart';
+import 'app_section_title.dart';
 
-/// One date-range slot: "From" and "To" date/time strings (e.g. "Sep 15, 2026 • 9:00 AM").
+// Models + UI for showing listing availability (date ranges and/or weekly)
+
+// from/to display strings + prices
 class DateRangeSlot {
-  const DateRangeSlot({required this.from, required this.to});
+  const DateRangeSlot({
+    required this.from,
+    required this.to,
+    required this.priceHour,
+    this.priceDay,
+  });
   final String from;
   final String to;
+  final double priceHour;
+  final double? priceDay;
 }
 
-/// One weekly slot: day abbreviation and time range (e.g. "Mon", "9:15 AM to 1:00 PM").
+// day label + time range + prices
 class WeeklySlot {
-  const WeeklySlot({required this.day, required this.timeRange});
+  const WeeklySlot({
+    required this.day,
+    required this.timeRange,
+    required this.priceHour,
+    this.priceDay,
+  });
   final String day;
   final String timeRange;
+  final double priceHour;
+  final double? priceDay;
 }
 
-/// Renders scheduled availability: date ranges (From/To), weekly (day + time), or both.
-/// When wired to Supabase, pass only the non-empty list(s); widget shows whichever format has data.
+// renders whichever lists you pass (empty list = that section hidden)
 class AppAvailabilitySlots extends StatelessWidget {
   const AppAvailabilitySlots._({
     required this.title,
@@ -28,45 +44,57 @@ class AppAvailabilitySlots extends StatelessWidget {
     this.dateRangeSlots,
     this.weeklySlots,
     this.editButtonFullWidth = true,
+    this.showTitle = true,
+    this.useOuterPadding = true,
   });
 
-  /// Date-range only: each slot shows "From" and "To" with date on first line, time below.
+  // only date-range slots
   factory AppAvailabilitySlots.dateRanges({
     required List<DateRangeSlot> slots,
     String title = 'Scheduled time slots',
     VoidCallback? onEdit,
     bool editButtonFullWidth = true,
+    bool showTitle = true,
+    bool useOuterPadding = true,
   }) {
     return AppAvailabilitySlots._(
       title: title,
       onEdit: onEdit,
       dateRangeSlots: slots.isEmpty ? null : slots,
       editButtonFullWidth: editButtonFullWidth,
+      showTitle: showTitle,
+      useOuterPadding: useOuterPadding,
     );
   }
 
-  /// Weekly only: each slot shows day (left) and time range (right) in a card.
+  // only weekly slots
   factory AppAvailabilitySlots.weekly({
     required List<WeeklySlot> slots,
     String title = 'Scheduled time slots',
     VoidCallback? onEdit,
     bool editButtonFullWidth = true,
+    bool showTitle = true,
+    bool useOuterPadding = true,
   }) {
     return AppAvailabilitySlots._(
       title: title,
       onEdit: onEdit,
       weeklySlots: slots.isEmpty ? null : slots,
       editButtonFullWidth: editButtonFullWidth,
+      showTitle: showTitle,
+      useOuterPadding: useOuterPadding,
     );
   }
 
-  /// Both formats: show date-range slots first, then weekly. When wired to Supabase, pass only non-empty list(s) from getAvailabilitySpecific / getAvailabilityWeekly so the UI shows the right format(s) automatically.
+  // date ranges first, then weekly (pass only non-empty lists from data)
   factory AppAvailabilitySlots.combined({
     required String title,
     List<DateRangeSlot>? dateRangeSlots,
     List<WeeklySlot>? weeklySlots,
     VoidCallback? onEdit,
     bool editButtonFullWidth = true,
+    bool showTitle = true,
+    bool useOuterPadding = true,
   }) {
     return AppAvailabilitySlots._(
       title: title,
@@ -78,6 +106,8 @@ class AppAvailabilitySlots extends StatelessWidget {
           ? weeklySlots
           : null,
       editButtonFullWidth: editButtonFullWidth,
+      showTitle: showTitle,
+      useOuterPadding: useOuterPadding,
     );
   }
 
@@ -86,156 +116,151 @@ class AppAvailabilitySlots extends StatelessWidget {
   final List<DateRangeSlot>? dateRangeSlots;
   final List<WeeklySlot>? weeklySlots;
   final bool editButtonFullWidth;
+  final bool showTitle;
+  final bool useOuterPadding;
 
   static const double _editButtonWidth = 92;
 
-  /// Splits "Sep 15, 2026 • 9:00 AM" into ("Sep 15, 2026", "9:00 AM").
-  static (String date, String time) splitDateAndTime(String fromOrTo) {
-    final i = fromOrTo.indexOf(' • ');
-    if (i >= 0) {
-      return (fromOrTo.substring(0, i).trim(), fromOrTo.substring(i + 3).trim());
-    }
-    return (fromOrTo, '');
-  }
+  // scroll area max heights (approx 3 rows)
+  static const double _scrollViewportDateMaxHeight = 360;
+  static const double _scrollViewportWeeklyMaxHeight = 280;
+  static const int _maxSlotsBeforeScroll = 3;
+
+  // "Sep 15, 2026 · 9:00 AM" -> date + time
+  static (String date, String time) splitDateAndTime(String fromOrTo) =>
+      splitDisplayDateTime(fromOrTo);
 
   @override
   Widget build(BuildContext context) {
-    final labelStyle = AppTypography.caption.copyWith(
-      color: AppColors.textSecondary,
-    );
-    final valueStyleSmall = AppTypography.caption.copyWith(
-      color: AppColors.textPrimary,
-      fontSize: 12,
-    );
-    final valueStyleWeekly = AppTypography.body;
-
     final hasDateRange = dateRangeSlots != null && dateRangeSlots!.isNotEmpty;
     final hasWeekly = weeklySlots != null && weeklySlots!.isNotEmpty;
 
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: AppSpacing.lg),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Text(
-            title,
-            style: AppTypography.caption.copyWith(
-              color: AppColors.textSecondary,
-            ),
-          ),
-          const SizedBox(height: AppSpacing.md),
-          if (hasDateRange)
-            ...dateRangeSlots!.map(
-              (slot) {
-                final from = splitDateAndTime(slot.from);
-                final to = splitDateAndTime(slot.to);
-                return Padding(
-                  padding: const EdgeInsets.only(bottom: AppSpacing.sm),
-                  child: _SlotCard(
-                    child: Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text('From', style: labelStyle),
-                              const SizedBox(height: AppSpacing.xxs),
-                              Text(from.$1, style: valueStyleSmall),
-                              if (from.$2.isNotEmpty) ...[
-                                const SizedBox(height: 2),
-                                Text(from.$2, style: valueStyleSmall),
-                              ],
-                            ],
-                          ),
-                        ),
-                        const SizedBox(width: AppSpacing.lg),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text('To', style: labelStyle),
-                              const SizedBox(height: AppSpacing.xxs),
-                              Text(to.$1, style: valueStyleSmall),
-                              if (to.$2.isNotEmpty) ...[
-                                const SizedBox(height: 2),
-                                Text(to.$2, style: valueStyleSmall),
-                              ],
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                );
-              },
-            ),
-          if (hasWeekly) ...[
-            if (hasDateRange) const SizedBox(height: AppSpacing.sm),
-            ...weeklySlots!.map(
-              (slot) => Padding(
-                padding: const EdgeInsets.only(bottom: AppSpacing.sm),
-                child: _SlotCard(
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(
-                        slot.day,
-                        style: AppTypography.body.copyWith(
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                      Text(slot.timeRange, style: valueStyleWeekly),
-                    ],
-                  ),
-                ),
+    final dateRangeChildren = <Widget>[];
+    if (hasDateRange) {
+      for (final slot in dateRangeSlots!) {
+        final from = splitDateAndTime(slot.from);
+        final to = splitDateAndTime(slot.to);
+        dateRangeChildren.add(
+          Padding(
+            padding: const EdgeInsets.only(bottom: AppSpacing.sm),
+            child: AppDisplayOutlineCard(
+              child: AppAvailabilityDateRangeSlotBlock(
+                fromDate: from.$1,
+                fromTime: from.$2,
+                toDate: to.$1,
+                toTime: to.$2,
+                priceHour: slot.priceHour,
+                priceDay: slot.priceDay,
               ),
             ),
-          ],
-          if (onEdit != null) ...[
-            const SizedBox(height: AppSpacing.md),
-            editButtonFullWidth
-                ? AppPrimaryButton(
-                    label: 'Edit',
-                    onPressed: onEdit,
-                  )
-                : SizedBox(
-                    width: _editButtonWidth,
-                    child: AppPrimaryButton(
-                      label: 'Edit',
-                      onPressed: onEdit,
-                    ),
-                  ),
-          ],
-        ],
-      ),
-    );
-  }
-}
+          ),
+        );
+      }
+    }
 
-class _SlotCard extends StatelessWidget {
-  const _SlotCard({required this.child});
+    final weeklyChildren = <Widget>[];
+    if (hasWeekly) {
+      for (final slot in weeklySlots!) {
+        weeklyChildren.add(
+          Padding(
+            padding: const EdgeInsets.only(bottom: AppSpacing.sm),
+            child: AppDisplayOutlineCard(
+              child: AppAvailabilityWeeklySlotBlock(
+                day: slot.day,
+                timeRange: slot.timeRange,
+                priceHour: slot.priceHour,
+                priceDay: slot.priceDay,
+              ),
+            ),
+          ),
+        );
+      }
+    }
 
-  final Widget child;
+    Widget scrollableSlotStack(
+      List<Widget> items,
+      int count, {
+      required double viewportHeight,
+    }) {
+      if (items.isEmpty) return const SizedBox.shrink();
+      if (count > _maxSlotsBeforeScroll) {
+        return SizedBox(
+          height: viewportHeight,
+          child: SingleChildScrollView(
+            physics: const BouncingScrollPhysics(),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              mainAxisSize: MainAxisSize.min,
+              children: items,
+            ),
+          ),
+        );
+      }
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        mainAxisSize: MainAxisSize.min,
+        children: items,
+      );
+    }
 
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(AppSpacing.md),
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppColors.secondaryGrey.withValues(alpha: 0.6)),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.04),
-            blurRadius: 4,
-            offset: const Offset(0, 2),
+    final Widget slotsSection;
+    if (!hasDateRange && !hasWeekly) {
+      slotsSection = const SizedBox.shrink();
+    } else {
+      slotsSection = Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          scrollableSlotStack(
+            dateRangeChildren,
+            hasDateRange ? dateRangeSlots!.length : 0,
+            viewportHeight: _scrollViewportDateMaxHeight,
+          ),
+          if (dateRangeChildren.isNotEmpty && weeklyChildren.isNotEmpty)
+            const SizedBox(height: AppSpacing.sm),
+          scrollableSlotStack(
+            weeklyChildren,
+            hasWeekly ? weeklySlots!.length : 0,
+            viewportHeight: _scrollViewportWeeklyMaxHeight,
           ),
         ],
-      ),
-      child: child,
+      );
+    }
+
+    Widget content = Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        if (showTitle) ...[
+          AppSectionTitle(title),
+          const SizedBox(height: AppSpacing.md),
+        ],
+        slotsSection,
+        if (onEdit != null) ...[
+          const SizedBox(height: AppSpacing.md),
+          editButtonFullWidth
+              ? AppPrimaryButton(
+                  label: 'Edit',
+                  icon: Icons.edit_outlined,
+                  onPressed: onEdit,
+                )
+              : SizedBox(
+                  width: _editButtonWidth,
+                  child: AppPrimaryButton(
+                    label: 'Edit',
+                    icon: Icons.edit_outlined,
+                    onPressed: onEdit,
+                    fullWidth: false,
+                  ),
+                ),
+        ],
+      ],
     );
+    if (useOuterPadding) {
+      content = Padding(
+        padding: const EdgeInsets.symmetric(vertical: AppSpacing.lg),
+        child: content,
+      );
+    }
+    return content;
   }
 }

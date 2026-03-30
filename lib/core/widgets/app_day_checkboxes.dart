@@ -4,12 +4,12 @@ import '../theme/app_colors.dart';
 import '../theme/app_spacing.dart';
 import '../theme/app_typography.dart';
 
-/// Day abbreviations for weekly schedule (Mon–Sun).
+// Mon-Sun short labels (weekly UI)
 const List<String> kWeekdayLabels = [
   'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun',
 ];
 
-/// Reusable "Available Days" row. Fixed-size chips, centered; checkmark when selected, X when not. [selectedIndices] 0 = Mon … 6 = Sun.
+// Day chips: row of 4 then 3; selectedIndices 0=Mon to 6=Sun
 class AppDayCheckboxes extends StatelessWidget {
   const AppDayCheckboxes({
     super.key,
@@ -22,44 +22,64 @@ class AppDayCheckboxes extends StatelessWidget {
   final ValueChanged<Set<int>> onChanged;
   final List<String> labels;
 
-  static const double _chipWidth = 72;
-  static const double _chipHeight = 44;
-  static const double _circleSize = 22;
-  static const double _labelFontSize = 13;
+  static const double _chipWidth = 64;
+  static const double _chipHeight = 40;
+  static const double _circleSize = 18;
+  static const double _iconSize = 11;
+  static const double _labelFontSize = 11;
 
   @override
   Widget build(BuildContext context) {
+    Widget chip(int index) {
+      final selected = selectedIndices.contains(index);
+      return _DayChip(
+        label: labels[index],
+        selected: selected,
+        onTap: () {
+          final next = Set<int>.from(selectedIndices);
+          if (selected) {
+            next.remove(index);
+          } else {
+            next.add(index);
+          }
+          onChanged(next);
+        },
+      );
+    }
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
           'Available Days',
-          style: AppTypography.body.copyWith(
-            fontWeight: FontWeight.w600,
-            color: AppColors.textPrimary,
-          ),
+          style: AppTypography.bodyStrong,
         ),
         const SizedBox(height: AppSpacing.sm),
-        Wrap(
-          alignment: WrapAlignment.start,
-          spacing: AppSpacing.sm,
-          runSpacing: AppSpacing.sm,
-          children: List.generate(7, (i) {
-            final selected = selectedIndices.contains(i);
-            return _DayChip(
-              label: labels[i],
-              selected: selected,
-              onTap: () {
-                final next = Set<int>.from(selectedIndices);
-                if (selected) {
-                  next.remove(i);
-                } else {
-                  next.add(i);
-                }
-                onChanged(next);
-              },
-            );
-          }),
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                for (int i = 0; i < 4; i++) ...[
+                  if (i > 0) SizedBox(width: AppSpacing.sm),
+                  chip(i),
+                ],
+              ],
+            ),
+            const SizedBox(height: AppSpacing.sm),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                for (int i = 0; i < 3; i++) ...[
+                  if (i > 0) SizedBox(width: AppSpacing.sm),
+                  chip(i + 4),
+                ],
+              ],
+            ),
+          ],
         ),
       ],
     );
@@ -80,14 +100,14 @@ class _DayChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Material(
-      color: Colors.transparent,
+      color: AppColors.transparent,
       child: InkWell(
         onTap: onTap,
         borderRadius: BorderRadius.circular(8),
         child: Container(
           width: AppDayCheckboxes._chipWidth,
           height: AppDayCheckboxes._chipHeight,
-          padding: const EdgeInsets.symmetric(horizontal: 6),
+          padding: const EdgeInsets.symmetric(horizontal: 4),
           decoration: BoxDecoration(
             color: selected
                 ? AppColors.secondaryBlue
@@ -112,18 +132,21 @@ class _DayChip extends StatelessWidget {
                 ),
                 child: Icon(
                   selected ? Icons.check : Icons.close,
-                  size: 14,
-                  color: selected ? Colors.white : AppColors.textSecondary,
+                  size: AppDayCheckboxes._iconSize,
+                  color: selected ? AppColors.onPrimary : AppColors.textSecondary,
                 ),
               ),
-              const SizedBox(width: 6),
+              const SizedBox(width: 4),
               Expanded(
                 child: Text(
                   label,
-                  style: AppTypography.body.copyWith(
+                  maxLines: 1,
+                  softWrap: false,
+                  overflow: TextOverflow.ellipsis,
+                  style: AppTypography.bodySecondary.copyWith(
                     fontWeight: FontWeight.w500,
                     fontSize: AppDayCheckboxes._labelFontSize,
-                    color: AppColors.textPrimary,
+                    height: 1.1,
                   ),
                 ),
               ),

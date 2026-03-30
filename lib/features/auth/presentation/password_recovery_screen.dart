@@ -1,0 +1,208 @@
+import 'dart:async';
+
+import 'package:flutter/material.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+
+import '../../../core/theme/app_colors.dart';
+import '../../../core/theme/app_spacing.dart';
+import '../../../core/messaging/app_messenger.dart';
+import '../../../core/utils/auth_error_messages.dart';
+import '../../../core/validation/form_validators.dart';
+import '../../../core/widgets/widgets.dart';
+import '../providers/auth_providers.dart';
+
+class PasswordRecoveryScreen extends ConsumerStatefulWidget {
+  const PasswordRecoveryScreen({super.key});
+
+  @override
+  ConsumerState<PasswordRecoveryScreen> createState() =>
+      _PasswordRecoveryScreenState();
+}
+
+class _PasswordRecoveryScreenState extends ConsumerState<PasswordRecoveryScreen> {
+  static const _resendCooldownSeconds = 30;
+  static const _rateLimitCooldownSeconds = 180;
+
+  final _formKey = GlobalKey<FormState>();
+  final _emailCtrl = TextEditingController();
+
+  bool _emailSendBusy = false;
+  bool _emailResendBusy = false;
+  bool _emailSentOnce = false;
+  int _emailResendRemaining = 0;
+  Timer? _cooldownTimer;
+
+  @override
+  void dispose() {
+    _cooldownTimer?.cancel();
+    _emailCtrl.dispose();
+    super.dispose();
+  }
+
+  String? _passwordResetRedirectUrl() {
+    final v = dotenv.env['PASSWORD_RESET_REDIRECT_URL'];
+    if (v == null || v.trim().isEmpty) return null;
+    return v.trim();
+  }
+
+  void _ensureCooldownTicker() {
+    if (_cooldownTimer != null) return;
+    _cooldownTimer = Timer.periodic(const Duration(seconds: 1), (t) {
+      if (!mounted) {
+        t.cancel();
+        return;
+      }
+      setState(() {
+        if (_emailResendRemaining > 0) {
+          _emailResendRemaining--;
+        }
+        if (_emailResendRemaining <= 0) {
+          t.cancel();
+          _cooldownTimer = null;
+        }
+      });
+    });
+  }
+
+  void _startEmailCooldown() {
+    setState(() => _emailResendRemaining = _resendCooldownSeconds);
+    _ensureCooldownTicker();
+  }
+
+  Future<void> _sendEmailRecovery() async {
+    final emailErr = FormValidators.email(_emailCtrl.text);
+    if (emailErr != null) {
+      AppMessenger.showError(context, emailErr);
+      _formKey.currentState?.validate();
+      return;
+    }
+    final email = _emailCtrl.text.trim();
+    setState(() => _emailSendBusy = true);
+    try {
+      await ref.read(authRepositoryProvider).resetPasswordForEmail(
+            email: email,
+            redirectTo: _passwordResetRedirectUrl(),
+          );
+      if (!mounted) return;
+      setState(() => _emailSentOnce = true);
+      _startEmailCooldown();
+      AppMessenger.showSuccess(
+        context,
+        'If that email is on an account, you will get a message with a reset link. Open it in your email app to choose a new password.',
+      );
+    } on Exception catch (e) {
+      if (!mounted) return;
+      if (e is AuthException &&
+          (e.code == 'over_request_rate_limit' ||
+              e.code == 'over_email_send_rate_limit')) {
+        setState(() {
+          // Treat this like a "cooldown until resend" so the user doesn't spam
+          _emailSentOnce = true;
+          _emailResendRemaining = _rateLimitCooldownSeconds;
+        });
+        _ensureCooldownTicker();
+      }
+      AppMessenger.showError(context, userFacingAuthMessage(e));
+    } finally {
+      if (mounted) setState(() => _emailSendBusy = false);
+    }
+  }
+
+  Future<void> _resendEmailRecovery() async {
+    if (!_emailSentOnce ||
+        _emailResendRemaining > 0 ||
+        _emailResendBusy ||
+        _emailSendBusy) {
+      return;
+    }
+    final emailErr = FormValidators.email(_emailCtrl.text);
+    if (emailErr != null) {
+      AppMessenger.showError(context, emailErr);
+      return;
+    }
+    final email = _emailCtrl.text.trim();
+    setState(() => _emailResendBusy = true);
+    try {
+      await ref.read(authRepositoryProvider).resetPasswordForEmail(
+            email: email,
+            redirectTo: _passwordResetRedirectUrl(),
+          );
+      if (!mounted) return;
+      _startEmailCooldown();
+    } on Exception catch (e) {
+      if (!mounted) return;
+      AppMessenger.showError(context, userFacingAuthMessage(e));
+    } finally {
+      if (mounted) setState(() => _emailResendBusy = false);
+    }
+  }
+
+  Widget _emailPrimaryButton(BuildContext context) {
+    final busy = _emailSendBusy || _emailResendBusy;
+
+    VoidCallback? onPressed;
+    String label;
+
+    if (busy) {
+      onPressed = null;
+      label = '';
+    } else if (!_emailSentOnce) {
+      onPressed = _sendEmailRecovery;
+      label = 'Send Link';
+    } else if (_emailResendRemaining > 0) {
+      onPressed = null;
+      label = 'Send again in ${_emailResendRemaining}s';
+    } else {
+      onPressed = _resendEmailRecovery;
+      label = 'Resend Email';
+    }
+
+    return AppPrimaryButton(
+      label: label.isEmpty ? ' ' : label,
+      onPressed: onPressed,
+      loading: busy,
+      applyTitleCase: false,
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final emailFieldsEnabled = !_emailSendBusy && !_emailResendBusy;
+
+    return Scaffold(
+      backgroundColor: AppColors.surface,
+      appBar: AppTopBar(
+        title: 'Reset password',
+        onBack: _emailSendBusy || _emailResendBusy ? null : () => context.pop(),
+      ),
+      body: Form(
+        key: _formKey,
+        autovalidateMode: AutovalidateMode.onUserInteraction,
+        child: AppFormScrollBody(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              const AppFormHelperText(
+                'We will email you a link. Open it from your mail app or browser to set a new password.',
+              ),
+              const SizedBox(height: AppSpacing.lg),
+              AppTextField(
+                controller: _emailCtrl,
+                label: 'Email',
+                hint: 'you@example.com',
+                keyboardType: TextInputType.emailAddress,
+                validator: FormValidators.email,
+                enabled: emailFieldsEnabled,
+              ),
+              const SizedBox(height: AppSpacing.lg),
+              _emailPrimaryButton(context),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
