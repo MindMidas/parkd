@@ -1,0 +1,149 @@
+import '../models/availability_specific.dart';
+import '../models/availability_weekly.dart';
+import '../models/booking_time_window.dart';
+import '../models/listing.dart';
+import '../utils/time_step_minutes.dart';
+
+// preset parking durations for map listing preview (mins)
+const List<int> kMapPreviewDurationPresetsMinutes = [15, 30, 60, 120, 300];
+
+String formatMapPreviewDurationLabel(int minutes) {
+  if (minutes < 60) return '${minutes}m';
+  if (minutes % 60 == 0) {
+    final h = minutes ~/ 60;
+    return h == 1 ? '1 hr' : '$h hr';
+  }
+  return '${minutes ~/ 60}h ${minutes % 60}m';
+}
+
+DateTime _dateOnlyLocal(DateTime t) => DateTime(t.year, t.month, t.day);
+
+List<BookingTimeWindow> mergeBookingWindows(List<BookingTimeWindow> raw) {
+  if (raw.isEmpty) return [];
+  final sorted = [...raw]..sort((a, b) => a.start.compareTo(b.start));
+  final out = <BookingTimeWindow>[];
+  var cur = sorted.first;
+  for (var i = 1; i < sorted.length; i++) {
+    final n = sorted[i];
+    if (n.start.isBefore(cur.end)) {
+      final end = n.end.isAfter(cur.end) ? n.end : cur.end;
+      cur = BookingTimeWindow(start: cur.start, end: end);
+    } else {
+      out.add(cur);
+      cur = n;
+    }
+  }
+  out.add(cur);
+  return out;
+}
+
+bool _intervalBlocked(
+  DateTime start,
+  DateTime end,
+  List<BookingTimeWindow> merged,
+) {
+  for (final b in merged) {
+    if (start.isBefore(b.end) && end.isAfter(b.start)) return true;
+  }
+  return false;
+}
+
+DateTime _alignStartUpToGrid(DateTime t, int gridMinutes) {
+  final base = _dateOnlyLocal(t);
+  final dayMinutes = t.difference(base).inMinutes;
+  var need = dayMinutes;
+  if (t.second > 0 || t.millisecond > 0 || t.microsecond > 0) need += 1;
+  final rem = need % gridMinutes;
+  final aligned = rem == 0 ? need : need + (gridMinutes - rem);
+  return base.add(Duration(minutes: aligned));
+}
+
+// Soonest local DT when a stay of desiredDurationMinutes fits inside posted availability and does not overlap bookings (merged first)
+// Uses [listing.isWeeklyAvailability] to choose weekly vs specific rows only, weekly overnight slots (end <= start) are skipped.
+// gridMinutes is search step (def 5)
+DateTime? findSoonestAvailableStart({
+  required DateTime now,
+  required int desiredDurationMinutes,
+  required Listing listing,
+  required List<AvailabilityWeekly> weekly,
+  required List<AvailabilitySpecific> specific,
+  required List<BookingTimeWindow> bookings,
+  int horizonDays = 14,
+  int gridMinutes = TimeStepMinutes.step,
+}) {
+  if (desiredDurationMinutes <= 0) return null;
+  final nowLocal = now.toLocal();
+  final rangeEndInstant = nowLocal.add(Duration(days: horizonDays));
+
+  final windows = <({DateTime start, DateTime end})>[];
+
+  if (listing.isWeeklyAvailability && weekly.isNotEmpty) {
+    final startDay = _dateOnlyLocal(nowLocal);
+    for (var i = 0; i < horizonDays; i++) {
+      final d = startDay.add(Duration(days: i));
+      final dartDow = d.weekday;
+      for (final w in weekly) {
+        if (AvailabilityWeekly.toDartWeekday(w.dayOfWeek) != dartDow) continue;
+        final sm = TimeStepMinutes.tryParseMinutesFromHhMm(w.startTime);
+        final em = TimeStepMinutes.tryParseMinutesFromHhMm(w.endTime);
+        if (sm == null || em == null || em <= sm) continue;
+        final winStart = d.add(Duration(minutes: sm));
+        final winEnd = d.add(Duration(minutes: em));
+        if (!winEnd.isAfter(winStart)) continue;
+        windows.add((start: winStart, end: winEnd));
+      }
+    }
+  } else if (specific.isNotEmpty) {
+    for (final s in specific) {
+      var a = s.startDatetime.toLocal();
+      var b = s.endDatetime.toLocal();
+      if (!b.isAfter(a)) continue;
+      if (!b.isAfter(nowLocal)) continue;
+      if (a.isAfter(rangeEndInstant)) continue;
+      if (a.isBefore(nowLocal)) a = nowLocal;
+      if (b.isAfter(rangeEndInstant)) b = rangeEndInstant;
+      if (!b.isAfter(a)) continue;
+      windows.add((start: a, end: b));
+    }
+  }
+
+  if (windows.isEmpty) return null;
+
+  windows.sort((u, v) => u.start.compareTo(v.start));
+  final merged = mergeBookingWindows(bookings);
+  final need = Duration(minutes: desiredDurationMinutes);
+
+  for (final w in windows) {
+    var t = _alignStartUpToGrid(
+      w.start.isAfter(nowLocal) ? w.start : nowLocal,
+      gridMinutes,
+    );
+    if (t.isBefore(w.start)) t = _alignStartUpToGrid(w.start, gridMinutes);
+    while (true) {
+      final endT = t.add(need);
+      if (endT.isAfter(w.end)) break;
+      if (!_intervalBlocked(t, endT, merged)) return t;
+      t = t.add(Duration(minutes: gridMinutes));
+    }
+  }
+  return null;
+}
+
+// line summary for map preview
+String formatNextAvailableSlotLine(DateTime start, int durationMinutes) {
+  final end = start.add(Duration(minutes: durationMinutes));
+  const dow = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+  const mon = [
+    'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+    'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+  ];
+  final head = '${dow[start.weekday - 1]}, ${mon[start.month - 1]} ${start.day}';
+  final sh = start.hour * 60 + start.minute;
+  final eh = end.hour * 60 + end.minute;
+  if (_dateOnlyLocal(start) == _dateOnlyLocal(end)) {
+    return '$head · ${TimeStepMinutes.formatAmPm(sh)} – ${TimeStepMinutes.formatAmPm(eh)}';
+  }
+  final tail =
+      '${dow[end.weekday - 1]}, ${mon[end.month - 1]} ${end.day} · ${TimeStepMinutes.formatAmPm(eh)}';
+  return '$head · ${TimeStepMinutes.formatAmPm(sh)} → $tail';
+}

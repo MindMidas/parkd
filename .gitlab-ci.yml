@@ -2,7 +2,7 @@ image: ghcr.io/cirruslabs/flutter:stable
 
 stages:
   - analyze
-  - test
+  - build
 
 variables:
   PUB_CACHE: "$CI_PROJECT_DIR/.pub-cache"
@@ -26,10 +26,11 @@ analyze:
     - if: $CI_PIPELINE_SOURCE == "merge_request_event"
     - if: $CI_COMMIT_BRANCH
 
-test:
-  stage: test
+# No unit tests in repo; this compile smoke catches broken imports / missing assets / web issues analyze can miss
+build_web:
+  stage: build
   script:
-    - flutter test --reporter expanded
+    - flutter build web --no-pub --release
   rules:
     - if: $CI_PIPELINE_SOURCE == "merge_request_event"
     - if: $CI_COMMIT_BRANCH

@@ -1,272 +1,544 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:intl/intl.dart';
 
+import '../../../../core/models/profile.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/theme/app_typography.dart';
-import '../../../../core/models/profile.dart';
+import '../../../../core/utils/auth_error_messages.dart';
+import '../../../../core/utils/profile_avatar_image_provider.dart';
+import '../../../../core/utils/phone_e164.dart';
+import '../../../../core/utils/scroll_view_bottom_inset.dart';
+import '../../../../core/validation/form_validators.dart';
 import '../../../../core/widgets/widgets.dart';
+import '../../../auth/providers/auth_providers.dart';
 import '../../providers/profile_providers.dart';
-import '../../../home/presentation/home_map_screen.dart';
+import 'upload_profile_photo_screen.dart';
 
+// edit profile plus email OTP when user changes address
 class EditProfileScreen extends ConsumerWidget {
   const EditProfileScreen({super.key});
+
+  static (String, String) splitFullName(String? fullName) {
+    if (fullName == null || fullName.trim().isEmpty) {
+      return ('', '');
+    }
+    final parts = fullName.trim().split(RegExp(r'\s+'));
+    if (parts.length == 1) {
+      return (parts.single, '');
+    }
+    return (parts.first, parts.sublist(1).join(' '));
+  }
+
+  static String _dashToEmpty(String s) {
+    if (s == '—' || s == 'Loading…') return '';
+    return s;
+  }
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final profileAsync = ref.watch(currentProfileProvider);
 
-    return Scaffold(
-      backgroundColor: Colors.white,
-      appBar: const AppTopBar(
-        title: 'Edit Profile',
-        showBack: true,
+    return profileAsync.when(
+      loading: () => Scaffold(
+        backgroundColor: AppColors.surface,
+        appBar: const AppTopBar(title: 'Edit Account', showBack: true),
+        body: const Center(child: CircularProgressIndicator()),
       ),
-      body: SingleChildScrollView(
-        physics: const BouncingScrollPhysics(
-          parent: AlwaysScrollableScrollPhysics(),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const SizedBox(height: AppSpacing.lg),
-            // --- Avatar + name ---
-            _EditProfileHeader(profileAsync: profileAsync),
-            const SizedBox(height: AppSpacing.xl),
-            // --- Full Name ---
-            _ProfileField(
-              label: 'Full Name',
-              icon: Icons.account_circle_outlined,
-              value: 'Lucas Scott',
-            ),
-            // --- Email Address ---
-            _ProfileField(
-              label: 'Email Address',
-              icon: Icons.email_outlined,
-              value: 'lucasscott@gmail.com',
-            ),
-            // --- Phone Number ---
-            _ProfileField(
-              label: 'Phone Number',
-              icon: Icons.phone_outlined,
-              value: '+000 00 00 000',
-            ),
-            // --- Birth Date ---
-            const _BirthDateField(
-              day: '28',
-              month: 'September',
-              year: '2000',
-            ),
-          ],
+      error: (_, _) => Scaffold(
+        backgroundColor: AppColors.surface,
+        appBar: const AppTopBar(title: 'Edit Account', showBack: true),
+        body: const AppMutedBodyCenter(
+          'Could not load your profile.',
+          padding: EdgeInsets.all(AppSpacing.lg),
         ),
       ),
-      bottomNavigationBar: AppBottomNav(
-        selectedIndex: 1,
-        onDestinationSelected: (index) {
-          Navigator.of(context).pushAndRemoveUntil(
-            MaterialPageRoute(
-              builder: (_) => HomeMapScreen(initialIndex: index),
-            ),
-            (route) => false,
+      data: (profile) {
+        if (profile == null) {
+          return Scaffold(
+            backgroundColor: AppColors.surface,
+            appBar: const AppTopBar(title: 'Edit Profile', showBack: true),
+            body: const AppMutedBodyCenter('No profile found.'),
           );
-        },
-      ),
+        }
+        return _EditProfileScaffold(profile: profile);
+      },
     );
   }
 }
 
-// ---------------------------------------------------------------------------
-// Header with avatar + edit badge + name + handle
-// ---------------------------------------------------------------------------
+class _EditProfileScaffold extends ConsumerStatefulWidget {
+  const _EditProfileScaffold({required this.profile});
 
-class _EditProfileHeader extends StatelessWidget {
-  const _EditProfileHeader({required this.profileAsync});
-
-  final AsyncValue<Profile?> profileAsync;
+  final Profile profile;
 
   @override
-  Widget build(BuildContext context) {
-    return profileAsync.when(
-      data: (profile) {
-        final name = profile?.displayName ?? 'Lucas Scott';
-        final handle =
-            profile?.username != null ? '@${profile!.username}' : '@lucasscott3';
-        return _buildContent(name, handle);
-      },
-      loading: () => _buildContent('Loading…', null),
-      error: (_, _) => _buildContent('Lucas Scott', '@lucasscott3'),
+  ConsumerState<_EditProfileScaffold> createState() => _EditProfileScaffoldState();
+}
+
+class _EditProfileScaffoldState extends ConsumerState<_EditProfileScaffold> {
+  final _formKey = GlobalKey<FormState>();
+
+  late final TextEditingController _firstName;
+  late final TextEditingController _lastName;
+  late final TextEditingController _email;
+  late final TextEditingController _phone;
+  late final TextEditingController _birthDateDisplay;
+  late final TextEditingController _emailOtp;
+
+  late String _sessionEmail;
+  late String _phoneCountryCode;
+
+  String _phoneE164 = '';
+
+  DateTime? _birthDate;
+
+  bool _saving = false;
+  bool _verifyingEmail = false;
+  String? _pendingNewEmail;
+
+  @override
+  void initState() {
+    super.initState();
+    final sessionEmail = ref.read(currentSessionProvider)?.user.email ?? '';
+    _sessionEmail = sessionEmail;
+
+    final (f, l) = EditProfileScreen.splitFullName(widget.profile.fullName);
+    _firstName = TextEditingController(text: EditProfileScreen._dashToEmpty(f));
+    _lastName = TextEditingController(text: EditProfileScreen._dashToEmpty(l));
+
+    final profileEmail = widget.profile.email?.trim();
+    _email = TextEditingController(
+      text: (profileEmail != null && profileEmail.isNotEmpty)
+          ? profileEmail
+          : sessionEmail,
+    );
+    final existingPhone = widget.profile.phone?.trim();
+    final decoded = decodeE164ForIntlPhoneField(existingPhone);
+    _phoneCountryCode = decoded?.iso ?? 'CA';
+    _phone = TextEditingController(text: decoded?.nationalDigits ?? '');
+    _phoneE164 = (existingPhone != null && existingPhone.isNotEmpty)
+        ? existingPhone
+        : '';
+    _birthDate = widget.profile.birthDate;
+    _birthDateDisplay = TextEditingController(
+      text: _birthDate != null
+          ? DateFormat.yMMMMd().format(_birthDate!)
+          : '',
+    );
+    _emailOtp = TextEditingController();
+
+    _firstName.addListener(_onNameFieldsChanged);
+    _lastName.addListener(_onNameFieldsChanged);
+  }
+
+  void _onNameFieldsChanged() {
+    if (mounted) setState(() {});
+  }
+
+  @override
+  void dispose() {
+    _firstName.removeListener(_onNameFieldsChanged);
+    _lastName.removeListener(_onNameFieldsChanged);
+    _firstName.dispose();
+    _lastName.dispose();
+    _email.dispose();
+    _phone.dispose();
+    _birthDateDisplay.dispose();
+    _emailOtp.dispose();
+    super.dispose();
+  }
+
+  Future<void> _pickBirthDate() async {
+    final now = DateTime.now();
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: _birthDate ?? DateTime(now.year - 25),
+      firstDate: DateTime(1900),
+      lastDate: now,
+    );
+    if (picked != null) {
+      setState(() {
+        _birthDate = picked;
+        _birthDateDisplay.text = DateFormat.yMMMMd().format(picked);
+      });
+    }
+  }
+
+  Future<void> _save() async {
+    if (!_formKey.currentState!.validate()) return;
+    FocusScope.of(context).unfocus();
+    setState(() => _saving = true);
+    final messenger = ScaffoldMessenger.of(context);
+    try {
+      final repo = ref.read(profileRepositoryProvider);
+      final auth = ref.read(authRepositoryProvider);
+      final userId = widget.profile.id;
+
+      final first = _firstName.text.trim();
+      final last = _lastName.text.trim();
+      final fullName = last.isEmpty ? first : '$first $last';
+
+      final nationalDigits =
+          _phone.text.replaceAll(RegExp(r'\D'), '');
+      final String? phoneE164;
+      if (nationalDigits.isEmpty) {
+        phoneE164 = null;
+      } else {
+        phoneE164 =
+            normalizePhoneToE164(_phoneE164) ?? _phoneE164;
+      }
+
+      final newEmail = _email.text.trim();
+      final emailChanged =
+          newEmail.toLowerCase() != _sessionEmail.toLowerCase();
+
+      await repo.updateProfile(
+        userId: userId,
+        fullName: fullName,
+        phoneE164: phoneE164,
+        birthDate: _birthDate,
+        email: emailChanged ? null : newEmail,
+      );
+
+      if (emailChanged) {
+        await auth.updateUserEmail(newEmail);
+        if (!mounted) return;
+        setState(() {
+          _pendingNewEmail = newEmail;
+          _saving = false;
+        });
+        messenger.showSnackBar(
+          const SnackBar(
+            content: Text(
+              'We sent a confirmation code to your new email. Enter it below to finish the change.',
+            ),
+          ),
+        );
+      } else {
+        if (!mounted) return;
+        setState(() {
+          _saving = false;
+          _pendingNewEmail = null;
+        });
+        messenger.showSnackBar(
+          const SnackBar(content: Text('Profile updated.')),
+        );
+      }
+
+      invalidateProfileSurfaces(ref, widget.profile.id);
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _saving = false);
+      messenger.showSnackBar(
+        SnackBar(content: Text(userFacingAuthMessage(e))),
+      );
+    }
+  }
+
+  Future<void> _verifyEmailChange() async {
+    final pending = _pendingNewEmail;
+    if (pending == null) return;
+    final code = _emailOtp.text.trim();
+    if (code.length < 6) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Enter the code from your email.')),
+      );
+      return;
+    }
+    setState(() => _verifyingEmail = true);
+    final messenger = ScaffoldMessenger.of(context);
+    try {
+      await ref.read(authRepositoryProvider).verifyEmailChangeOtp(
+            email: pending,
+            token: code,
+          );
+      if (!mounted) return;
+      setState(() {
+        _verifyingEmail = false;
+        _pendingNewEmail = null;
+        _sessionEmail = _email.text.trim();
+      });
+      _emailOtp.clear();
+      invalidateProfileSurfaces(ref, widget.profile.id);
+      messenger.showSnackBar(
+        const SnackBar(content: Text('Email address confirmed.')),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _verifyingEmail = false);
+      messenger.showSnackBar(
+        SnackBar(content: Text(userFacingAuthMessage(e))),
+      );
+    }
+  }
+
+  Widget _buildProfileHeader() {
+    final refreshed = ref.watch(currentProfileProvider);
+    final profileForAvatar = refreshed.asData?.value ?? widget.profile;
+
+    final first = _firstName.text.trim();
+    final last = _lastName.text.trim();
+    final String displayName;
+    if (first.isEmpty && last.isEmpty) {
+      displayName = widget.profile.displayName;
+    } else {
+      displayName = last.isEmpty ? first : '$first $last';
+    }
+
+    final u = profileForAvatar.username?.trim();
+    final handleText = (u != null && u.isNotEmpty) ? '@$u' : null;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Center(
+          child: Stack(
+            clipBehavior: Clip.none,
+            alignment: Alignment.center,
+            children: [
+              AppMenuProfileAvatar(
+                imageProvider: profileAvatarImageProvider(profileForAvatar),
+                size: 96,
+              ),
+              Positioned(
+                right: -2,
+                bottom: -2,
+                child: Material(
+                  color: AppColors.primaryBlue,
+                  shape: const CircleBorder(),
+                  child: InkWell(
+                    customBorder: const CircleBorder(),
+                    onTap: _saving
+                        ? null
+                        : () async {
+                            await Navigator.of(context).push<void>(
+                              MaterialPageRoute<void>(
+                                builder: (_) => UploadProfilePhotoScreen(
+                                  userId: widget.profile.id,
+                                ),
+                              ),
+                            );
+                            if (mounted) {
+                              invalidateProfileSurfaces(
+                                ref,
+                                widget.profile.id,
+                              );
+                            }
+                          },
+                    child: const SizedBox(
+                      width: 32,
+                      height: 32,
+                      child: Icon(
+                        Icons.edit_rounded,
+                        color: AppColors.onPrimary,
+                        size: 18,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: AppSpacing.md),
+        Text(
+          displayName,
+          style: AppTypography.profileDisplayName,
+          textAlign: TextAlign.center,
+        ),
+        if (handleText != null) ...[
+          const SizedBox(height: AppSpacing.xs),
+          Text(
+            handleText,
+            style: AppTypography.caption,
+            textAlign: TextAlign.center,
+          ),
+        ],
+      ],
     );
   }
 
-  Widget _buildContent(String name, String? handle) {
-    return Center(
-      child: Column(
-        children: [
-          SizedBox(
-            width: 100,
-            height: 100,
-            child: Stack(
-              children: [
-                Container(
-                  width: 96,
-                  height: 96,
-                  decoration: const BoxDecoration(
-                    color: AppColors.secondaryBlue,
-                    shape: BoxShape.circle,
-                  ),
-                  child: const Icon(
-                    Icons.person_rounded,
-                    size: 56,
-                    color: Colors.white,
-                  ),
+  @override
+  Widget build(BuildContext context) {
+    final bottomInset = scrollViewBottomInset(context);
+
+    return Scaffold(
+      backgroundColor: AppColors.surface,
+      appBar: const AppTopBar(title: 'Edit Profile', showBack: true),
+      body: Form(
+        key: _formKey,
+        child: SingleChildScrollView(
+          physics: const BouncingScrollPhysics(
+            parent: AlwaysScrollableScrollPhysics(),
+          ),
+          padding: EdgeInsets.only(bottom: AppSpacing.lg + bottomInset),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              const SizedBox(height: AppSpacing.md),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
+                child: _buildProfileHeader(),
+              ),
+              const SizedBox(height: AppSpacing.lg),
+              Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: AppSpacing.lg,
+                  vertical: AppSpacing.md,
                 ),
-                Positioned(
-                  bottom: 2,
-                  right: 2,
-                  child: Container(
-                    width: 26,
-                    height: 26,
-                    decoration: BoxDecoration(
-                      color: AppColors.primaryBlue,
-                      shape: BoxShape.circle,
-                      border: Border.all(color: Colors.white, width: 2),
+                child: AppTextField(
+                  controller: _firstName,
+                  label: 'First name',
+                  hint: 'Alex',
+                  textCapitalization: TextCapitalization.words,
+                  inputFormatters: [LengthLimitingTextInputFormatter(60)],
+                  validator: FormValidators.firstName,
+                  enabled: !_saving,
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: AppSpacing.lg,
+                  vertical: AppSpacing.md,
+                ),
+                child: AppTextField(
+                  controller: _lastName,
+                  label: 'Last name',
+                  hint: 'Smith-Jones',
+                  textCapitalization: TextCapitalization.words,
+                  inputFormatters: [LengthLimitingTextInputFormatter(80)],
+                  validator: FormValidators.optionalFamilyName,
+                  enabled: !_saving,
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: AppSpacing.lg,
+                  vertical: AppSpacing.md,
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    AppTextField(
+                      controller: _email,
+                      label: 'Email address',
+                      hint: 'you@example.com',
+                      keyboardType: TextInputType.emailAddress,
+                      autocorrect: false,
+                      validator: FormValidators.email,
+                      enabled: !_saving,
                     ),
-                    child: const Icon(
-                      Icons.edit,
-                      size: 14,
-                      color: Colors.white,
+                    const SizedBox(height: AppSpacing.xs),
+                    Text(
+                      'If you change your email, we will send a confirmation code to the new address. Your sign-in email updates only after you enter that code.',
+                      style: AppTypography.caption.copyWith(
+                        color: AppColors.textSecondary,
+                      ),
                     ),
+                  ],
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: AppSpacing.lg,
+                  vertical: AppSpacing.md,
+                ),
+                child: AppIntlPhoneField(
+                  controller: _phone,
+                  enabled: !_saving,
+                  initialCountryCode: _phoneCountryCode,
+                  phoneRequired: false,
+                  labelText: 'Phone number (optional)',
+                  autovalidateMode: AutovalidateMode.onUserInteraction,
+                  onPhoneChanged: (phone) {
+                    setState(() {
+                      _phoneE164 = phone.completeNumber;
+                    });
+                  },
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: AppSpacing.lg,
+                  vertical: AppSpacing.md,
+                ),
+                child: AppTextField(
+                  readOnly: true,
+                  onTap: _saving ? null : _pickBirthDate,
+                  controller: _birthDateDisplay,
+                  label: 'Date of birth',
+                  hint: 'Select date',
+                  suffixIcon: const Icon(
+                    Icons.calendar_today_outlined,
+                    size: 20,
+                    color: AppColors.iconGrey,
+                  ),
+                  enabled: !_saving,
+                ),
+              ),
+              if (_pendingNewEmail != null) ...[
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(
+                    AppSpacing.lg,
+                    AppSpacing.md,
+                    AppSpacing.lg,
+                    AppSpacing.sm,
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Text(
+                        'Confirm new email',
+                        style: AppTypography.hubTitle,
+                      ),
+                      const SizedBox(height: AppSpacing.xs),
+                      Text(
+                        'Code sent to $_pendingNewEmail',
+                        style: AppTypography.caption.copyWith(
+                          color: AppColors.textSecondary,
+                        ),
+                      ),
+                      const SizedBox(height: AppSpacing.md),
+                      AppTextField(
+                        controller: _emailOtp,
+                        label: 'Confirmation code',
+                        keyboardType: TextInputType.number,
+                        inputFormatters: [
+                          FilteringTextInputFormatter.digitsOnly,
+                          LengthLimitingTextInputFormatter(10),
+                        ],
+                      ),
+                      const SizedBox(height: AppSpacing.md),
+                      AppPrimaryButton(
+                        label: 'Verify email',
+                        onPressed:
+                            _verifyingEmail ? null : _verifyEmailChange,
+                        loading: _verifyingEmail,
+                      ),
+                    ],
                   ),
                 ),
               ],
-            ),
-          ),
-          const SizedBox(height: AppSpacing.md),
-          Text(name, style: AppTypography.title),
-          if (handle != null) ...[
-            const SizedBox(height: AppSpacing.xs),
-            Text(handle, style: AppTypography.caption),
-          ],
-        ],
-      ),
-    );
-  }
-}
-
-// ---------------------------------------------------------------------------
-// Profile field row (label + icon + value + divider)
-// ---------------------------------------------------------------------------
-
-class _ProfileField extends StatelessWidget {
-  const _ProfileField({
-    required this.label,
-    required this.icon,
-    required this.value,
-  });
-
-  final String label;
-  final IconData icon;
-  final String value;
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            label,
-            style: AppTypography.caption.copyWith(
-              color: AppColors.textSecondary,
-            ),
-          ),
-          const SizedBox(height: AppSpacing.sm),
-          Row(
-            children: [
-              Icon(icon, size: 20, color: AppColors.iconGrey),
-              const SizedBox(width: AppSpacing.sm),
-              Expanded(
-                child: Text(value, style: AppTypography.body),
-              ),
-            ],
-          ),
-          const SizedBox(height: AppSpacing.sm),
-          const AppDivider(),
-          const SizedBox(height: AppSpacing.md),
-        ],
-      ),
-    );
-  }
-}
-
-// ---------------------------------------------------------------------------
-// Birth date field with day / month / year columns
-// ---------------------------------------------------------------------------
-
-class _BirthDateField extends StatelessWidget {
-  const _BirthDateField({
-    required this.day,
-    required this.month,
-    required this.year,
-  });
-
-  final String day;
-  final String month;
-  final String year;
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            'Birth Date',
-            style: AppTypography.caption.copyWith(
-              color: AppColors.textSecondary,
-            ),
-          ),
-          const SizedBox(height: AppSpacing.sm),
-          Row(
-            children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(day, style: AppTypography.body),
-                    const SizedBox(height: AppSpacing.sm),
-                    const AppDivider(),
-                  ],
+              SizedBox(height: AppSpacing.xl),
+              Padding(
+                padding: EdgeInsets.fromLTRB(
+                  AppSpacing.lg,
+                  0,
+                  AppSpacing.lg,
+                  AppSpacing.lg + bottomInset,
                 ),
-              ),
-              const SizedBox(width: AppSpacing.lg),
-              Expanded(
-                flex: 2,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(month, style: AppTypography.body),
-                    const SizedBox(height: AppSpacing.sm),
-                    const AppDivider(),
-                  ],
-                ),
-              ),
-              const SizedBox(width: AppSpacing.lg),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(year, style: AppTypography.body),
-                    const SizedBox(height: AppSpacing.sm),
-                    const AppDivider(),
-                  ],
+                child: AppPrimaryButton(
+                  label: 'Save changes',
+                  onPressed: _saving ? null : _save,
+                  loading: _saving,
                 ),
               ),
             ],
           ),
-        ],
+        ),
       ),
     );
   }

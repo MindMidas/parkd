@@ -4,8 +4,7 @@ import '../theme/app_colors.dart';
 import '../theme/app_spacing.dart';
 import '../theme/app_typography.dart';
 
-/// Simple month calendar: month/year label, prev/next for month and year, grid of days. Supports range selection (all dates in [selectedDates] highlighted; latest = primary/blue).
-/// Pass [minDate] (e.g. today) to disable going before that date and to grey out past days.
+// Month grid + nav; highlights selected dates (newest = blue). minDate greys past days
 class AppMonthCalendar extends StatelessWidget {
   const AppMonthCalendar({
     super.key,
@@ -17,6 +16,7 @@ class AppMonthCalendar extends StatelessWidget {
     this.onNextYear,
     this.minDate,
     this.onDayTap,
+    this.isDateSelectable,
   });
 
   final DateTime currentMonth;
@@ -25,9 +25,9 @@ class AppMonthCalendar extends StatelessWidget {
   final VoidCallback onNextMonth;
   final VoidCallback? onPrevYear;
   final VoidCallback? onNextYear;
-  /// No navigation before this date; days before this are disabled. Typically DateTime.now() normalized to midnight.
   final DateTime? minDate;
   final ValueChanged<DateTime>? onDayTap;
+  final bool Function(DateTime date)? isDateSelectable;
 
   static const _weekdays = ['MO', 'TU', 'WE', 'TH', 'FR', 'SA', 'SU'];
 
@@ -49,7 +49,7 @@ class AppMonthCalendar extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(AppSpacing.md),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: AppColors.surface,
         borderRadius: BorderRadius.circular(12),
         border: Border.all(color: AppColors.secondaryGrey.withValues(alpha: 0.5)),
       ),
@@ -61,10 +61,7 @@ class AppMonthCalendar extends StatelessWidget {
             children: [
               Text(
                 monthLabel,
-                style: AppTypography.body.copyWith(
-                  fontWeight: FontWeight.w600,
-                  color: AppColors.textPrimary,
-                ),
+                style: AppTypography.bodyStrong,
               ),
               Row(
                 mainAxisSize: MainAxisSize.min,
@@ -108,9 +105,7 @@ class AppMonthCalendar extends StatelessWidget {
                       child: Center(
                         child: Text(
                           d,
-                          style: AppTypography.caption.copyWith(
-                            color: AppColors.textSecondary,
-                          ),
+                          style: AppTypography.calendarWeekdayHeader,
                         ),
                       ),
                     ))
@@ -141,8 +136,11 @@ class AppMonthCalendar extends StatelessWidget {
                   date.month == latest.month &&
                   date.day == latest.day;
               final isPast = minDay != null && date.isBefore(minDay);
+              final blocked = isDateSelectable != null &&
+                  !isDateSelectable!(date);
+              final disabled = isPast || blocked;
               return GestureDetector(
-                onTap: isPast ? null : () => onDayTap?.call(date),
+                onTap: disabled ? null : () => onDayTap?.call(date),
                 child: Container(
                   alignment: Alignment.center,
                   decoration: BoxDecoration(
@@ -155,14 +153,17 @@ class AppMonthCalendar extends StatelessWidget {
                   ),
                   child: Text(
                     '$day',
-                    style: AppTypography.caption.copyWith(
-                      color: isPast
-                          ? AppColors.textSecondary.withValues(alpha: 0.5)
-                          : (selected && isPrimary
-                              ? Colors.white
-                              : AppColors.textPrimary),
-                      fontWeight: selected ? FontWeight.w600 : null,
-                    ),
+                    style: disabled
+                        ? AppTypography.caption.copyWith(
+                            color: AppColors.textSecondary
+                                .withValues(alpha: 0.5),
+                          )
+                        : (selected && isPrimary)
+                            ? AppTypography.captionStrong
+                                .copyWith(color: AppColors.onPrimary)
+                            : selected
+                                ? AppTypography.captionStrong
+                                : AppTypography.captionPrimary,
                   ),
                 ),
               );
