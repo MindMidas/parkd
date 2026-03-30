@@ -4,8 +4,7 @@ import '../theme/app_colors.dart';
 import '../theme/app_spacing.dart';
 import '../theme/app_typography.dart';
 
-/// Reusable row: label on the left, stepper (minus / value / plus) on the right.
-/// Use for hourly/daily price or any numeric selector. Circular light blue buttons.
+// Label + - / number / + (prices, counts, ...)
 class AppPriceStepper extends StatelessWidget {
   const AppPriceStepper({
     super.key,
@@ -40,10 +39,7 @@ class AppPriceStepper extends StatelessWidget {
           Expanded(
             child: Text(
               label,
-              style: AppTypography.body.copyWith(
-                fontWeight: FontWeight.w600,
-                color: AppColors.textPrimary,
-              ),
+              style: AppTypography.bodyStrong,
             ),
           ),
           Row(
@@ -88,7 +84,7 @@ class _StepperButton extends StatelessWidget {
   Widget build(BuildContext context) {
     final enabled = onPressed != null;
     return Material(
-      color: Colors.transparent,
+      color: AppColors.transparent,
       child: InkWell(
         onTap: onPressed,
         borderRadius: BorderRadius.circular(20),
@@ -104,7 +100,7 @@ class _StepperButton extends StatelessWidget {
           child: Icon(
             icon,
             size: 20,
-            color: enabled ? Colors.white : AppColors.textSecondary,
+            color: enabled ? AppColors.onPrimary : AppColors.textSecondary,
           ),
         ),
       ),

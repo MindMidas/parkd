@@ -5,4 +5,8 @@ class AppSpacing {
   static const md = 16.0;
   static const lg = 24.0;
   static const xl = 32.0;
+
+  static const mapSearchOverlayHorizontal = md;
+
+  static const primaryButtonMinHeight = 52.0;
 }

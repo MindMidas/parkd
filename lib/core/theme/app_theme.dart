@@ -1,19 +1,21 @@
 import 'package:flutter/material.dart';
 
 import 'app_colors.dart';
+import 'app_spacing.dart';
 import 'app_typography.dart';
 
+// theme for the app
 class AppTheme {
   static ThemeData light() {
     const scheme = ColorScheme(
       brightness: Brightness.light,
       primary: AppColors.primaryBlue,
-      onPrimary: Colors.white,
+      onPrimary: AppColors.onPrimary,
       secondary: AppColors.secondaryBlue,
       onSecondary: AppColors.black,
       error: AppColors.error,
-      onError: Colors.white,
-      surface: Colors.white,
+      onError: AppColors.onError,
+      surface: AppColors.surface,
       onSurface: AppColors.black,
     );
 
@@ -25,12 +27,16 @@ class AppTheme {
       appBarTheme: const AppBarTheme(
         elevation: 0,
         centerTitle: false,
-        backgroundColor: Colors.white,
+        backgroundColor: AppColors.surface,
         foregroundColor: AppColors.black,
       ),
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
-        fillColor: Colors.white,
+        fillColor: AppColors.surface,
+        floatingLabelStyle: AppTypography.label,
+        hintStyle: AppTypography.bodyMuted,
+        labelStyle: AppTypography.label,
+        floatingLabelBehavior: FloatingLabelBehavior.always,
         contentPadding: const EdgeInsets.symmetric(
           horizontal: 16,
           vertical: 14,
@@ -54,17 +60,17 @@ class AppTheme {
       filledButtonTheme: FilledButtonThemeData(
         style: FilledButton.styleFrom(
           backgroundColor: AppColors.primaryBlue,
-          foregroundColor: Colors.white,
-          minimumSize: const Size.fromHeight(52),
+          foregroundColor: AppColors.onPrimary,
+          minimumSize: Size(64, AppSpacing.primaryButtonMinHeight),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(12),
           ),
-          textStyle: AppTypography.button.copyWith(fontSize: 14),
+          textStyle: AppTypography.button,
         ),
       ),
       outlinedButtonTheme: OutlinedButtonThemeData(
         style: OutlinedButton.styleFrom(
-          minimumSize: const Size.fromHeight(48),
+          minimumSize: Size(64, AppSpacing.primaryButtonMinHeight),
           foregroundColor: AppColors.primaryBlue,
           side: const BorderSide(color: AppColors.primaryBlue),
           shape: RoundedRectangleBorder(
@@ -76,18 +82,17 @@ class AppTheme {
       textButtonTheme: TextButtonThemeData(
         style: TextButton.styleFrom(
           foregroundColor: AppColors.primaryBlue,
-          textStyle: AppTypography.button,
+          textStyle: AppTypography.textAction,
         ),
       ),
       navigationBarTheme: NavigationBarThemeData(
-        backgroundColor: Colors.white,
+        backgroundColor: AppColors.surface,
         indicatorColor: AppColors.secondaryBlue,
-        labelTextStyle: WidgetStateProperty.all(
-          const TextStyle(fontSize: 12, fontWeight: FontWeight.w500),
-        ),
+        labelTextStyle: WidgetStateProperty.all(AppTypography.navBarLabel),
         iconTheme: WidgetStateProperty.resolveWith((states) {
           final selected = states.contains(WidgetState.selected);
           return IconThemeData(
+            size: 22,
             color: selected ? AppColors.iconBlue : AppColors.iconGrey,
           );
         }),
@@ -95,7 +100,7 @@ class AppTheme {
       cardTheme: CardThemeData(
         elevation: 0,
         margin: EdgeInsets.zero,
-        color: Colors.white,
+        color: AppColors.surface,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(14),
           side: const BorderSide(color: AppColors.secondaryGrey),

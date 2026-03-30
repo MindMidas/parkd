@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 
 import '../theme/app_colors.dart';
+import '../theme/app_spacing.dart';
 import '../theme/app_typography.dart';
+import '../utils/display_formatting.dart';
 import 'app_divider.dart';
 
-// List item with optional borders. Label is displayed in title case (first letter of each word capitalized).
+// list row + chevron
 class AppListItem extends StatelessWidget {
   const AppListItem({
     super.key,
@@ -12,6 +14,7 @@ class AppListItem extends StatelessWidget {
     this.onTap,
     this.showTopBorder = false,
     this.showBottomBorder = false,
+    this.leadingIcon,
   });
 
   final String label;
@@ -19,35 +22,36 @@ class AppListItem extends StatelessWidget {
   final bool showTopBorder;
   final bool showBottomBorder;
 
-  static String _formatLabel(String text) {
-    if (text.isEmpty) return text;
-    return text.split(' ').map((word) {
-      if (word.isEmpty) return word;
-      return word[0].toUpperCase() + word.substring(1).toLowerCase();
-    }).join(' ');
-  }
+  final IconData? leadingIcon;
 
   @override
   Widget build(BuildContext context) {
     return Column(
       children: [
-        if (showTopBorder) const AppDivider(),
+        if (showTopBorder) const AppDividerWide(),
         ListTile(
-          contentPadding: const EdgeInsets.symmetric(horizontal: 16),
+          contentPadding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
           minVerticalPadding: 14,
           visualDensity: VisualDensity.compact,
+          leading: leadingIcon != null
+              ? Icon(
+                  leadingIcon,
+                  size: 22,
+                  color: AppColors.iconGrey,
+                )
+              : null,
           title: Text(
-            _formatLabel(label),
+            formatTitleCaseWords(label),
             style: AppTypography.body,
           ),
           trailing: const Icon(
-            Icons.chevron_right,
-            size: 20,
+            Icons.keyboard_arrow_right_rounded,
+            size: 22,
             color: AppColors.iconGrey,
           ),
           onTap: onTap,
         ),
-        if (showBottomBorder) const AppDivider(),
+        if (showBottomBorder) const AppDividerWide(),
       ],
     );
   }

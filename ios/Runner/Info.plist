@@ -59,6 +59,31 @@
 		<string>UIInterfaceOrientationLandscapeLeft</string>
 		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleTypeRole</key>
+			<string>Editor</string>
+			<key>CFBundleURLName</key>
+			<string>parkd.stripe</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>parkd</string>
+			</array>
+		</dict>
+	</array>
+	<key>LSApplicationQueriesSchemes</key>
+	<array>
+		<string>App-prefs</string>
+	</array>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>Parkd uses your location to show where you are on the map and parking nearby. You can search other places without it.</string>
+	<key>NSCameraUsageDescription</key>
+	<string>Parkd uses the camera for your profile photo and for photos of parking spots you list.</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>iOS may require this when using the camera; Parkd does not record audio for still parking photos.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>Parkd needs photo library access to set your profile picture and to choose parking spot photos.</string>
 	<key>UISupportedInterfaceOrientations~ipad</key>
 	<array>
 		<string>UIInterfaceOrientationPortrait</string>
