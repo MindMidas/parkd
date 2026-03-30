@@ -29,8 +29,13 @@ analyze:
 # No unit tests in repo; this compile smoke catches broken imports / missing assets / web issues analyze can miss
 build_web:
   stage: build
+  # Lighter dart2js than default -O4 to avoid OOM on low-RAM K8s runners.
+  retry:
+    max: 2
+    when:
+      - runner_system_failure
   script:
-    - flutter build web --no-pub --release
+    - flutter build web --no-pub --release --optimization-level=2 --no-source-maps --no-wasm-dry-run
   rules:
     - if: $CI_PIPELINE_SOURCE == "merge_request_event"
     - if: $CI_COMMIT_BRANCH
