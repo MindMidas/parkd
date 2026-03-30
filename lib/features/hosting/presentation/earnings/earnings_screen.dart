@@ -88,8 +88,8 @@ class _EarningsScreenState extends ConsumerState<EarningsScreen> {
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
                       const AppFormHelperText(
-                        'Up to three months, by when each booking starts. '
-                        'Search only filters the paid trips below.',
+                        'How much you made each month, for trips starting that month. '
+                        'Showing your three most recent months.',
                       ),
                       const SizedBox(height: AppSpacing.md),
                       for (var i = 0; i < top.length; i++) ...[

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../theme/app_colors.dart';
 import '../theme/app_spacing.dart';
@@ -7,7 +8,7 @@ import '../theme/app_typography.dart';
 const double _kNavIconSize = 22;
 const double _kPillRadius = 18;
 
-// strip above home indicator 
+// strip above home indicator
 const double _kNavStripHeight = 42;
 
 class AppBottomNav extends StatelessWidget {
@@ -20,11 +21,7 @@ class AppBottomNav extends StatelessWidget {
   final int selectedIndex;
   final ValueChanged<int> onDestinationSelected;
 
-  static const _tabs = <({
-    String label,
-    IconData icon,
-    IconData selectedIcon,
-  })>[
+  static const _tabs = <({String label, IconData icon, IconData selectedIcon})>[
     (label: 'Map', icon: Icons.map_outlined, selectedIcon: Icons.map_outlined),
     (
       label: 'Reservations',
@@ -110,49 +107,47 @@ class _NavItem extends StatelessWidget {
       button: true,
       selected: selected,
       label: label,
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Material(
-            color: AppColors.transparent,
-            surfaceTintColor: AppColors.transparent,
-            child: InkWell(
-              onTap: onTap,
-              borderRadius: BorderRadius.circular(_kPillRadius),
-              splashColor: AppColors.secondaryBlue.withValues(alpha: 0.35),
-              highlightColor: AppColors.transparent,
-              child: AnimatedContainer(
-                duration: const Duration(milliseconds: 200),
-                curve: Curves.easeOutCubic,
-                padding: EdgeInsets.symmetric(
-                  horizontal: selected ? AppSpacing.sm : AppSpacing.xs,
-                  vertical: 1,
-                ),
-                decoration: BoxDecoration(
-                  color: selected ? AppColors.secondaryBlue : AppColors.transparent,
-                  borderRadius: BorderRadius.circular(_kPillRadius),
-                ),
-                child: Icon(
-                  selected ? selectedIcon : icon,
-                  size: _kNavIconSize,
-                  color: selected ? AppColors.iconBlue : AppColors.iconGrey,
-                ),
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: () {
+          HapticFeedback.selectionClick();
+          onTap();
+        },
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          mainAxisAlignment: MainAxisAlignment.end,
+          children: [
+            AnimatedContainer(
+              duration: selected
+                  ? const Duration(milliseconds: 260)
+                  : Duration.zero,
+              curve: selected ? Curves.easeOutCubic : Curves.linear,
+              padding: EdgeInsets.symmetric(
+                horizontal: selected ? AppSpacing.sm : AppSpacing.xs,
+                vertical: 1,
+              ),
+              decoration: BoxDecoration(
+                color: selected
+                    ? AppColors.secondaryBlue
+                    : AppColors.transparent,
+                borderRadius: BorderRadius.circular(_kPillRadius),
+              ),
+              child: Icon(
+                selected ? selectedIcon : icon,
+                size: _kNavIconSize,
+                color: selected ? AppColors.iconBlue : AppColors.iconGrey,
               ),
             ),
-          ),
-          const SizedBox(height: 1),
-          GestureDetector(
-            behavior: HitTestBehavior.opaque,
-            onTap: onTap,
-            child: Text(
+            const SizedBox(height: 1),
+            Text(
               label,
               textAlign: TextAlign.center,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               style: AppTypography.navBarLabel.copyWith(color: AppColors.black),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
