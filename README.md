@@ -32,7 +32,7 @@ Think of it as **Airbnb, but for parking spots.** Parkd turns underutilized priv
 
 - List your driveway or parking space with photos, pricing, and availability
 - Annotate uploaded photos to highlight exact spots
-- Set flexible pricing — hourly, daily, weekly, or monthly
+- Set flexible pricing — hourly, or daily
 - Manage incoming bookings through a host dashboard
 - Track earnings and receive payouts via Stripe
 - Communicate with drivers through in-app messaging
