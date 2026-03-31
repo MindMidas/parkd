@@ -39,7 +39,7 @@ Think of it as **Airbnb, but for parking spots.** Parkd turns underutilized priv
 
 **Platform Highlights:**
 
-- Map-based interface powered by OpenStreetMap (via `flutter_map`)
+- Map-based interface powered by Mapbox (`mapbox_maps_flutter`)
 - Secure authentication and session management through Supabase
 - Real-time booking updates
 - Image hosting via Cloudinary
@@ -96,15 +96,44 @@ Each feature follows a **layered architecture**: `data/` for repositories and AP
 
 ## Tech Stack
 
+**Core Infrastructure:**
+
 - **Flutter (Dart)** — Cross-platform mobile framework
-- **Supabase** — PostgreSQL database, authentication, real-time subscriptions
+- **Supabase** — PostgreSQL database, authentication, real-time subscriptions, and Edge Functions (Deno/TypeScript)
 - **Cloudinary** — Image storage and hosting
-- **Stripe** — Payment processing and host payouts
-- **flutter_map + OpenStreetMap** — Interactive map display
-- **Riverpod** — State management
+- **Stripe** (`flutter_stripe`) — Payment processing and host payouts
+- **Mapbox** (`mapbox_maps_flutter`) — Interactive map display
+
+**Key Packages:**
+
+- **Riverpod** (`flutter_riverpod`) — State management
 - **go_router** — Declarative navigation
 - **Geolocator** — Real-time GPS location
-- **flutter_secure_storage** — Secure token storage
+- **image_picker** + **image_cropper** — Photo capture and editing
+- **google_fonts** — Custom typography
+- **shared_preferences** — Local caching
+
+**Utilities:**
+
+- **flutter_dotenv** — Environment variable loading
+- **url_launcher** — External link handling
+- **intl** — Date and number formatting
+- **flutter_svg** — SVG rendering
+- **intl_phone_field** — International phone number input
+- **package_info_plus** — App version info
+
+<p align="center" style="overflow-x: auto; white-space: nowrap;">
+  <img src="https://img.shields.io/badge/Flutter-02569B?style=for-the-badge&logo=flutter&logoColor=white" alt="Flutter"/>
+  <img src="https://img.shields.io/badge/Dart-0175C2?style=for-the-badge&logo=dart&logoColor=white" alt="Dart"/>
+  <img src="https://img.shields.io/badge/Supabase-3FCF8E?style=for-the-badge&logo=supabase&logoColor=white" alt="Supabase"/>
+  <img src="https://img.shields.io/badge/Stripe-635BFF?style=for-the-badge&logo=stripe&logoColor=white" alt="Stripe"/>
+  <img src="https://img.shields.io/badge/Mapbox-000000?style=for-the-badge&logo=mapbox&logoColor=white" alt="Mapbox"/>
+  <img src="https://img.shields.io/badge/Cloudinary-3448C5?style=for-the-badge&logo=cloudinary&logoColor=white" alt="Cloudinary"/>
+  <img src="https://img.shields.io/badge/Riverpod-00B0FF?style=for-the-badge&logo=dart&logoColor=white" alt="Riverpod"/>
+  <img src="https://img.shields.io/badge/Deno-000000?style=for-the-badge&logo=deno&logoColor=white" alt="Deno"/>
+  <img src="https://img.shields.io/badge/PostgreSQL-4169E1?style=for-the-badge&logo=postgresql&logoColor=white" alt="PostgreSQL"/>
+  <img src="https://img.shields.io/badge/Google_Fonts-4285F4?style=for-the-badge&logo=google&logoColor=white" alt="Google Fonts"/>
+</p>
 
 ## Getting Started
 
