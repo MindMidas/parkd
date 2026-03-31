@@ -45,6 +45,35 @@ class NotificationsRemote {
     }).eq('user_id', userId).eq('is_read', false);
   }
 
+  /// Marks unread `message_received` rows whose [data_json] references [conversationId].
+  Future<void> markMessageNotificationsReadForConversation({
+    required String userId,
+    required String conversationId,
+  }) async {
+    final rows = await _client
+        .from('notifications')
+        .select('id, data_json')
+        .eq('user_id', userId)
+        .eq('type', 'message_received')
+        .eq('is_read', false);
+    final now = DateTime.now().toUtc().toIso8601String();
+    for (final e in rows as List) {
+      final m = Map<String, dynamic>.from(e as Map);
+      final data = m['data_json'];
+      final map = data is Map
+          ? Map<String, dynamic>.from(data)
+          : const <String, dynamic>{};
+      final cid = map['conversation_id'];
+      final cidStr = cid is String ? cid.trim() : null;
+      if (cidStr != conversationId) continue;
+      final id = m['id'] as String;
+      await _client.from('notifications').update({
+        'is_read': true,
+        'read_at': now,
+      }).eq('id', id);
+    }
+  }
+
   Stream<List<NotificationRow>> watchForUser(String userId) {
     final controller = StreamController<List<NotificationRow>>();
     RealtimeChannel? channel;

@@ -16,6 +16,7 @@ abstract class MessagingRepository {
   });
 
   Future<List<ChatMessageRow>> messages(String conversationId);
+  Stream<List<ChatMessageRow>> watchMessages(String conversationId);
 
   Future<ChatMessageRow> send({
     required String conversationId,

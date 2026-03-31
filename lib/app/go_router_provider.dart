@@ -11,6 +11,7 @@ import 'main_tab.dart';
 import '../features/profile/providers/profile_providers.dart';
 import '../features/reservations/providers/reservations_providers.dart';
 import '../core/stripe/stripe_checkout_provider.dart';
+import '../features/reservations/presentation/trip_conversation_screen.dart';
 
 final _backendRepositoryLinkProvider = Provider<void>((ref) {
   ref.watch(listingsRepositoryProvider);
@@ -64,6 +65,17 @@ final goRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/auth/forgot-password/sms',
         redirect: (context, state) => '/auth/forgot-password',
+      ),
+      GoRoute(
+        path: '/trip-conversation',
+        builder: (context, state) {
+          final data = state.extra as Map<String, dynamic>;
+          return TripConversationScreen(
+            reservationId: data['reservationId'],
+            initialConversationId: data['conversationId'],
+            peerDisplayName: data['peerDisplayName'],
+          );
+        },
       ),
       GoRoute(
         path: '/home',

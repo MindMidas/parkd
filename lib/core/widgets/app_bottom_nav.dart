@@ -16,10 +16,14 @@ class AppBottomNav extends StatelessWidget {
     super.key,
     required this.selectedIndex,
     required this.onDestinationSelected,
+    this.showHostingDot = false,
+    this.showAccountDot = false,
   });
 
   final int selectedIndex;
   final ValueChanged<int> onDestinationSelected;
+  final bool showHostingDot;
+  final bool showAccountDot;
 
   static const _tabs = <({String label, IconData icon, IconData selectedIcon})>[
     (label: 'Map', icon: Icons.map_outlined, selectedIcon: Icons.map_outlined),
@@ -69,6 +73,9 @@ class AppBottomNav extends StatelessWidget {
                             label: _tabs[i].label,
                             icon: _tabs[i].icon,
                             selectedIcon: _tabs[i].selectedIcon,
+                            showIconDot:
+                                (i == 3 && showAccountDot) ||
+                                (i == 2 && showHostingDot),
                             selected: selectedIndex == i,
                             onTap: () => onDestinationSelected(i),
                           ),
@@ -91,6 +98,7 @@ class _NavItem extends StatelessWidget {
     required this.label,
     required this.icon,
     required this.selectedIcon,
+    required this.showIconDot,
     required this.selected,
     required this.onTap,
   });
@@ -98,6 +106,7 @@ class _NavItem extends StatelessWidget {
   final String label;
   final IconData icon;
   final IconData selectedIcon;
+  final bool showIconDot;
   final bool selected;
   final VoidCallback onTap;
 
@@ -117,26 +126,37 @@ class _NavItem extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           mainAxisAlignment: MainAxisAlignment.end,
           children: [
-            AnimatedContainer(
-              duration: selected
-                  ? const Duration(milliseconds: 260)
-                  : Duration.zero,
-              curve: selected ? Curves.easeOutCubic : Curves.linear,
-              padding: EdgeInsets.symmetric(
-                horizontal: selected ? AppSpacing.sm : AppSpacing.xs,
-                vertical: 1,
-              ),
-              decoration: BoxDecoration(
-                color: selected
-                    ? AppColors.secondaryBlue
-                    : AppColors.transparent,
-                borderRadius: BorderRadius.circular(_kPillRadius),
-              ),
-              child: Icon(
-                selected ? selectedIcon : icon,
-                size: _kNavIconSize,
-                color: selected ? AppColors.iconBlue : AppColors.iconGrey,
-              ),
+            Stack(
+              clipBehavior: Clip.none,
+              children: [
+                AnimatedContainer(
+                  duration: selected
+                      ? const Duration(milliseconds: 260)
+                      : Duration.zero,
+                  curve: selected ? Curves.easeOutCubic : Curves.linear,
+                  padding: EdgeInsets.symmetric(
+                    horizontal: selected ? AppSpacing.sm : AppSpacing.xs,
+                    vertical: 1,
+                  ),
+                  decoration: BoxDecoration(
+                    color: selected
+                        ? AppColors.secondaryBlue
+                        : AppColors.transparent,
+                    borderRadius: BorderRadius.circular(_kPillRadius),
+                  ),
+                  child: Icon(
+                    selected ? selectedIcon : icon,
+                    size: _kNavIconSize,
+                    color: selected ? AppColors.iconBlue : AppColors.iconGrey,
+                  ),
+                ),
+                if (showIconDot)
+                  const Positioned(
+                    right: -2,
+                    top: -1,
+                    child: _NavRedDot(),
+                  ),
+              ],
             ),
             const SizedBox(height: 1),
             Text(
@@ -144,10 +164,29 @@ class _NavItem extends StatelessWidget {
               textAlign: TextAlign.center,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
-              style: AppTypography.navBarLabel.copyWith(color: AppColors.black),
+              style: AppTypography.navBarLabel.copyWith(
+                color: AppColors.black,
+              ),
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+class _NavRedDot extends StatelessWidget {
+  const _NavRedDot();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 8,
+      height: 8,
+      decoration: BoxDecoration(
+        color: AppColors.primaryBlue,
+        shape: BoxShape.circle,
+        border: Border.all(color: AppColors.surface, width: 1),
       ),
     );
   }

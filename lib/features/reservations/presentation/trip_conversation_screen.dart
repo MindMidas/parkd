@@ -8,6 +8,7 @@ import '../../../core/theme/app_typography.dart';
 import '../../../core/utils/scroll_view_bottom_inset.dart';
 import '../../../core/widgets/widgets.dart';
 import '../../auth/providers/auth_providers.dart';
+import '../../profile/providers/notifications_providers.dart';
 import '../providers/reservations_providers.dart';
 
 class TripConversationScreen extends ConsumerStatefulWidget {
@@ -55,6 +56,26 @@ class _TripConversationScreenState extends ConsumerState<TripConversationScreen>
   void initState() {
     super.initState();
     _conversationId = widget.initialConversationId;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (_conversationId != null) {
+        _markMessageNotificationsReadForConversation();
+      }
+    });
+  }
+
+  Future<void> _markMessageNotificationsReadForConversation() async {
+    final cid = _conversationId;
+    if (cid == null) return;
+    final uid = ref.read(currentSessionProvider)?.user.id;
+    if (uid == null) return;
+    try {
+      await ref
+          .read(notificationsRemoteProvider)
+          .markMessageNotificationsReadForConversation(
+            userId: uid,
+            conversationId: cid,
+          );
+    } catch (_) {}
   }
 
   @override
@@ -78,7 +99,7 @@ class _TripConversationScreenState extends ConsumerState<TripConversationScreen>
         _conversationId = row.id;
         _ensuring = false;
       });
-      ref.invalidate(conversationMessagesProvider(row.id));
+      await _markMessageNotificationsReadForConversation();
     } catch (e) {
       if (!mounted) return;
       setState(() {
@@ -100,7 +121,6 @@ class _TripConversationScreenState extends ConsumerState<TripConversationScreen>
             text: text,
           );
       _textController.clear();
-      ref.invalidate(conversationMessagesProvider(cid));
     } catch (_) {
       if (!mounted) return;
       AppMessenger.showError(context, 'Could not send message.');

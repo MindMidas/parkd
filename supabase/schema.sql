@@ -47,8 +47,16 @@ create type public.message_status as enum (
 
 create type public.notification_type as enum (
   'reservation_confirmed',
-  'review_received'
+  'review_received',
+  'message_received'
 );
+
+do $$
+begin
+  alter type public.notification_type add value if not exists 'message_received';
+exception
+  when duplicate_object then null;
+end $$;
 
 -- profiles (1:1 auth.users; password policy is auth + dashboard + app)
 
@@ -725,7 +733,7 @@ create table if not exists public.notifications (
   constraint notifications_source_entity_type_check
     check (
       source_entity_type is null
-      or source_entity_type in ('reservation', 'review')
+      or source_entity_type in ('reservation', 'review', 'message')
     ),
   constraint notifications_read_consistency_check
     check (
@@ -875,6 +883,89 @@ create trigger trg_notify_host_on_review_received
 after insert on public.reviews
 for each row
 execute function public.create_host_notification_on_review_received();
+
+create or replace function public.create_notification_on_message_received()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  conv_host_id uuid;
+  conv_driver_id uuid;
+  conv_reservation_id uuid;
+  recipient_user_id uuid;
+  sender_name text;
+  sender_avatar_url text;
+begin
+  select c.host_id, c.driver_id, c.reservation_id
+  into conv_host_id, conv_driver_id, conv_reservation_id
+  from public.conversations c
+  where c.id = new.conversation_id;
+
+  if conv_host_id is null or conv_driver_id is null then
+    return new;
+  end if;
+
+  if new.sender_id = conv_host_id then
+    recipient_user_id := conv_driver_id;
+  elsif new.sender_id = conv_driver_id then
+    recipient_user_id := conv_host_id;
+  else
+    return new;
+  end if;
+
+  select
+    coalesce(
+      nullif(trim(p.full_name), ''),
+      case
+        when p.username is not null and trim(p.username) <> '' then '@' || trim(p.username)
+        else null
+      end,
+      nullif(trim(p.email), ''),
+      'Someone'
+    ),
+    nullif(trim(p.avatar_url), '')
+  into sender_name, sender_avatar_url
+  from public.profiles p
+  where p.id = new.sender_id;
+
+  insert into public.notifications (
+    user_id,
+    type,
+    title,
+    body,
+    data_json,
+    source_entity_type,
+    source_entity_id
+  )
+  values (
+    recipient_user_id,
+    'message_received',
+    format('New message from %s', coalesce(sender_name, 'Someone')),
+    left(coalesce(new.message, ''), 120),
+    jsonb_build_object(
+      'message_id', new.id,
+      'conversation_id', new.conversation_id,
+      'reservation_id', conv_reservation_id,
+      'sender_id', new.sender_id,
+      'sender_name', coalesce(sender_name, 'Someone'),
+      'sender_avatar_url', sender_avatar_url
+    ),
+    'message',
+    new.id
+  )
+  on conflict do nothing;
+
+  return new;
+end;
+$$;
+
+drop trigger if exists trg_notify_on_message_received on public.messages;
+create trigger trg_notify_on_message_received
+after insert on public.messages
+for each row
+execute function public.create_notification_on_message_received();
 
 -- host earnings view
 
@@ -1350,3 +1441,20 @@ create policy "user_push_tokens_delete_own"
 on public.user_push_tokens
 for delete
 using (auth.uid() = user_id);
+
+-- realtime publication (required for client onPostgresChanges subscriptions)
+do $$
+begin
+  execute 'alter publication supabase_realtime add table public.notifications';
+exception
+  when duplicate_object then null;
+  when undefined_object then null;
+end $$;
+
+do $$
+begin
+  execute 'alter publication supabase_realtime add table public.messages';
+exception
+  when duplicate_object then null;
+  when undefined_object then null;
+end $$;

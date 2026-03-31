@@ -69,8 +69,8 @@ final messagingInboxProvider =
 });
 
 final conversationMessagesProvider =
-    FutureProvider.family<List<ChatMessageRow>, String>((ref, conversationId) async {
-  return ref.read(messagingRepositoryProvider).messages(conversationId);
+    StreamProvider.family<List<ChatMessageRow>, String>((ref, conversationId) {
+  return ref.read(messagingRepositoryProvider).watchMessages(conversationId);
 });
 
 final hostListingActiveThreadsProvider =

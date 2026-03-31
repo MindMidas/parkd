@@ -21,6 +21,7 @@ import '../../../core/theme/app_typography.dart';
 import '../../../core/widgets/widgets.dart';
 import '../../hosting/presentation/hosting_hub_screen.dart';
 import '../../profile/presentation/account/account_tab_screen.dart';
+import '../../profile/providers/notifications_providers.dart';
 import '../../reservations/presentation/reservations_hub_screen.dart';
 import '../providers/map_providers.dart';
 import 'listing_detail_from_map_screen.dart';
@@ -722,6 +723,14 @@ class _HomeMapScreenState extends ConsumerState<HomeMapScreen>
 
   @override
   Widget build(BuildContext context) {
+    final notifications = ref.watch(myNotificationsProvider).value ?? const [];
+    final hasHostingMessageDot = notifications.any(
+      (n) => !n.isRead && n.type == 'message_received',
+    );
+    final hasAccountBookingDot = notifications.any(
+      (n) => !n.isRead && n.type == 'reservation_confirmed',
+    );
+
     return PopScope(
       canPop: false,
       onPopInvokedWithResult: (didPop, _) {
@@ -733,6 +742,8 @@ class _HomeMapScreenState extends ConsumerState<HomeMapScreen>
         body: _buildTabBody(),
         bottomNavigationBar: AppBottomNav(
           selectedIndex: _selectedIndex,
+          showHostingDot: hasHostingMessageDot,
+          showAccountDot: hasAccountBookingDot,
           onDestinationSelected: (index) {
             final prevIndex = _selectedIndex;
             setState(() {

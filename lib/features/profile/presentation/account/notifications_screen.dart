@@ -2,9 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
-import '../../../../core/models/notification_row.dart';
 import '../../../../core/theme/app_colors.dart';
-import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/theme/app_typography.dart';
 import '../../../../core/widgets/widgets.dart';
 import '../../../auth/providers/auth_providers.dart';
@@ -47,58 +45,46 @@ class NotificationsScreen extends ConsumerWidget {
                 ),
               );
             }
-            return ListView.separated(
-              padding: const EdgeInsets.symmetric(vertical: AppSpacing.sm),
+            return ListView.builder(
               itemCount: rows.length,
-              separatorBuilder: (_, _) => const Divider(height: 1),
               itemBuilder: (context, index) {
                 final row = rows[index];
-                return _NotificationTile(row: row);
+                final stamp =
+                    DateFormat('MMM d, h:mm a').format(row.createdAt.toLocal());
+                final icon = switch (row.type) {
+                  'reservation_confirmed' => Icons.event_available_rounded,
+                  'message_received' => Icons.chat_bubble_outline_rounded,
+                  'review_received' => Icons.star_outline_rounded,
+                  _ => Icons.notifications_none_rounded,
+                };
+                final senderName = row.dataJson['sender_name'] is String
+                    ? (row.dataJson['sender_name'] as String).trim()
+                    : '';
+                final title = row.type == 'message_received' &&
+                        senderName.isNotEmpty
+                    ? 'New message from $senderName'
+                    : row.title;
+                final subtitle = row.isRead ? row.body : 'NEW • ${row.body}';
+                return AppMenuRow(
+                  title: title,
+                  subtitle: subtitle,
+                  tertiary: stamp,
+                  leadingIcon: icon,
+                  showTopDivider: true,
+                  showBottomDivider: index == rows.length - 1,
+                  onTap: () async {
+                    if (!row.isRead) {
+                      await ref.read(notificationsRemoteProvider).markRead(row.id);
+                      ref.invalidate(myNotificationsProvider);
+                      ref.invalidate(myUnreadNotificationsCountProvider);
+                    }
+                  },
+                );
               },
             );
           },
         ),
       ),
-    );
-  }
-}
-
-class _NotificationTile extends ConsumerWidget {
-  const _NotificationTile({required this.row});
-
-  final NotificationRow row;
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final stamp = DateFormat('MMM d, h:mm a').format(row.createdAt.toLocal());
-    return ListTile(
-      contentPadding: const EdgeInsets.symmetric(
-        horizontal: AppSpacing.lg,
-        vertical: AppSpacing.xs,
-      ),
-      title: Text(
-        row.title,
-        style: row.isRead ? AppTypography.body : AppTypography.hubTitle,
-      ),
-      subtitle: Padding(
-        padding: const EdgeInsets.only(top: 4),
-        child: Text('${row.body}\n$stamp', style: AppTypography.caption),
-      ),
-      isThreeLine: true,
-      trailing: row.isRead
-          ? null
-          : const Icon(
-              Icons.fiber_manual_record,
-              size: 10,
-              color: AppColors.primaryBlue,
-            ),
-      onTap: () async {
-        if (!row.isRead) {
-          await ref.read(notificationsRemoteProvider).markRead(row.id);
-          ref.invalidate(myNotificationsProvider);
-          ref.invalidate(myUnreadNotificationsCountProvider);
-        }
-      },
     );
   }
 }

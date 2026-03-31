@@ -60,6 +60,10 @@ class SupabaseMessagingRepository implements MessagingRepository {
       _remote.listMessages(conversationId);
 
   @override
+  Stream<List<ChatMessageRow>> watchMessages(String conversationId) =>
+      _remote.watchMessages(conversationId);
+
+  @override
   Future<ChatMessageRow> send({
     required String conversationId,
     required String senderId,

@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../models/chat_message_row.dart';
@@ -81,6 +83,47 @@ class ConversationsRemote {
     return (rows as List)
         .map((e) => ChatMessageRow.fromJson(Map<String, dynamic>.from(e as Map)))
         .toList();
+  }
+
+  Stream<List<ChatMessageRow>> watchMessages(String conversationId) {
+    final controller = StreamController<List<ChatMessageRow>>();
+    RealtimeChannel? channel;
+
+    Future<void> emitLatest() async {
+      try {
+        final rows = await listMessages(conversationId);
+        if (!controller.isClosed) controller.add(rows);
+      } catch (e, st) {
+        if (!controller.isClosed) controller.addError(e, st);
+      }
+    }
+
+    controller.onListen = () {
+      channel = _client
+          .channel('messages:conversation:$conversationId')
+          .onPostgresChanges(
+            event: PostgresChangeEvent.all,
+            schema: 'public',
+            table: 'messages',
+            filter: PostgresChangeFilter(
+              type: PostgresChangeFilterType.eq,
+              column: 'conversation_id',
+              value: conversationId,
+            ),
+            callback: (_) => emitLatest(),
+          )
+          .subscribe((status, error) {});
+      emitLatest();
+    };
+
+    controller.onCancel = () async {
+      final c = channel;
+      if (c != null) {
+        await _client.removeChannel(c);
+      }
+    };
+
+    return controller.stream;
   }
 
   Future<ChatMessageRow> sendMessage({

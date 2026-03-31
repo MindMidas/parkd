@@ -46,6 +46,28 @@ This document defines the canonical event points and payload fields for host not
     - `reviewer_id`
     - `rating`
 
+## Event: message_received
+
+- Source table: `public.messages`
+- Source trigger: `trg_notify_on_message_received`
+- Fire condition:
+  - new message inserted for a conversation
+  - recipient is inferred as the other conversation participant (not sender)
+- Recipient: other participant in the conversation (host or driver)
+- Notification row fields:
+  - `type`: `message_received`
+  - `title`: `New message from <sender_name>`
+  - `body`: first 120 chars of message text
+  - `source_entity_type`: `message`
+  - `source_entity_id`: `messages.id`
+  - `data_json`:
+    - `message_id`
+    - `conversation_id`
+    - `reservation_id`
+    - `sender_id`
+    - `sender_name`
+    - `sender_avatar_url` (nullable; from `profiles.avatar_url`)
+
 ## Delivery model
 
 - In-app feed reads from `public.notifications`.
