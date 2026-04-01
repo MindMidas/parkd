@@ -24,6 +24,10 @@ class SupabaseMessagingRepository implements MessagingRepository {
       _remote.listForUser(userId);
 
   @override
+  Future<ConversationRow?> conversationById(String conversationId) =>
+      _remote.fetchByConversationId(conversationId);
+
+  @override
   Future<List<HostListingBookingThread>> listHostListingThreads({
     required String hostId,
     required String listingId,
@@ -58,6 +62,10 @@ class SupabaseMessagingRepository implements MessagingRepository {
   @override
   Future<List<ChatMessageRow>> messages(String conversationId) =>
       _remote.listMessages(conversationId);
+
+  @override
+  Stream<List<ChatMessageRow>> watchMessages(String conversationId) =>
+      _remote.watchMessages(conversationId);
 
   @override
   Future<ChatMessageRow> send({

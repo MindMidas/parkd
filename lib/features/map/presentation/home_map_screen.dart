@@ -9,6 +9,7 @@ import 'package:mapbox_maps_flutter/mapbox_maps_flutter.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../../app/main_shell_tab_provider.dart';
+import '../../../app/message_notification_deep_link.dart';
 import '../../../core/map/map_constants.dart';
 import '../../../core/map/map_listing_camera.dart';
 import '../../../core/map/map_user_location.dart';
@@ -19,11 +20,22 @@ import '../../../core/theme/app_spacing.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_typography.dart';
 import '../../../core/widgets/widgets.dart';
+import '../../hosting/presentation/active_bookings/active_bookings_screen.dart';
+import '../../hosting/presentation/active_bookings/booking_details_screen.dart';
+import '../../hosting/presentation/active_bookings/booking_messages_screen.dart';
 import '../../hosting/presentation/hosting_hub_screen.dart';
+import '../../hosting/presentation/past_bookings/past_booking_messages_screen.dart';
+import '../../hosting/presentation/past_bookings/past_bookings_screen.dart';
 import '../../profile/presentation/account/account_tab_screen.dart';
+import '../../profile/providers/notifications_providers.dart';
+import '../../reservations/presentation/active_reservations/active_reservations_screen.dart';
+import '../../reservations/presentation/active_reservations/reservation_details_screen.dart';
+import '../../reservations/presentation/past_reservations/past_reservations_screen.dart';
 import '../../reservations/presentation/reservations_hub_screen.dart';
+import '../../reservations/presentation/trip_conversation_screen.dart';
 import '../providers/map_providers.dart';
 import 'listing_detail_from_map_screen.dart';
+import 'map_filters_sheet.dart';
 import '../../../app/main_tab.dart';
 import 'map.dart';
 
@@ -60,10 +72,10 @@ class _HomeMapScreenState extends ConsumerState<HomeMapScreen>
   MapboxMap? _mapbox;
   ({double lat, double lon, double zoom})? _pendingFlyTo;
 
-  // last camera the user cared about (GPS center or a search). Used when map widget is recreated (such as switching tabs)
+  // Last map center we care about; survives tab switches when the map widget rebuilds.
   ({double lat, double lon, double zoom})? _mapCameraTarget;
 
-  // snapshot from [MapboxMap.getCameraState] before listing preview (restore when sheet closes)
+  // Camera before opening listing preview; put back when the sheet closes.
   ({
     double lat,
     double lon,
@@ -515,63 +527,7 @@ class _HomeMapScreenState extends ConsumerState<HomeMapScreen>
   }
 
   void _showMapFilterSheet() {
-    FocusManager.instance.primaryFocus?.unfocus();
-    showModalBottomSheet<void>(
-      context: context,
-      showDragHandle: true,
-      builder: (ctx) {
-        return Consumer(
-          builder: (context, ref, _) {
-            final f = ref.watch(mapFiltersProvider);
-            return SafeArea(
-              child: Padding(
-                padding: const EdgeInsets.all(AppSpacing.lg),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    const AppSectionTitle('Map filters'),
-                    const SizedBox(height: AppSpacing.md),
-                    Text(
-                      'Max price per hour: \$${f.maxPricePerHour.toStringAsFixed(0)}',
-                      style: AppTypography.body,
-                    ),
-                    Slider(
-                      value: f.maxPricePerHour.clamp(5, 50),
-                      min: 5,
-                      max: 50,
-                      divisions: 9,
-                      label: '\$${f.maxPricePerHour.toStringAsFixed(0)}',
-                      onChanged: (v) {
-                        ref
-                            .read(mapFiltersProvider.notifier)
-                            .setMaxPricePerHour(v);
-                      },
-                    ),
-                    SwitchListTile(
-                      contentPadding: EdgeInsets.zero,
-                      title: const Text('Guelph listings only'),
-                      subtitle: Text(
-                        'When off, shows any published listing in the database.',
-                        style: AppTypography.bodyMuted,
-                      ),
-                      value: f.guelphOnly,
-                      onChanged: (v) {
-                        ref.read(mapFiltersProvider.notifier).setGuelphOnly(v);
-                      },
-                    ),
-                    AppPrimaryButton(
-                      label: 'Done',
-                      onPressed: () => Navigator.of(ctx).pop(),
-                    ),
-                  ],
-                ),
-              ),
-            );
-          },
-        );
-      },
-    );
+    showMapFiltersSheet(context);
   }
 
   Future<void> _openListingPreview(Listing listing) async {
@@ -720,8 +676,134 @@ class _HomeMapScreenState extends ConsumerState<HomeMapScreen>
     }
   }
 
+  void _pushNestedStacksForMessageDeepLink(MessageDeepLinkIntent intent) {
+    final navKey = intent.role == MessageDeepLinkRole.host
+        ? _hostingNavigatorKey
+        : _reservationsNavigatorKey;
+    final nav = navKey.currentState;
+    if (nav == null) return;
+
+    nav.popUntil((route) => route.isFirst);
+
+    final r = intent.reservation;
+    final listing = intent.listing;
+
+    if (intent.role == MessageDeepLinkRole.host) {
+      if (intent.activeFlow) {
+        nav.push<void>(
+          MaterialPageRoute<void>(
+            builder: (_) => const ActiveBookingsScreen(),
+          ),
+        );
+        nav.push<void>(
+          MaterialPageRoute<void>(
+            builder: (_) => BookingMessagesScreen(listing: listing),
+          ),
+        );
+      } else {
+        nav.push<void>(
+          MaterialPageRoute<void>(
+            builder: (_) => const PastBookingsScreen(),
+          ),
+        );
+        nav.push<void>(
+          MaterialPageRoute<void>(
+            builder: (_) => PastBookingMessagesScreen(listing: listing),
+          ),
+        );
+      }
+      nav.push<void>(
+        MaterialPageRoute<void>(
+          builder: (ctx) => TripConversationScreen(
+            reservationId: r.id,
+            initialConversationId: intent.conversationId,
+            peerDisplayName: intent.peerDisplayName,
+            viewTripLabel: 'View booking',
+            onViewTrip: () {
+              Navigator.of(ctx).push<void>(
+                MaterialPageRoute<void>(
+                  builder: (_) => BookingDetailsScreen(
+                    reservation: r,
+                    listing: listing,
+                  ),
+                ),
+              );
+            },
+          ),
+        ),
+      );
+      if (intent.openBookingDetailsOnTop) {
+        nav.push<void>(
+          MaterialPageRoute<void>(
+            builder: (_) => BookingDetailsScreen(
+              reservation: r,
+              listing: listing,
+            ),
+          ),
+        );
+      }
+      return;
+    }
+
+    if (intent.activeFlow) {
+      nav.push<void>(
+        MaterialPageRoute<void>(
+          builder: (_) => const ActiveReservationsScreen(),
+        ),
+      );
+    } else {
+      nav.push<void>(
+        MaterialPageRoute<void>(
+          builder: (_) => const PastReservationsScreen(),
+        ),
+      );
+    }
+    nav.push<void>(
+      MaterialPageRoute<void>(
+        builder: (_) => ReservationDetailsScreen(
+          reservation: r,
+          listing: listing,
+        ),
+      ),
+    );
+    nav.push<void>(
+      MaterialPageRoute<void>(
+        builder: (ctx) => TripConversationScreen(
+          reservationId: r.id,
+          initialConversationId: intent.conversationId,
+          peerDisplayName: intent.peerDisplayName,
+          viewTripLabel: 'View reservation',
+          onViewTrip: () => Navigator.of(ctx).pop(),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
+    ref.listen<MessageDeepLinkIntent?>(messageDeepLinkProvider, (prev, next) {
+      if (next == null) return;
+      final intent = next;
+      ref.read(messageDeepLinkProvider.notifier).clear();
+
+      final targetTab =
+          intent.role == MessageDeepLinkRole.host ? MainTab.hosting : MainTab.reservations;
+      if (_selectedIndex != targetTab) {
+        setState(() => _selectedIndex = targetTab);
+        ref.read(mainShellTabIndexProvider.notifier).setTab(targetTab);
+        _syncTabRoute();
+      }
+
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        _pushNestedStacksForMessageDeepLink(intent);
+      });
+    });
+
+    final reservationsUnread = ref.watch(reservationsHubUnreadCountProvider);
+    final hostingUnread = ref.watch(hostingHubUnreadCountProvider);
+    final accountUnread = ref.watch(accountHubUnreadCountProvider);
+
     return PopScope(
       canPop: false,
       onPopInvokedWithResult: (didPop, _) {
@@ -733,8 +815,20 @@ class _HomeMapScreenState extends ConsumerState<HomeMapScreen>
         body: _buildTabBody(),
         bottomNavigationBar: AppBottomNav(
           selectedIndex: _selectedIndex,
+          reservationsBadgeCount: reservationsUnread,
+          hostingBadgeCount: hostingUnread,
+          accountBadgeCount: accountUnread,
           onDestinationSelected: (index) {
             final prevIndex = _selectedIndex;
+            if (index == prevIndex) {
+              if (index != MainTab.map) {
+                final nav = _navigatorKeyForTab(index)?.currentState;
+                if (nav != null && nav.canPop()) {
+                  nav.popUntil((route) => route.isFirst);
+                }
+              }
+              return;
+            }
             setState(() {
               _selectedIndex = index;
               if (index == MainTab.map) {

@@ -58,7 +58,7 @@ class ProfilesRemote {
     String? phoneE164,
     DateTime? birthDate,
     String? username,
-    // when set, keeps [profiles.email] aligned (after save without a pending email change)
+    // If you pass email we write profiles.email (when not mid email change flow).
     String? email,
   }) async {
     final row = <String, dynamic>{

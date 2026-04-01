@@ -6,6 +6,7 @@ import '../../../core/models/listing.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/utils/profile_avatar_image_provider.dart';
 import '../../../core/widgets/widgets.dart';
+import '../../profile/providers/notifications_providers.dart';
 import '../../auth/providers/auth_providers.dart';
 import '../../profile/providers/profile_providers.dart';
 import '../../reservations/presentation/trip_conversation_screen.dart';
@@ -119,13 +120,30 @@ class _HostListingBookingThreadsScaffoldState
                 final avatar = profileAvatarImageProvider(
                   driverProfile.asData?.value,
                 );
+                final unread = ref.watch(
+                  unreadMessageNotificationsForReservationProvider(
+                    thread.reservation.id,
+                  ),
+                );
                 return AppMenuRow(
                   leadingType: AppMenuLeadingType.profile,
                   leadingImageProvider: avatar,
                   title: name,
                   subtitle: preview,
-                  rightKind: AppMenuRightKind.icon,
-                  rightIcon: Icons.mail_rounded,
+                  trailing: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      if (unread > 0) ...[
+                        AppNotificationBadge(count: unread, compact: true),
+                        const SizedBox(width: 6),
+                      ],
+                      Icon(
+                        Icons.mail_rounded,
+                        size: 22,
+                        color: AppColors.iconGrey,
+                      ),
+                    ],
+                  ),
                   onTap: () {
                     final uid = ref.read(currentSessionProvider)?.user.id;
                     if (uid == null) return;

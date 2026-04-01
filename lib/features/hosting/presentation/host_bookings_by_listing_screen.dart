@@ -6,6 +6,8 @@ import '../../../core/models/reservation_row.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/utils/listing_search.dart';
 import '../../../core/widgets/widgets.dart';
+import '../../auth/providers/auth_providers.dart';
+import '../../profile/providers/notifications_providers.dart';
 import '../../profile/providers/profile_providers.dart';
 
 class HostBookingsByListingScreen extends ConsumerStatefulWidget {
@@ -15,12 +17,16 @@ class HostBookingsByListingScreen extends ConsumerStatefulWidget {
     required this.reservationsProvider,
     required this.whenEmptyList,
     required this.buildMessagesRoute,
+    this.listingUnreadMapProvider,
   });
 
   final String title;
   final FutureProvider<List<ReservationRow>> reservationsProvider;
   final String whenEmptyList;
   final Widget Function(Listing listing) buildMessagesRoute;
+
+  // Optional unread map; Active Bookings passes the variant that counts new paid trips too.
+  final FutureProvider<Map<String, int>>? listingUnreadMapProvider;
 
   @override
   ConsumerState<HostBookingsByListingScreen> createState() =>
@@ -54,6 +60,12 @@ class _HostBookingsByListingScreenState
   Widget build(BuildContext context) {
     final listingsAsync = ref.watch(myListingsForCurrentUserProvider);
     final reservationsAsync = ref.watch(widget.reservationsProvider);
+    final mapProvider =
+        widget.listingUnreadMapProvider ?? hostListingUnreadMessageMapProvider;
+    final listingUnreadMap = ref.watch(mapProvider).maybeWhen(
+          data: (m) => m,
+          orElse: () => const <String, int>{},
+        );
 
     return Scaffold(
       backgroundColor: AppColors.surface,
@@ -89,8 +101,23 @@ class _HostBookingsByListingScreenState
                     final listing = filtered[index];
                     return AppParkingListingMenuRow(
                       listing: listing,
-                      onTap: () {
-                        Navigator.of(context).push(
+                      trailingBadgeCount: listingUnreadMap[listing.id] ?? 0,
+                      onTap: () async {
+                        final uid = ref.read(currentSessionProvider)?.user.id;
+                        if (uid != null) {
+                          try {
+                            await ref
+                                .read(notificationsRemoteProvider)
+                                .markReservationConfirmedReadForListing(
+                                  userId: uid,
+                                  listingId: listing.id,
+                                );
+                            ref.invalidate(myNotificationsProvider);
+                            ref.invalidate(notificationNavHubCountsProvider);
+                          } catch (_) {}
+                        }
+                        if (!context.mounted) return;
+                        await Navigator.of(context).push<void>(
                           MaterialPageRoute<void>(
                             builder: (_) =>
                                 widget.buildMessagesRoute(listing),

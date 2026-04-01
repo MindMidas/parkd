@@ -29,7 +29,11 @@ abstract class ListingsRepository {
     required DateTime rangeEnd,
   });
 
-  Future<List<Listing>> getPublishedListingsForMap({MapFilters? filters});
+  Future<List<Listing>> getPublishedListingsForMap({
+    MapFilters? filters,
+    double? proximityUserLatitude,
+    double? proximityUserLongitude,
+  });
 
   Future<void> setAllAvailabilitySlotPrices({
     required String listingId,

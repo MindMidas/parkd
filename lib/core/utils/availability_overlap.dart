@@ -1,6 +1,6 @@
 import 'time_step_minutes.dart';
 
-// overlap checks for host availability slots (matches DB trigger semantics: half-open intervals: '[start, end)' in time/DT)
+// Host slot overlap, same idea as DB checks (end of a window does not count as inside).
 abstract final class AvailabilityOverlap {
   static const weeklyCode = 'OVERLAP_AVAILABILITY_WEEKLY';
   static const specificCode = 'OVERLAP_AVAILABILITY_SPECIFIC';
@@ -10,7 +10,7 @@ abstract final class AvailabilityOverlap {
   static const userMessageSpecific =
       'This period overlaps another scheduled slot. Use different dates or times.';
 
-  // '[a0,a1)' vs '[b0,b1)' in mins from midnight (same calendar day)
+  // Two minute ranges from midnight, same calendar day, overlap test.
   static bool intervalsOverlapHalfOpenMinutes(
     int a0,
     int a1,

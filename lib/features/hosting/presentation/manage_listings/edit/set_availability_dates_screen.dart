@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../../core/models/availability_specific.dart';
 import '../../../../../core/theme/app_colors.dart';
@@ -6,10 +7,13 @@ import '../../../../../core/theme/app_spacing.dart';
 import '../../../../../core/utils/availability_overlap.dart';
 import '../../../../../core/utils/time_step_minutes.dart';
 import '../../../../../core/widgets/widgets.dart';
+import '../../../../../app/listing_invalidation.dart';
+import '../../../../profile/providers/profile_providers.dart';
 import '../../create_listing/create_listing_flow/set_pricing_screen.dart';
 import 'confirmation_success_screen.dart';
 
 typedef _DateSlotDraft = ({
+  String? serverSlotId,
   DateTime start,
   DateTime end,
   double? hourlyPrice,
@@ -17,7 +21,7 @@ typedef _DateSlotDraft = ({
 });
 
 // Edit specific-date slots for a listing user already owns
-class SetAvailabilityDatesScreen extends StatefulWidget {
+class SetAvailabilityDatesScreen extends ConsumerStatefulWidget {
   const SetAvailabilityDatesScreen({
     super.key,
     required this.listingId,
@@ -30,12 +34,12 @@ class SetAvailabilityDatesScreen extends StatefulWidget {
   final int? totalSteps;
 
   @override
-  State<SetAvailabilityDatesScreen> createState() =>
+  ConsumerState<SetAvailabilityDatesScreen> createState() =>
       _SetAvailabilityDatesScreenState();
 }
 
 class _SetAvailabilityDatesScreenState
-    extends State<SetAvailabilityDatesScreen> {
+    extends ConsumerState<SetAvailabilityDatesScreen> {
   late DateTime _currentMonth;
   DateTime? _rangeStart;
   DateTime? _rangeEnd;
@@ -45,6 +49,7 @@ class _SetAvailabilityDatesScreenState
   int _startMinutes = 9 * 60 + 15;
   int _endMinutes = 15 * 60;
   final List<_DateSlotDraft> _slots = [];
+  bool _seededFromServer = false;
 
   String? _slotOverlapError;
 
@@ -99,6 +104,7 @@ class _SetAvailabilityDatesScreenState
     if (result == null || !mounted) return;
     setState(() {
       _slots[index] = (
+        serverSlotId: s.serverSlotId,
         start: s.start,
         end: s.end,
         hourlyPrice: result.hourly,
@@ -183,6 +189,7 @@ class _SetAvailabilityDatesScreenState
     setState(() {
       _slotOverlapError = null;
       _slots.add((
+        serverSlotId: null,
         start: startDt,
         end: endDt,
         hourlyPrice: null,
@@ -198,8 +205,36 @@ class _SetAvailabilityDatesScreenState
     });
   }
 
+  void _seedFromServerIfNeeded(List<AvailabilitySpecific> serverSlots) {
+    if (_seededFromServer) return;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || _seededFromServer) return;
+      setState(() {
+        _slots
+          ..clear()
+          ..addAll(
+            serverSlots.map(
+              (s) => (
+                serverSlotId: s.id,
+                start: s.startDatetime,
+                end: s.endDatetime,
+                hourlyPrice: s.priceHour,
+                dailyPrice: s.priceDay,
+              ),
+            ),
+          );
+        _seededFromServer = true;
+      });
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
+    final specificAsync =
+        ref.watch(listingAvailabilitySpecificProvider(widget.listingId));
+    final serverSlots = specificAsync.value ?? const <AvailabilitySpecific>[];
+    _seedFromServerIfNeeded(serverSlots);
+
     final cardSlots = _slots
         .map(
           (s) => (
@@ -214,7 +249,10 @@ class _SetAvailabilityDatesScreenState
     return Scaffold(
       backgroundColor: AppColors.surface,
       appBar: const AppTopBar(title: 'Availability', showBack: true),
-      body: SafeArea(
+      body: specificAsync.when(
+        loading: () => const Center(child: CircularProgressIndicator()),
+        error: (e, _) => const AppMutedBodyCenter('Could not load schedule'),
+        data: (_) => SafeArea(
         bottom: false,
         child: SingleChildScrollView(
           physics: const BouncingScrollPhysics(),
@@ -325,12 +363,69 @@ class _SetAvailabilityDatesScreenState
               AppPrimaryButton(
                 label: 'Confirm',
                 icon: Icons.check_rounded,
-                onPressed: _canConfirm ? _onConfirm : null,
+                onPressed: _canConfirm
+                    ? () async {
+                        final serverById = {
+                          for (final s in serverSlots) s.id: s,
+                        };
+                        final keptServerIds = _slots
+                            .map((s) => s.serverSlotId)
+                            .whereType<String>()
+                            .toSet();
+                        final deletedIds = serverById.keys
+                            .where((id) => !keptServerIds.contains(id))
+                            .toList();
+                        final created = _slots
+                            .where((s) => s.serverSlotId == null)
+                            .toList();
+                        final repriced = _slots.where((s) {
+                          final id = s.serverSlotId;
+                          if (id == null) return false;
+                          final prev = serverById[id];
+                          if (prev == null) return false;
+                          return (s.hourlyPrice ?? 0) != prev.priceHour ||
+                              s.dailyPrice != prev.priceDay;
+                        }).toList();
+
+                        try {
+                          final repo = ref.read(listingsRepositoryProvider);
+                          for (final id in deletedIds) {
+                            await repo.deleteAvailabilitySpecificSlot(id);
+                          }
+                          for (final s in created) {
+                            await repo.insertAvailabilitySpecificSlot(
+                              listingId: widget.listingId,
+                              start: s.start,
+                              end: s.end,
+                              priceHour: s.hourlyPrice ?? 0,
+                              priceDay: s.dailyPrice,
+                            );
+                          }
+                          for (final s in repriced) {
+                            await repo.updateAvailabilitySpecificSlotPrices(
+                              slotId: s.serverSlotId!,
+                              priceHour: s.hourlyPrice ?? 0,
+                              priceDay: s.dailyPrice,
+                            );
+                          }
+                          if (!mounted) return;
+                          invalidateListingSurfaces(ref, widget.listingId);
+                          _onConfirm();
+                        } catch (_) {
+                          if (!mounted) return;
+                          setState(() {
+                            _slotOverlapError =
+                                'Could not save availability. Try again.';
+                          });
+                        }
+                      }
+                    : null,
               ),
               const SizedBox(height: AppSpacing.xl),
             ],
           ),
         ),
+      ),
       ),
     );
   }

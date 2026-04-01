@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import 'app_notification_badge.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_spacing.dart';
 import '../theme/app_typography.dart';
@@ -16,10 +17,16 @@ class AppBottomNav extends StatelessWidget {
     super.key,
     required this.selectedIndex,
     required this.onDestinationSelected,
+    this.reservationsBadgeCount = 0,
+    this.hostingBadgeCount = 0,
+    this.accountBadgeCount = 0,
   });
 
   final int selectedIndex;
   final ValueChanged<int> onDestinationSelected;
+  final int reservationsBadgeCount;
+  final int hostingBadgeCount;
+  final int accountBadgeCount;
 
   static const _tabs = <({String label, IconData icon, IconData selectedIcon})>[
     (label: 'Map', icon: Icons.map_outlined, selectedIcon: Icons.map_outlined),
@@ -39,6 +46,15 @@ class AppBottomNav extends StatelessWidget {
       selectedIcon: Icons.person_rounded,
     ),
   ];
+
+  int _badgeForIndex(int i) {
+    return switch (i) {
+      1 => reservationsBadgeCount,
+      2 => hostingBadgeCount,
+      3 => accountBadgeCount,
+      _ => 0,
+    };
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -69,6 +85,7 @@ class AppBottomNav extends StatelessWidget {
                             label: _tabs[i].label,
                             icon: _tabs[i].icon,
                             selectedIcon: _tabs[i].selectedIcon,
+                            badgeCount: _badgeForIndex(i),
                             selected: selectedIndex == i,
                             onTap: () => onDestinationSelected(i),
                           ),
@@ -91,6 +108,7 @@ class _NavItem extends StatelessWidget {
     required this.label,
     required this.icon,
     required this.selectedIcon,
+    required this.badgeCount,
     required this.selected,
     required this.onTap,
   });
@@ -98,6 +116,7 @@ class _NavItem extends StatelessWidget {
   final String label;
   final IconData icon;
   final IconData selectedIcon;
+  final int badgeCount;
   final bool selected;
   final VoidCallback onTap;
 
@@ -117,26 +136,37 @@ class _NavItem extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           mainAxisAlignment: MainAxisAlignment.end,
           children: [
-            AnimatedContainer(
-              duration: selected
-                  ? const Duration(milliseconds: 260)
-                  : Duration.zero,
-              curve: selected ? Curves.easeOutCubic : Curves.linear,
-              padding: EdgeInsets.symmetric(
-                horizontal: selected ? AppSpacing.sm : AppSpacing.xs,
-                vertical: 1,
-              ),
-              decoration: BoxDecoration(
-                color: selected
-                    ? AppColors.secondaryBlue
-                    : AppColors.transparent,
-                borderRadius: BorderRadius.circular(_kPillRadius),
-              ),
-              child: Icon(
-                selected ? selectedIcon : icon,
-                size: _kNavIconSize,
-                color: selected ? AppColors.iconBlue : AppColors.iconGrey,
-              ),
+            Stack(
+              clipBehavior: Clip.none,
+              children: [
+                AnimatedContainer(
+                  duration: selected
+                      ? const Duration(milliseconds: 260)
+                      : Duration.zero,
+                  curve: selected ? Curves.easeOutCubic : Curves.linear,
+                  padding: EdgeInsets.symmetric(
+                    horizontal: selected ? AppSpacing.sm : AppSpacing.xs,
+                    vertical: 1,
+                  ),
+                  decoration: BoxDecoration(
+                    color: selected
+                        ? AppColors.secondaryBlue
+                        : AppColors.transparent,
+                    borderRadius: BorderRadius.circular(_kPillRadius),
+                  ),
+                  child: Icon(
+                    selected ? selectedIcon : icon,
+                    size: _kNavIconSize,
+                    color: selected ? AppColors.iconBlue : AppColors.iconGrey,
+                  ),
+                ),
+                if (badgeCount > 0)
+                  Positioned(
+                    right: -6,
+                    top: -4,
+                    child: AppNotificationBadge(count: badgeCount),
+                  ),
+              ],
             ),
             const SizedBox(height: 1),
             Text(
@@ -144,7 +174,9 @@ class _NavItem extends StatelessWidget {
               textAlign: TextAlign.center,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
-              style: AppTypography.navBarLabel.copyWith(color: AppColors.black),
+              style: AppTypography.navBarLabel.copyWith(
+                color: AppColors.black,
+              ),
             ),
           ],
         ),

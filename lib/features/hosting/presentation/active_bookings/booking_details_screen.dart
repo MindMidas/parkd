@@ -14,7 +14,10 @@ import '../../../../core/messaging/app_messenger.dart';
 import '../../../../core/utils/display_formatting.dart';
 import '../../../../core/utils/profile_avatar_image_provider.dart';
 import '../../../../core/widgets/widgets.dart';
+import '../../../auth/providers/auth_providers.dart';
+import '../../../profile/providers/notifications_providers.dart';
 import '../../../profile/providers/profile_providers.dart';
+import '../../../reservations/presentation/trip_conversation_screen.dart';
 
 // host view of a single booking (driver is guest)
 class BookingDetailsScreen extends ConsumerStatefulWidget {
@@ -116,6 +119,8 @@ class _BookingDetailsScreenState extends ConsumerState<BookingDetailsScreen> {
         '${df.format(r.endTime.toLocal())}$sep${tf.format(r.endTime.toLocal())}';
 
     final earnings = r.totalPrice;
+    final chatUnread =
+        ref.watch(unreadMessageNotificationsForReservationProvider(r.id));
 
     return Scaffold(
       backgroundColor: AppColors.surface,
@@ -133,6 +138,20 @@ class _BookingDetailsScreenState extends ConsumerState<BookingDetailsScreen> {
               displayName: guestName,
               handle: guestHandle,
               avatarImageProvider: guestAvatar,
+              actionBadgeCount: chatUnread,
+              actionLabel: 'Chat',
+              onActionPressed: () {
+                final uid = ref.read(currentSessionProvider)?.user.id;
+                if (uid == null) return;
+                Navigator.of(context).push<void>(
+                  MaterialPageRoute<void>(
+                    builder: (_) => TripConversationScreen(
+                      reservationId: r.id,
+                      peerDisplayName: guestName,
+                    ),
+                  ),
+                );
+              },
             ),
             const SizedBox(height: 16),
             AppStreetAddressCard(

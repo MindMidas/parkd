@@ -37,7 +37,7 @@ class CreateListingDraft {
   final List<CreateListingSpecificSlot> specificSlots = [];
   final List<CreateListingWeeklySlot> weeklySlots = [];
 
-  // prevents overlapping [CreateListingPublish.submit] calls on the same draft
+  // Guard so we do not run two publish submits on the same draft at once.
   bool publishInProgress = false;
 
   String get addressLine {

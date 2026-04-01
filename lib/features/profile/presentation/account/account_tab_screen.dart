@@ -13,9 +13,12 @@ import '../../../../core/widgets/widgets.dart';
 import '../../../auth/providers/auth_providers.dart';
 import '../../../../app/main_tab.dart';
 import '../../providers/profile_providers.dart';
+import '../../providers/notifications_providers.dart';
 import '../settings/all_cards_screen.dart';
 import '../settings/edit_profile_screen.dart';
 import '../settings/security/security_screen.dart';
+import 'notifications_screen.dart';
+import '../settings/notification_preferences_screen.dart';
 import 'support_screen.dart';
 
 // account tab, user pfp, the tiles, sign out when done
@@ -58,6 +61,7 @@ class AccountTabScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final profileAsync = ref.watch(currentProfileProvider);
+    final unread = ref.watch(myUnreadNotificationsCountProvider);
     return Scaffold(
       backgroundColor: AppColors.surface,
       body: SafeArea(
@@ -108,8 +112,24 @@ class AccountTabScreen extends ConsumerWidget {
               AppSettingsNavTile(
                 icon: Icons.notifications_none_rounded,
                 label: 'Notifications',
+                badgeCount: unread,
                 onTap: () {
-                  // TODO: navigate to Notifications
+                  Navigator.of(context).push(
+                    MaterialPageRoute<void>(
+                      builder: (_) => const NotificationsScreen(),
+                    ),
+                  );
+                },
+              ),
+              AppSettingsNavTile(
+                icon: Icons.notifications_active_outlined,
+                label: 'Notification preferences',
+                onTap: () {
+                  Navigator.of(context).push(
+                    MaterialPageRoute<void>(
+                      builder: (_) => const NotificationPreferencesScreen(),
+                    ),
+                  );
                 },
               ),
               AppSettingsNavTile(
