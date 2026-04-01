@@ -23,18 +23,17 @@ Think of it as **Airbnb, but for parking spots.** Parkd turns underutilized priv
 
 - Browse nearby available parking spots on an interactive map
 - Filter listings by price, distance, and availability
-- Book a spot for a specific time window and pay securely in-app
+- Book a spot for a specific time window and pay securely in-app via Stripe
 - Receive booking confirmation and navigate directly to the reserved spot
 - View booking history and manage active reservations
-- Rate and review hosts after parking
 
 **As a Host (Resident Near Campus):**
 
-- List your driveway or parking space with photos, pricing, and availability
+- List your driveway or parking space with photos, pricing, and availability(weekly schedule or specific dates)
 - Annotate uploaded photos to highlight exact spots
 - Set flexible pricing — hourly, or daily
 - Manage incoming bookings through a host dashboard
-- Track earnings and receive payouts via Stripe
+- Track earnings and receive payouts
 - Communicate with drivers through in-app messaging
 
 **Platform Highlights:**
