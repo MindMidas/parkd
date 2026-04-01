@@ -28,6 +28,16 @@ class ConversationsRemote {
     return ConversationRow.fromJson(Map<String, dynamic>.from(row));
   }
 
+  Future<ConversationRow?> fetchByConversationId(String conversationId) async {
+    final row = await _client
+        .from('conversations')
+        .select()
+        .eq('id', conversationId)
+        .maybeSingle();
+    if (row == null) return null;
+    return ConversationRow.fromJson(Map<String, dynamic>.from(row as Map));
+  }
+
   Future<List<ConversationRow>> listForUser(String userId) async {
     final rows = await _client
         .from('conversations')

@@ -1,6 +1,6 @@
 import '../../../core/models/profile.dart';
 
-// abstracts fetching profile by user id (auth.uid())
+// Profile row fetch and updates keyed by user id.
 abstract class ProfileRepository {
   Future<Profile?> getProfile(String userId);
 
@@ -13,7 +13,7 @@ abstract class ProfileRepository {
     String? email,
   });
 
-  // uploads a new avatar image and updates [profiles.avatar_url]
+  // Upload avatar file and set profiles.avatar_url.
   Future<void> uploadAvatar({
     required String userId,
     required String localFilePath,

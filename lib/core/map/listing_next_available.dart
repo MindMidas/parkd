@@ -58,9 +58,9 @@ DateTime _alignStartUpToGrid(DateTime t, int gridMinutes) {
   return base.add(Duration(minutes: aligned));
 }
 
-// Soonest local DT when a stay of desiredDurationMinutes fits inside posted availability and does not overlap bookings (merged first)
-// Uses [listing.isWeeklyAvailability] to choose weekly vs specific rows only, weekly overnight slots (end <= start) are skipped.
-// gridMinutes is search step (def 5)
+// Earliest start time that fits the stay, respects host hours, skips booked windows (bookings merged first).
+// Weekly vs specific comes from the listing; overnight weekly rows are ignored.
+// Step size for search in minutes (usually 5).
 DateTime? findSoonestAvailableStart({
   required DateTime now,
   required int desiredDurationMinutes,

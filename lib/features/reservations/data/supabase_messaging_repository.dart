@@ -24,6 +24,10 @@ class SupabaseMessagingRepository implements MessagingRepository {
       _remote.listForUser(userId);
 
   @override
+  Future<ConversationRow?> conversationById(String conversationId) =>
+      _remote.fetchByConversationId(conversationId);
+
+  @override
   Future<List<HostListingBookingThread>> listHostListingThreads({
     required String hostId,
     required String listingId,

@@ -1,16 +1,21 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../map/map_filter_availability.dart';
 import '../map/map_filters.dart';
+import '../map/map_geo.dart';
 import '../models/availability_specific.dart';
 import '../models/availability_weekly.dart';
 import '../models/listing.dart';
 import '../models/slot_pricing_summary.dart';
+import 'reservations_remote.dart';
 
 // public.listings reads and writes
 class ListingsRemote {
   ListingsRemote(this._client);
 
   final SupabaseClient _client;
+
+  ReservationsRemote get _reservations => ReservationsRemote(_client);
 
   Future<List<Listing>> listByHostId(String hostId) async {
     final rows = await _client
@@ -60,7 +65,11 @@ class ListingsRemote {
     return Listing.fromJson(map);
   }
 
-  Future<List<Listing>> fetchPublishedForMap({MapFilters? filters}) async {
+  Future<List<Listing>> fetchPublishedForMap({
+    MapFilters? filters,
+    double? proximityUserLatitude,
+    double? proximityUserLongitude,
+  }) async {
     final flt = filters ?? const MapFilters();
     final rows = await _client
         .from('listings')
@@ -76,21 +85,98 @@ class ListingsRemote {
         .eq('is_active', true)
         .order('created_at', ascending: false);
     final list = <Listing>[];
+    final pending =
+        <({Listing listing, List<AvailabilityWeekly> weekly, List<AvailabilitySpecific> specific})>[];
+
+    DateTime? availRs;
+    DateTime? availRe;
+    DateTime? globalAvailStart;
+    DateTime? globalAvailEnd;
+    if (flt.availabilityFilterEnabled) {
+      availRs = flt.availRangeStart;
+      availRe = flt.availRangeEnd;
+      if (availRs != null && availRe != null) {
+        final gs = DateTime(availRs.year, availRs.month, availRs.day)
+            .add(Duration(minutes: flt.availStartMinutes));
+        final ge = DateTime(availRe.year, availRe.month, availRe.day)
+            .add(Duration(minutes: flt.availEndMinutes));
+        if (ge.isAfter(gs)) {
+          globalAvailStart = gs;
+          globalAvailEnd = ge;
+        }
+      }
+    }
+    final needAvailFilter = globalAvailStart != null && globalAvailEnd != null;
+
     for (final e in rows as List) {
       final row = Map<String, dynamic>.from(e as Map);
       final weekly = _embeddedWeekly(row['availability_weekly']);
       final specific = _embeddedSpecific(row['availability_specific']);
       final minH = SlotPricingSummary.minHourly(weekly, specific);
       if (minH == null || minH > flt.maxPricePerHour) continue;
+
+      if (flt.guelphOnly) {
+        final city = (row['city'] as String? ?? '').trim().toLowerCase();
+        if (city != 'guelph') continue;
+      }
+
+      if (flt.proximityEnabled &&
+          proximityUserLatitude != null &&
+          proximityUserLongitude != null) {
+        final lat = row['latitude'];
+        final lon = row['longitude'];
+        if (lat is! num || lon is! num) continue;
+        final km = distanceKmBetween(
+          proximityUserLatitude,
+          proximityUserLongitude,
+          lat.toDouble(),
+          lon.toDouble(),
+        );
+        if (km > flt.proximityRadiusKm) continue;
+      }
+
       row.remove('availability_weekly');
       row.remove('availability_specific');
       final embeddedPhotos = row.remove('listing_photos');
       final hero = _heroPhotoUrlFromListingPhotosEmbed(embeddedPhotos);
       if (hero != null) row['hero_photo_url'] = hero;
       final l = Listing.fromJson(row);
-      if (flt.guelphOnly && l.city.trim().toLowerCase() != 'guelph') continue;
-      list.add(l);
+
+      if (needAvailFilter) {
+        pending.add((listing: l, weekly: weekly, specific: specific));
+      } else {
+        list.add(l);
+      }
     }
+
+    if (pending.isNotEmpty &&
+        globalAvailStart != null &&
+        globalAvailEnd != null &&
+        availRs != null &&
+        availRe != null) {
+      final bookingMap = await _reservations.fetchOverlappingBlocksForListings(
+        pending.map((p) => p.listing.id).toList(),
+        rangeStart: globalAvailStart,
+        rangeEnd: globalAvailEnd,
+      );
+      for (final p in pending) {
+        final bookings = bookingMap[p.listing.id] ?? const [];
+        if (!listingMatchesMapAvailabilityWindow(
+          listing: p.listing,
+          weekly: p.weekly,
+          specific: p.specific,
+          bookings: bookings,
+          rangeStartDay: availRs,
+          rangeEndDay: availRe,
+          startMinutes: flt.availStartMinutes,
+          endMinutes: flt.availEndMinutes,
+        )) {
+          continue;
+        }
+        list.add(p.listing);
+      }
+    }
+
     return list;
   }
 

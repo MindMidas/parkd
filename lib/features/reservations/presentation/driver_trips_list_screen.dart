@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/utils/display_formatting.dart';
 import '../../../core/widgets/widgets.dart';
+import '../../profile/providers/notifications_providers.dart';
 import '../providers/reservations_providers.dart';
 import 'active_reservations/reservation_details_screen.dart';
 import 'driver_trip_list_helpers.dart';
@@ -76,9 +77,15 @@ class _DriverTripsListScreenState extends ConsumerState<DriverTripsListScreen> {
               itemCount: filtered.length,
               rowBuilder: (context, index) {
                 final trip = filtered[index];
+                final msgUnread = ref.watch(
+                  unreadMessageNotificationsForReservationProvider(
+                    trip.reservation.id,
+                  ),
+                );
                 return AppParkingListingMenuRow(
                   listing: trip.listing,
                   tertiary: formatDriverReservationWhenLabel(trip.reservation),
+                  trailingBadgeCount: msgUnread,
                   onTap: () {
                     Navigator.of(context).push<void>(
                       MaterialPageRoute<void>(

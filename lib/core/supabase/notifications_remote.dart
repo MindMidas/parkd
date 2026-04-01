@@ -45,11 +45,49 @@ class NotificationsRemote {
     }).eq('user_id', userId).eq('is_read', false);
   }
 
-  /// Marks unread `message_received` rows whose [data_json] references [conversationId].
-  Future<void> markMessageNotificationsReadForConversation({
+  Future<void> deleteNotification(String notificationId) async {
+    await _client.from('notifications').delete().eq('id', notificationId);
+  }
+
+  // Unread reservation_confirmed rows whose data_json.listing_id matches.
+  Future<void> markReservationConfirmedReadForListing({
     required String userId,
-    required String conversationId,
+    required String listingId,
   }) async {
+    final lid = listingId.trim();
+    if (lid.isEmpty) return;
+    final rows = await _client
+        .from('notifications')
+        .select('id, data_json')
+        .eq('user_id', userId)
+        .eq('type', 'reservation_confirmed')
+        .eq('is_read', false);
+    final now = DateTime.now().toUtc().toIso8601String();
+    for (final e in rows as List) {
+      final m = Map<String, dynamic>.from(e as Map);
+      final data = m['data_json'];
+      final map = data is Map
+          ? Map<String, dynamic>.from(data)
+          : const <String, dynamic>{};
+      final rowLid = map['listing_id'];
+      final rowLidStr = rowLid is String ? rowLid.trim() : null;
+      if (rowLidStr != lid) continue;
+      await _client.from('notifications').update({
+        'is_read': true,
+        'read_at': now,
+      }).eq('id', m['id'] as String);
+    }
+  }
+
+  // Mark trip chat notifications read when conversation or reservation id matches.
+  Future<void> markMessageNotificationsReadForThread({
+    required String userId,
+    String? conversationId,
+    required String reservationId,
+  }) async {
+    final rid = reservationId.trim();
+    if (rid.isEmpty) return;
+    final cid = conversationId?.trim();
     final rows = await _client
         .from('notifications')
         .select('id, data_json')
@@ -63,9 +101,19 @@ class NotificationsRemote {
       final map = data is Map
           ? Map<String, dynamic>.from(data)
           : const <String, dynamic>{};
-      final cid = map['conversation_id'];
-      final cidStr = cid is String ? cid.trim() : null;
-      if (cidStr != conversationId) continue;
+      final rowCid = map['conversation_id'];
+      final rowCidStr = rowCid is String ? rowCid.trim() : null;
+      final rowRid = map['reservation_id'];
+      final rowRidStr = rowRid is String ? rowRid.trim() : null;
+
+      final matchesConv = cid != null &&
+          cid.isNotEmpty &&
+          rowCidStr != null &&
+          rowCidStr == cid;
+      final matchesRes =
+          rowRidStr != null && rowRidStr == rid;
+      if (!matchesConv && !matchesRes) continue;
+
       final id = m['id'] as String;
       await _client.from('notifications').update({
         'is_read': true,

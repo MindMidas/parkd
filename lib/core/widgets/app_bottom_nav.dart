@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import 'app_notification_badge.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_spacing.dart';
 import '../theme/app_typography.dart';
@@ -16,14 +17,16 @@ class AppBottomNav extends StatelessWidget {
     super.key,
     required this.selectedIndex,
     required this.onDestinationSelected,
-    this.showHostingDot = false,
-    this.showAccountDot = false,
+    this.reservationsBadgeCount = 0,
+    this.hostingBadgeCount = 0,
+    this.accountBadgeCount = 0,
   });
 
   final int selectedIndex;
   final ValueChanged<int> onDestinationSelected;
-  final bool showHostingDot;
-  final bool showAccountDot;
+  final int reservationsBadgeCount;
+  final int hostingBadgeCount;
+  final int accountBadgeCount;
 
   static const _tabs = <({String label, IconData icon, IconData selectedIcon})>[
     (label: 'Map', icon: Icons.map_outlined, selectedIcon: Icons.map_outlined),
@@ -43,6 +46,15 @@ class AppBottomNav extends StatelessWidget {
       selectedIcon: Icons.person_rounded,
     ),
   ];
+
+  int _badgeForIndex(int i) {
+    return switch (i) {
+      1 => reservationsBadgeCount,
+      2 => hostingBadgeCount,
+      3 => accountBadgeCount,
+      _ => 0,
+    };
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -73,9 +85,7 @@ class AppBottomNav extends StatelessWidget {
                             label: _tabs[i].label,
                             icon: _tabs[i].icon,
                             selectedIcon: _tabs[i].selectedIcon,
-                            showIconDot:
-                                (i == 3 && showAccountDot) ||
-                                (i == 2 && showHostingDot),
+                            badgeCount: _badgeForIndex(i),
                             selected: selectedIndex == i,
                             onTap: () => onDestinationSelected(i),
                           ),
@@ -98,7 +108,7 @@ class _NavItem extends StatelessWidget {
     required this.label,
     required this.icon,
     required this.selectedIcon,
-    required this.showIconDot,
+    required this.badgeCount,
     required this.selected,
     required this.onTap,
   });
@@ -106,7 +116,7 @@ class _NavItem extends StatelessWidget {
   final String label;
   final IconData icon;
   final IconData selectedIcon;
-  final bool showIconDot;
+  final int badgeCount;
   final bool selected;
   final VoidCallback onTap;
 
@@ -150,11 +160,11 @@ class _NavItem extends StatelessWidget {
                     color: selected ? AppColors.iconBlue : AppColors.iconGrey,
                   ),
                 ),
-                if (showIconDot)
-                  const Positioned(
-                    right: -2,
-                    top: -1,
-                    child: _NavRedDot(),
+                if (badgeCount > 0)
+                  Positioned(
+                    right: -6,
+                    top: -4,
+                    child: AppNotificationBadge(count: badgeCount),
                   ),
               ],
             ),
@@ -170,23 +180,6 @@ class _NavItem extends StatelessWidget {
             ),
           ],
         ),
-      ),
-    );
-  }
-}
-
-class _NavRedDot extends StatelessWidget {
-  const _NavRedDot();
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: 8,
-      height: 8,
-      decoration: BoxDecoration(
-        color: AppColors.primaryBlue,
-        shape: BoxShape.circle,
-        border: Border.all(color: AppColors.surface, width: 1),
       ),
     );
   }

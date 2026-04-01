@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../theme/app_colors.dart';
+import '../theme/app_spacing.dart';
 import '../theme/app_typography.dart';
 import '../utils/display_formatting.dart';
 
@@ -37,6 +38,12 @@ class AppTopBar extends StatelessWidget implements PreferredSizeWidget {
       foregroundColor: AppColors.black,
       automaticallyImplyLeading: false,
       leadingWidth: showBack ? _leadingWidthWhenBack : 0,
+      // Default AppBar actions padding is tight; text actions (e.g. "View booking")
+      // need room from the trailing screen edge / notch.
+      actionsPadding: const EdgeInsetsDirectional.only(
+        start: AppSpacing.xs,
+        end: AppSpacing.lg,
+      ),
       title: Text(
         displayTitle,
         style: AppTypography.navTitle.copyWith(color: AppColors.black),

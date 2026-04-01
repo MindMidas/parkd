@@ -175,7 +175,7 @@ class ReservationsRemote {
         .update({'status': status.name}).eq('id', reservationId);
   }
 
-  // busy windows for heatmap/slot-picker (overlaps [rangeStart, rangeEnd))
+  // Reservations that overlap a time range for the heatmap and time picker.
   Future<List<BookingTimeWindow>> fetchOverlappingBlocksForListing(
     String listingId, {
     required DateTime rangeStart,
@@ -207,6 +207,45 @@ class ReservationsRemote {
       return out;
     } catch (_) {
       return [];
+    }
+  }
+
+  // Same as fetchOverlappingBlocksForListing but one query for many listings.
+  Future<Map<String, List<BookingTimeWindow>>> fetchOverlappingBlocksForListings(
+    List<String> listingIds, {
+    required DateTime rangeStart,
+    required DateTime rangeEnd,
+  }) async {
+    if (listingIds.isEmpty) return {};
+    try {
+      final fromIso = rangeStart.toUtc().toIso8601String();
+      final toIso = rangeEnd.toUtc().toIso8601String();
+      final rows = await _client
+          .from('reservations')
+          .select('listing_id, start_time, end_time, status')
+          .inFilter('listing_id', listingIds)
+          .gt('end_time', fromIso)
+          .lt('start_time', toIso)
+          .inFilter('status', _blockingStatuses);
+      final byListing = <String, List<BookingTimeWindow>>{
+        for (final id in listingIds) id: <BookingTimeWindow>[],
+      };
+      for (final e in rows as List) {
+        final m = Map<String, dynamic>.from(e as Map);
+        final lid = m['listing_id'] as String?;
+        final s = m['start_time'];
+        final t = m['end_time'];
+        if (lid == null || s == null || t == null) continue;
+        byListing.putIfAbsent(lid, () => []).add(
+              BookingTimeWindow(
+                start: DateTime.parse(s as String).toLocal(),
+                end: DateTime.parse(t as String).toLocal(),
+              ),
+            );
+      }
+      return byListing;
+    } catch (_) {
+      return {for (final id in listingIds) id: <BookingTimeWindow>[]};
     }
   }
 }

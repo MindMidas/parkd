@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../app/active_trip_chat_foreground_provider.dart';
+import '../../../core/models/notification_row.dart';
+import '../../../core/notifications/notification_hub_counts.dart';
 import '../../../core/messaging/app_messenger.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_spacing.dart';
@@ -38,6 +41,7 @@ class _TripConversationScreenState extends ConsumerState<TripConversationScreen>
   String? _conversationId;
   bool _ensuring = false;
   Object? _ensureError;
+  int? _foregroundSessionToken;
 
   List<Widget> get _viewTripActions {
     final label = widget.viewTripLabel?.trim();
@@ -56,30 +60,65 @@ class _TripConversationScreenState extends ConsumerState<TripConversationScreen>
   void initState() {
     super.initState();
     _conversationId = widget.initialConversationId;
+    ref.listenManual<AsyncValue<List<NotificationRow>>>(
+      myNotificationsProvider,
+      (previous, next) {
+        final rows = next.value;
+        if (rows == null || !mounted) return;
+        if (!_hasUnreadMessageNotificationForThisChat(rows)) return;
+        _markThreadMessageNotificationsRead();
+      },
+    );
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (_conversationId != null) {
-        _markMessageNotificationsReadForConversation();
-      }
+      if (!mounted) return;
+      _foregroundSessionToken = ref
+          .read(activeTripChatForegroundProvider.notifier)
+          .enter(
+            widget.reservationId,
+            conversationId: _conversationId,
+          );
+      _markThreadMessageNotificationsRead();
     });
   }
 
-  Future<void> _markMessageNotificationsReadForConversation() async {
-    final cid = _conversationId;
-    if (cid == null) return;
+  bool _hasUnreadMessageNotificationForThisChat(List<NotificationRow> rows) {
+    final cid = _conversationId?.trim();
+    final resId = widget.reservationId.trim();
+    if (resId.isEmpty) return false;
+    for (final n in rows) {
+      if (n.isRead || n.type != 'message_received') continue;
+      final nc = n.dataJson['conversation_id'];
+      final ncStr = nc is String ? nc.trim() : null;
+      if (cid != null &&
+          cid.isNotEmpty &&
+          ncStr != null &&
+          ncStr == cid) {
+        return true;
+      }
+      final nr = notificationReservationId(n);
+      if (nr != null && nr == resId) return true;
+    }
+    return false;
+  }
+
+  Future<void> _markThreadMessageNotificationsRead() async {
     final uid = ref.read(currentSessionProvider)?.user.id;
     if (uid == null) return;
     try {
-      await ref
-          .read(notificationsRemoteProvider)
-          .markMessageNotificationsReadForConversation(
+      await ref.read(notificationsRemoteProvider).markMessageNotificationsReadForThread(
             userId: uid,
-            conversationId: cid,
+            conversationId: _conversationId,
+            reservationId: widget.reservationId,
           );
     } catch (_) {}
   }
 
   @override
   void dispose() {
+    final tok = _foregroundSessionToken;
+    if (tok != null) {
+      ref.read(activeTripChatForegroundProvider.notifier).leave(tok);
+    }
     _textController.dispose();
     super.dispose();
   }
@@ -99,7 +138,13 @@ class _TripConversationScreenState extends ConsumerState<TripConversationScreen>
         _conversationId = row.id;
         _ensuring = false;
       });
-      await _markMessageNotificationsReadForConversation();
+      final tok = _foregroundSessionToken;
+      if (tok != null) {
+        ref
+            .read(activeTripChatForegroundProvider.notifier)
+            .updateConversation(tok, row.id);
+      }
+      await _markThreadMessageNotificationsRead();
     } catch (e) {
       if (!mounted) return;
       setState(() {
@@ -201,12 +246,37 @@ class _TripConversationScreenState extends ConsumerState<TripConversationScreen>
                       final m = messages[i];
                       final mine = uid != null && m.senderId == uid;
                       final name = mine ? 'You' : widget.peerDisplayName;
+                      final prev = i > 0 ? messages[i - 1] : null;
+                      final showSenderHeader =
+                          prev == null || prev.senderId != m.senderId;
+                      final created = m.createdAt;
+                      final showDayDivider = created != null &&
+                          (prev == null ||
+                              prev.createdAt == null ||
+                              !chatMessageSameLocalDay(
+                                prev.createdAt!,
+                                created,
+                              ));
                       return Padding(
-                        padding: const EdgeInsets.only(bottom: AppSpacing.sm),
-                        child: AppChatMessageBubble(
-                          senderName: name,
-                          message: m.message,
-                          isMine: mine,
+                        padding: EdgeInsets.only(
+                          bottom: showSenderHeader
+                              ? AppSpacing.sm
+                              : AppSpacing.xs,
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            if (showDayDivider)
+                              AppChatDayDivider(
+                                label: formatChatDayDividerLabel(created),
+                              ),
+                            AppChatMessageBubble(
+                              senderName: name,
+                              message: m.message,
+                              isMine: mine,
+                              showSenderHeader: showSenderHeader,
+                            ),
+                          ],
                         ),
                       );
                     },

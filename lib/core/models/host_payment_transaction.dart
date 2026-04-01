@@ -14,7 +14,6 @@ class HostPaymentTransaction {
   final ReservationRow reservation;
   final Listing? listing;
 
-  // host's parking earnings: [payment.amount] matches reservation 'total_price'
-  // [payment.serviceFee] is charged to driver on top, not taken from this
+  // Net to host is payment.amount (matches trip total_price). Service fee is on the guest bill.
   double get netToHost => payment.amount;
 }

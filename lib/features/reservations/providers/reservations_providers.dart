@@ -17,6 +17,22 @@ final reservationsRepositoryProvider = Provider<ReservationsRepository>((ref) {
   return SupabaseReservationsRepository(ref.watch(supabaseClientProvider));
 });
 
+// One reservation by id; notifications use this when they need a quick lookup.
+final reservationByIdProvider =
+    FutureProvider.family<ReservationRow?, String>((ref, reservationId) async {
+  final id = reservationId.trim();
+  if (id.isEmpty) return null;
+  return ref.read(reservationsRepositoryProvider).getReservation(id);
+});
+
+// Conversation row by id; helps figure out who sent a message if trip fetch fails.
+final conversationByIdProvider =
+    FutureProvider.family<ConversationRow?, String>((ref, conversationId) async {
+  final id = conversationId.trim();
+  if (id.isEmpty) return null;
+  return ref.read(messagingRepositoryProvider).conversationById(id);
+});
+
 final reservationPaymentProvider =
     FutureProvider.family<PaymentRow?, String>((ref, reservationId) async {
   return ref.read(reservationsRepositoryProvider).paymentForReservation(

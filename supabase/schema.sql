@@ -783,9 +783,25 @@ language plpgsql
 security definer
 set search_path = public
 as $$
+declare
+  driver_display_name text;
 begin
   if old.status is distinct from 'confirmed'::public.reservation_status
      and new.status = 'confirmed'::public.reservation_status then
+    select
+      coalesce(
+        nullif(trim(p.full_name), ''),
+        case
+          when p.username is not null and trim(p.username) <> '' then '@' || trim(p.username)
+          else null
+        end,
+        nullif(trim(p.email), ''),
+        'Guest'
+      )
+    into driver_display_name
+    from public.profiles p
+    where p.id = new.driver_id;
+
     insert into public.notifications (
       user_id,
       type,
@@ -799,7 +815,10 @@ begin
       new.host_id,
       'reservation_confirmed',
       'New reservation confirmed',
-      'A driver has completed payment for your listing.',
+      format(
+        '%s completed payment.',
+        coalesce(driver_display_name, 'Someone')
+      ),
       jsonb_build_object(
         'reservation_id', new.id,
         'listing_id', new.listing_id,
@@ -896,7 +915,6 @@ declare
   conv_reservation_id uuid;
   recipient_user_id uuid;
   sender_name text;
-  sender_avatar_url text;
 begin
   select c.host_id, c.driver_id, c.reservation_id
   into conv_host_id, conv_driver_id, conv_reservation_id
@@ -924,9 +942,8 @@ begin
       end,
       nullif(trim(p.email), ''),
       'Someone'
-    ),
-    nullif(trim(p.avatar_url), '')
-  into sender_name, sender_avatar_url
+    )
+  into sender_name
   from public.profiles p
   where p.id = new.sender_id;
 
@@ -949,8 +966,10 @@ begin
       'conversation_id', new.conversation_id,
       'reservation_id', conv_reservation_id,
       'sender_id', new.sender_id,
-      'sender_name', coalesce(sender_name, 'Someone'),
-      'sender_avatar_url', sender_avatar_url
+      'message_context', case
+        when recipient_user_id = conv_host_id then 'booking'
+        else 'reservation'
+      end
     ),
     'message',
     new.id
@@ -1413,6 +1432,12 @@ on public.notifications
 for update
 using (auth.uid() = user_id)
 with check (auth.uid() = user_id);
+
+drop policy if exists "notifications_delete_own" on public.notifications;
+create policy "notifications_delete_own"
+on public.notifications
+for delete
+using (auth.uid() = user_id);
 
 -- push token policies
 

@@ -29,6 +29,40 @@ class NotificationRow {
   final String? pushError;
   final DateTime createdAt;
 
+  // message_received only: short role tag from data_json.message_context (booking vs reservation).
+  String? get messageReceivedSenderRoleBracket {
+    if (type != 'message_received') return null;
+    final kw = normalizeMessageContext(dataJson['message_context']);
+    if (kw == 'booking') return '(DRIVER)';
+    if (kw == 'reservation') return '(HOST)';
+    return null;
+  }
+
+  // Same as above, but if message_context is missing guess from host vs driver ids and sender_id.
+  String? resolvedMessageSenderRoleBracket({
+    String? reservationHostId,
+    String? reservationDriverId,
+  }) {
+    final fromCtx = messageReceivedSenderRoleBracket;
+    if (fromCtx != null) return fromCtx;
+    if (type != 'message_received') return null;
+    final raw = dataJson['sender_id'];
+    final sid = raw is String ? raw.trim() : null;
+    if (sid == null || sid.isEmpty) return null;
+    final h = reservationHostId?.trim();
+    final d = reservationDriverId?.trim();
+    if (h != null && h.isNotEmpty && sid == h) return '(HOST)';
+    if (d != null && d.isNotEmpty && sid == d) return '(DRIVER)';
+    return null;
+  }
+
+  // Normalized message_context string for message_received, or null.
+  static String? normalizeMessageContext(Object? raw) {
+    if (raw is! String) return null;
+    final s = raw.trim().toLowerCase();
+    return s.isEmpty ? null : s;
+  }
+
   static NotificationRow fromJson(Map<String, dynamic> json) {
     return NotificationRow(
       id: json['id'] as String,

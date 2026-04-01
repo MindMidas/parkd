@@ -23,7 +23,7 @@ final _backendRepositoryLinkProvider = Provider<void>((ref) {
   ref.watch(stripeCheckoutRemoteProvider);
 });
 
-// Notifies GoRouter when auth/MFA state changes without recreating router
+// Poke GoRouter on auth or MFA changes so redirects run without rebuilding the router.
 class GoRouterRefreshNotifier extends ChangeNotifier {
   GoRouterRefreshNotifier(Ref ref) {
     ref.listen(currentSessionProvider, (previous, next) => notifyListeners());
@@ -97,15 +97,14 @@ final goRouterProvider = Provider<GoRouter>((ref) {
       final loc = state.matchedLocation;
       final isOnAuthRoute = loc == '/auth' || loc.startsWith('/auth/');
       final isAuthenticated = session != null;
-      // Login + TOTP screen only ('/auth', not forgot-password)
+      // True on the main login screen only, not forgot-password routes.
       final isOnLoginScreen = loc == '/auth';
 
       if (!isAuthenticated && !isOnAuthRoute) {
         return '/auth';
       }
 
-      // Password sign-in creates an AAL1 session until TOTP is verified
-      // Force MFA UI on cold start (initial route is /home) and block other app routes
+      // Logged in but MFA not done yet: keep them on login until TOTP passes.
       if (isAuthenticated && needsMfaChallenge && !isOnLoginScreen) {
         return '/auth';
       }
