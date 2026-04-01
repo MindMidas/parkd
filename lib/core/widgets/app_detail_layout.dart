@@ -6,6 +6,7 @@ import '../theme/app_spacing.dart';
 import '../theme/app_typography.dart';
 import '../utils/scroll_view_bottom_inset.dart';
 import 'app_buttons.dart';
+import 'app_notification_badge.dart';
 import 'app_display_fields.dart';
 import 'app_listing_photo_frame.dart';
 import 'app_listing_photo_spot_overlay.dart';
@@ -54,6 +55,7 @@ class AppPersonInlineCard extends StatelessWidget {
     this.actionIcon = Icons.mail_outline_rounded,
     this.title,
     this.compact = false,
+    this.actionBadgeCount = 0,
   });
 
   final String displayName;
@@ -65,6 +67,7 @@ class AppPersonInlineCard extends StatelessWidget {
   final IconData actionIcon;
   final String? title;
   final bool compact;
+  final int actionBadgeCount;
 
   @override
   Widget build(BuildContext context) {
@@ -74,7 +77,7 @@ class AppPersonInlineCard extends StatelessWidget {
         ? const EdgeInsets.symmetric(horizontal: AppSpacing.sm, vertical: AppSpacing.xxs)
         : const EdgeInsets.all(AppSpacing.md);
     final actionText = actionLabel?.trim();
-    final action = trailing ??
+    final Widget? rawAction = trailing ??
         ((actionText != null && actionText.isNotEmpty && onActionPressed != null)
             ? AppPrimaryButton(
                 label: actionText,
@@ -83,6 +86,24 @@ class AppPersonInlineCard extends StatelessWidget {
                 fullWidth: false,
               )
             : null);
+    final action = rawAction == null
+        ? null
+        : actionBadgeCount > 0
+            ? Stack(
+                clipBehavior: Clip.none,
+                children: [
+                  rawAction,
+                  Positioned(
+                    right: -4,
+                    top: -6,
+                    child: AppNotificationBadge(
+                      count: actionBadgeCount,
+                      compact: true,
+                    ),
+                  ),
+                ],
+              )
+            : rawAction;
 
     final row = Row(
       crossAxisAlignment: CrossAxisAlignment.center,

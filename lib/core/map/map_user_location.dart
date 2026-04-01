@@ -8,7 +8,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../theme/app_colors.dart';
 import 'map_constants.dart';
 
-// Centers map on user when permission and services allow, otherwise on def map center (Guelph)
+// Move map to user location if allowed, else default Guelph view.
 Future<void> tryCenterMapOnUserLocation(MapboxMap map) async {
   var perm = await geo.Geolocator.checkPermission();
   if (perm == geo.LocationPermission.denied) {
@@ -63,7 +63,7 @@ Future<void> tryCenterMapOnUserLocation(MapboxMap map) async {
   }
 }
 
-// Opens app's Settings page (Location, etc.). On iOS 18+, falls back from 'App-prefs:<bundle id>' to [Geolocator.openAppSettings] if needed
+// System settings for location; iOS tries app prefs URL first then Geolocator fallback.
 Future<void> openAppLocationSettings() async {
   if (Platform.isIOS) {
     try {
@@ -111,7 +111,7 @@ Future<void> configureMapLocationPuck(
   );
 }
 
-// Reqs location permission (when-in-use) and returns the current fix, or 'null' if denied / unavailable
+// Ask for when-in-use location and return a fix, or null if blocked or off.
 Future<geo.Position?> getCurrentUserPositionIfAllowed() async {
   var perm = await geo.Geolocator.checkPermission();
   if (perm == geo.LocationPermission.denied) {
@@ -134,7 +134,7 @@ Future<geo.Position?> getCurrentUserPositionIfAllowed() async {
   }
 }
 
-// animates map to lat/long (WGS84)
+// Fly the map camera to a lat lng.
 Future<void> flyMapToLatLon(
   MapboxMap map, {
   required double latitude,

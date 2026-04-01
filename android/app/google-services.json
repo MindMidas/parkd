@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "689455624034",
+    "project_id": "parkd-a430a",
+    "storage_bucket": "parkd-a430a.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:689455624034:android:3a351fe9d788a354f8863b",
+        "android_client_info": {
+          "package_name": "ca.uoguelph.cis4030.parkd"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDns0P6mSQnaSjquEV5JlMK-RnNRmwrX7I"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

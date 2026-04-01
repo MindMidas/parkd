@@ -73,8 +73,16 @@ class SupabaseListingsRepository implements ListingsRepository {
       );
 
   @override
-  Future<List<Listing>> getPublishedListingsForMap({MapFilters? filters}) =>
-      _listings.fetchPublishedForMap(filters: filters);
+  Future<List<Listing>> getPublishedListingsForMap({
+    MapFilters? filters,
+    double? proximityUserLatitude,
+    double? proximityUserLongitude,
+  }) =>
+      _listings.fetchPublishedForMap(
+        filters: filters,
+        proximityUserLatitude: proximityUserLatitude,
+        proximityUserLongitude: proximityUserLongitude,
+      );
 
   @override
   Future<void> setAllAvailabilitySlotPrices({

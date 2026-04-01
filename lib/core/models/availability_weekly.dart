@@ -26,7 +26,7 @@ class AvailabilityWeekly {
     'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun',
   ];
 
-  /// DB 0=Mon to 6=Sun to DateTime.weekday (Mon=1 to Sun=7)
+  // Map Postgres day 0 Mon .. 6 Sun to Dart weekday 1..7.
   static int toDartWeekday(int dbDayOfWeek) {
     final d = dbDayOfWeek.clamp(0, 6);
     return d == 6 ? DateTime.sunday : d + 1;

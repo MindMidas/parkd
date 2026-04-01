@@ -19,6 +19,7 @@ import '../../../../core/utils/scroll_view_bottom_inset.dart';
 import '../../../../core/widgets/widgets.dart';
 import '../../../auth/providers/auth_providers.dart';
 import '../../../profile/providers/profile_providers.dart';
+import '../../../profile/providers/notifications_providers.dart';
 import '../../providers/reservations_providers.dart';
 import '../trip_conversation_screen.dart';
 
@@ -123,6 +124,8 @@ class _ReservationDetailsScreenState extends ConsumerState<ReservationDetailsScr
 
     final hostP = hostProfile.asData?.value;
     final hostName = hostP?.displayName ?? 'Host';
+    final chatUnread =
+        ref.watch(unreadMessageNotificationsForReservationProvider(r.id));
     final u = hostP?.username?.trim();
     final hostHandle = (u != null && u.isNotEmpty)
         ? '@$u'
@@ -178,6 +181,7 @@ class _ReservationDetailsScreenState extends ConsumerState<ReservationDetailsScr
                       displayName: hostName,
                       handle: hostHandle,
                       avatarImageProvider: hostAvatar,
+                      actionBadgeCount: chatUnread,
                       actionLabel: 'Chat',
                       onActionPressed: () {
                         final uid = ref.read(currentSessionProvider)?.user.id;

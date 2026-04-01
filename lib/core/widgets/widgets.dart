@@ -36,6 +36,7 @@ export 'app_menu_row.dart';
 export 'app_month_calendar.dart';
 export 'app_muted_body_center.dart';
 export 'app_muted_link_row.dart';
+export 'app_notification_badge.dart';
 export 'app_outcome_view.dart';
 export 'app_payment_card_form_sections.dart';
 export 'app_payment_method_pill.dart';

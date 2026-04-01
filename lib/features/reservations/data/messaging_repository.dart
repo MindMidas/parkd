@@ -8,6 +8,8 @@ abstract class MessagingRepository {
 
   Future<List<ConversationRow>> inboxForUser(String userId);
 
+  Future<ConversationRow?> conversationById(String conversationId);
+
   // host hub: bookings at listingId where you are hostId, with optional chat + preview
   Future<List<HostListingBookingThread>> listHostListingThreads({
     required String hostId,
@@ -16,6 +18,7 @@ abstract class MessagingRepository {
   });
 
   Future<List<ChatMessageRow>> messages(String conversationId);
+  Stream<List<ChatMessageRow>> watchMessages(String conversationId);
 
   Future<ChatMessageRow> send({
     required String conversationId,

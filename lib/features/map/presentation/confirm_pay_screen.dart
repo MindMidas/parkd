@@ -7,7 +7,7 @@ import '../../../core/models/reservation_checkout_args.dart';
 import '../../../core/theme/app_spacing.dart';
 import '../../../core/utils/scroll_view_bottom_inset.dart';
 import '../../../core/widgets/widgets.dart';
-import '../../profile/presentation/settings/select_payment_method_screen.dart';
+import '../../profile/presentation/settings/all_cards_screen.dart';
 import '../../profile/providers/payment_method_provider.dart';
 import '../../profile/providers/profile_providers.dart';
 import 'reservation_checkout_terms_screen.dart';
@@ -99,10 +99,9 @@ class ConfirmPayScreen extends ConsumerWidget {
                           brand: method?.brand ?? 'Add a card',
                           lastFour: method?.last4 ?? '—',
                           onChangePressed: () {
-                            Navigator.of(context).push<void>(
+                            Navigator.of(context, rootNavigator: true).push<void>(
                               MaterialPageRoute<void>(
-                                builder: (_) =>
-                                    const SelectPaymentMethodScreen(),
+                                builder: (_) => const AllCardsScreen(),
                               ),
                             );
                           },

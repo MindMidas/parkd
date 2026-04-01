@@ -8,7 +8,7 @@ import 'listing_next_available.dart' show mergeBookingWindows;
 // 5min slots per day (24x12 steps)
 const int kHeatmapSlotsPerDay = (24 * 60) ~/ TimeStepMinutes.step;
 
-// closed outside host hours, open bookable, booked by confirmed+active (pending doesn't block)
+// Closed when host is off, open when you can book, booked when trip is confirmed or active.
 enum AvailabilitySlotState {
   hostClosed,
   open,
@@ -83,6 +83,34 @@ List<OpenInterval> hostOpenIntervalsForDay(
   return _mergeOpenIntervals(raw);
 }
 
+// True if merged host open intervals cover the whole range from start to end.
+bool hostOpenUnionCoversRange(
+  DateTime windowStart,
+  DateTime windowEnd,
+  List<OpenInterval> open,
+) {
+  if (!windowEnd.isAfter(windowStart)) return true;
+  final merged = _mergeOpenIntervals(open);
+  if (merged.isEmpty) return false;
+  var cursor = windowStart;
+  while (windowEnd.isAfter(cursor)) {
+    OpenInterval? pick;
+    for (final iv in merged) {
+      if (!iv.end.isAfter(cursor)) continue;
+      if (iv.start.isAfter(cursor)) return false;
+      pick = iv;
+      break;
+    }
+    if (pick == null) return false;
+    if (!pick.end.isAfter(cursor)) return false;
+    if (!pick.end.isBefore(windowEnd)) {
+      return true;
+    }
+    cursor = pick.end;
+  }
+  return true;
+}
+
 List<BookingTimeWindow> _bookingsForDay(
   DateTime dayLocal,
   List<BookingTimeWindow> bookings,
@@ -99,7 +127,7 @@ List<BookingTimeWindow> _bookingsForDay(
   return clipped;
 }
 
-// 5min grid: hostClosed vs open vs booked
+// One state per five minute step for a single day.
 List<AvailabilitySlotState> computeFiveMinuteSlotStates({
   required DateTime dayLocal,
   required Listing listing,
