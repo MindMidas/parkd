@@ -4,7 +4,7 @@ import '../models/availability_specific.dart';
 import '../models/availability_weekly.dart';
 import '../models/listing.dart';
 
-// availability_weekly + availability_specific tables
+/// availability_weekly + availability_specific tables
 class ListingAvailabilityRemote {
   ListingAvailabilityRemote(this._client);
 
@@ -64,10 +64,10 @@ class ListingAvailabilityRemote {
     required double priceHour,
     double? priceDay,
   }) async {
-    await _client.from('availability_weekly').update({
-      'price_hour': priceHour,
-      'price_day': priceDay,
-    }).eq('id', slotId);
+    await _client
+        .from('availability_weekly')
+        .update({'price_hour': priceHour, 'price_day': priceDay})
+        .eq('id', slotId);
   }
 
   Future<AvailabilityWeekly> insertWeeklySlot({
@@ -127,9 +127,9 @@ class ListingAvailabilityRemote {
     required double priceHour,
     double? priceDay,
   }) async {
-    await _client.from('availability_specific').update({
-      'price_hour': priceHour,
-      'price_day': priceDay,
-    }).eq('id', slotId);
+    await _client
+        .from('availability_specific')
+        .update({'price_hour': priceHour, 'price_day': priceDay})
+        .eq('id', slotId);
   }
 }

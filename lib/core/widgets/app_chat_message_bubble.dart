@@ -11,11 +11,13 @@ class AppChatMessageBubble extends StatelessWidget {
     required this.senderName,
     required this.message,
     required this.isMine,
+    this.onLongPress,
   });
 
   final String senderName;
   final String message;
   final bool isMine;
+  final VoidCallback? onLongPress;
 
   @override
   Widget build(BuildContext context) {
@@ -28,24 +30,34 @@ class AppChatMessageBubble extends StatelessWidget {
         children: [
           Text(
             senderName,
-            style:
-                AppTypography.captionStrong.copyWith(color: AppColors.textSecondary),
+            style: AppTypography.captionStrong.copyWith(
+              color: AppColors.textSecondary,
+            ),
           ),
           const SizedBox(height: AppSpacing.xs),
-          Container(
-            constraints: const BoxConstraints(maxWidth: 280),
-            padding: const EdgeInsets.symmetric(
-              horizontal: AppSpacing.md,
-              vertical: AppSpacing.sm,
-            ),
-            decoration: BoxDecoration(
-              color: isMine ? AppColors.primaryBlue : AppColors.secondaryBlue,
-              borderRadius: BorderRadius.circular(14),
-            ),
-            child: Text(
-              message,
-              style: AppTypography.body.copyWith(
-                color: isMine ? AppColors.onPrimary : AppColors.textPrimary,
+          Semantics(
+            button: onLongPress != null,
+            hint: onLongPress == null ? null : 'Long press to report message',
+            child: GestureDetector(
+              onLongPress: onLongPress,
+              child: Container(
+                constraints: const BoxConstraints(maxWidth: 280),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: AppSpacing.md,
+                  vertical: AppSpacing.sm,
+                ),
+                decoration: BoxDecoration(
+                  color: isMine
+                      ? AppColors.primaryBlue
+                      : AppColors.secondaryBlue,
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                child: Text(
+                  message,
+                  style: AppTypography.body.copyWith(
+                    color: isMine ? AppColors.onPrimary : AppColors.textPrimary,
+                  ),
+                ),
               ),
             ),
           ),

@@ -62,10 +62,7 @@ class AppStepTopBar extends StatelessWidget implements PreferredSizeWidget {
             ),
           ),
           const SizedBox(width: AppSpacing.sm),
-          _StepBadgeColumn(
-            currentStep: currentStep,
-            totalSteps: totalSteps,
-          ),
+          _StepBadgeColumn(currentStep: currentStep, totalSteps: totalSteps),
         ],
       ),
     );
@@ -75,13 +72,10 @@ class AppStepTopBar extends StatelessWidget implements PreferredSizeWidget {
   Size get preferredSize => const Size.fromHeight(_toolbarHeight);
 }
 
-// Step indicator dots (local styles).
+// --- Private: step indicator (styles live here, not in feature screens) ---
 
 class _StepBadgeColumn extends StatelessWidget {
-  const _StepBadgeColumn({
-    required this.currentStep,
-    required this.totalSteps,
-  });
+  const _StepBadgeColumn({required this.currentStep, required this.totalSteps});
 
   final int currentStep;
   final int totalSteps;

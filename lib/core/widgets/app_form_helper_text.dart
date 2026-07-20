@@ -16,15 +16,11 @@ class AppFormHelperText extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Text(
-      text,
-      style: AppTypography.caption,
-      textAlign: textAlign,
-    );
+    return Text(text, style: AppTypography.caption, textAlign: textAlign);
   }
 }
 
-// Red caption under fields when overlap or val blows up
+// Red caption under fields when overlap or validation blows up
 class AppFormErrorCaption extends StatelessWidget {
   const AppFormErrorCaption(
     this.text, {

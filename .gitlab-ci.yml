@@ -1,7 +1,8 @@
-image: ghcr.io/cirruslabs/flutter:stable
+image: ghcr.io/cirruslabs/flutter:3.41.5
 
 stages:
   - analyze
+  - test
   - build
 
 variables:
@@ -15,27 +16,29 @@ cache:
 
 before_script:
   - flutter --version
-  - if [ ! -f .env ]; then cp .env.example .env; fi
   - flutter pub get
 
 analyze:
   stage: analyze
   script:
+    - dart format --output=none --set-exit-if-changed lib test integration_test supabase/functions
     - flutter analyze
   rules:
     - if: $CI_PIPELINE_SOURCE == "merge_request_event"
     - if: $CI_COMMIT_BRANCH
 
-# No unit tests in repo; this compile smoke catches broken imports / missing assets / web issues analyze can miss
+test:
+  stage: test
+  script:
+    - flutter test --coverage
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+    - if: $CI_COMMIT_BRANCH
+
 build_web:
   stage: build
-  # Lighter dart2js than default -O4 to avoid OOM on low-RAM K8s runners.
-  retry:
-    max: 2
-    when:
-      - runner_system_failure
   script:
-    - flutter build web --no-pub --release --optimization-level=2 --no-source-maps --no-wasm-dry-run
+    - flutter build web --no-pub --release --dart-define=PARKD_DEMO=true --dart-define=SUPABASE_URL=https://example.supabase.co --dart-define=SUPABASE_ANON_KEY=ci-public-placeholder --dart-define=MAPBOX_ACCESS_TOKEN=ci-public-placeholder --dart-define=STRIPE_PUBLISHABLE_KEY=pk_test_ci_placeholder --dart-define=TURNSTILE_SITE_KEY=1x00000000000000000000AA
   rules:
     - if: $CI_PIPELINE_SOURCE == "merge_request_event"
     - if: $CI_COMMIT_BRANCH

@@ -1,6 +1,6 @@
 import '../../../../core/models/search_result.dart';
 
-// one row in the create-listing specific-date schedule UI
+/// One row in the create-listing specific-date schedule UI
 typedef CreateListingSpecificSlot = ({
   DateTime fromDate,
   DateTime toDate,
@@ -10,7 +10,7 @@ typedef CreateListingSpecificSlot = ({
   double? dailyPrice,
 });
 
-// one row in the create-listing weekly schedule UI
+/// One row in the create-listing weekly schedule UI
 typedef CreateListingWeeklySlot = ({
   String day,
   String timeRange,
@@ -20,7 +20,7 @@ typedef CreateListingWeeklySlot = ({
 
 enum CreateListingAvailabilityKind { specific, weekly }
 
-// in-mem wizard state, committed on TermsAndConditionsScreen to publish
+/// In-memory wizard state; committed on [TermsAndConditionsScreen] → publish
 class CreateListingDraft {
   SearchResult? picked;
   double? pinLat;
@@ -30,14 +30,14 @@ class CreateListingDraft {
   double? markerX;
   double? markerY;
 
-  // Optional label (example stall B2) so multiple spots at one address can coexist in DB
+  /// Optional label (e.g. stall B2) so multiple spots at one address can coexist in DB
   String? spotNumber;
 
   CreateListingAvailabilityKind? availabilityKind;
   final List<CreateListingSpecificSlot> specificSlots = [];
   final List<CreateListingWeeklySlot> weeklySlots = [];
 
-  // prevents overlapping [CreateListingPublish.submit] calls on the same draft
+  /// Prevents overlapping [CreateListingPublish.submit] calls on the same draft
   bool publishInProgress = false;
 
   String get addressLine {

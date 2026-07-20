@@ -1,6 +1,7 @@
 import '../utils/time_step_minutes.dart';
 
-// mirrors public.availability_weekly (day_of_week 0=Mon to 6=Sun)
+/// Mirrors public.availability_weekly. day_of_week: 0 = Sunday … 6 = Saturday
+/// Schema: supabase/schema.sql
 class AvailabilityWeekly {
   const AvailabilityWeekly({
     required this.id,
@@ -22,19 +23,19 @@ class AvailabilityWeekly {
   final double? priceDay;
   final DateTime? createdAt;
 
-  static const List<String> _dayNamesMonFirst = [
-    'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun',
+  static const List<String> _dayNames = [
+    'Sun',
+    'Mon',
+    'Tue',
+    'Wed',
+    'Thu',
+    'Fri',
+    'Sat',
   ];
 
-  /// DB 0=Mon to 6=Sun to DateTime.weekday (Mon=1 to Sun=7)
-  static int toDartWeekday(int dbDayOfWeek) {
-    final d = dbDayOfWeek.clamp(0, 6);
-    return d == 6 ? DateTime.sunday : d + 1;
-  }
+  String get dayLabel => _dayNames[dayOfWeek.clamp(0, 6)];
 
-  String get dayLabel => _dayNamesMonFirst[dayOfWeek.clamp(0, 6)];
-
-  // For UI: "9:15 AM - 1:00 PM"
+  /// For UI: "9:15 AM – 1:00 PM" (DB stores "HH:mm"; drafts may already be AM/PM)
   String get timeRangeDisplay =>
       '${TimeStepMinutes.formatHhMmOrAmPmToDisplay(startTime)} – '
       '${TimeStepMinutes.formatHhMmOrAmPmToDisplay(endTime)}';
@@ -62,13 +63,13 @@ class AvailabilityWeekly {
   }
 
   Map<String, dynamic> toJson() => {
-        'id': id,
-        'listing_id': listingId,
-        'day_of_week': dayOfWeek,
-        'start_time': startTime,
-        'end_time': endTime,
-        'price_hour': priceHour,
-        'price_day': priceDay,
-        'created_at': createdAt?.toIso8601String(),
-      };
+    'id': id,
+    'listing_id': listingId,
+    'day_of_week': dayOfWeek,
+    'start_time': startTime,
+    'end_time': endTime,
+    'price_hour': priceHour,
+    'price_day': priceDay,
+    'created_at': createdAt?.toIso8601String(),
+  };
 }

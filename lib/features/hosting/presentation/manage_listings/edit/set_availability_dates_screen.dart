@@ -16,7 +16,7 @@ typedef _DateSlotDraft = ({
   double? dailyPrice,
 });
 
-// Edit specific-date slots for a listing user already owns
+// Edit specific-date slots for a listing you already own
 class SetAvailabilityDatesScreen extends StatefulWidget {
   const SetAvailabilityDatesScreen({
     super.key,
@@ -50,8 +50,7 @@ class _SetAvailabilityDatesScreenState
 
   bool get _hasSlots => _slots.isNotEmpty;
 
-  bool get _allSlotsPriced =>
-      _slots.every((s) => (s.hourlyPrice ?? 0) > 0);
+  bool get _allSlotsPriced => _slots.every((s) => (s.hourlyPrice ?? 0) > 0);
 
   bool get _canConfirm => !_hasSlots || _allSlotsPriced;
 
@@ -61,7 +60,7 @@ class _SetAvailabilityDatesScreenState
     _currentMonth = DateTime(DateTime.now().year, DateTime.now().month, 1);
   }
 
-  // All dates in selected range for calendar highlighting (start through end inclusive)
+  /// All dates in the selected range for calendar highlighting (start through end inclusive)
   Set<DateTime> get _selectedDatesForCalendar {
     if (_rangeStart == null || _rangeEnd == null) {
       if (_rangeStart != null) {
@@ -108,9 +107,7 @@ class _SetAvailabilityDatesScreenState
   }
 
   void _onConfirm() {
-    final ranges = _slots
-        .map((s) => (start: s.start, end: s.end))
-        .toList();
+    final ranges = _slots.map((s) => (start: s.start, end: s.end)).toList();
     if (AvailabilityOverlap.specificListHasOverlap(ranges)) {
       setState(() {
         _slotOverlapError = AvailabilityOverlap.userMessageSpecific;
@@ -168,11 +165,11 @@ class _SetAvailabilityDatesScreenState
 
     for (final s in _slots) {
       if (AvailabilityOverlap.dateTimeRangesOverlap(
-            startDt,
-            endDt,
-            s.start,
-            s.end,
-          )) {
+        startDt,
+        endDt,
+        s.start,
+        s.end,
+      )) {
         setState(() {
           _slotOverlapError = AvailabilityOverlap.userMessageSpecific;
         });
@@ -255,11 +252,7 @@ class _SetAvailabilityDatesScreenState
                   }),
                   onDayTap: (date) {
                     setState(() {
-                      final dayOnly = DateTime(
-                        date.year,
-                        date.month,
-                        date.day,
-                      );
+                      final dayOnly = DateTime(date.year, date.month, date.day);
                       if (_rangeStart == null) {
                         _rangeStart = dayOnly;
                         _rangeEnd = dayOnly;

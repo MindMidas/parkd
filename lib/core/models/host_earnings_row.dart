@@ -1,4 +1,4 @@
-// one row from public.host_earnings view
+/// One row from public.host_earnings view
 class HostEarningsRow {
   const HostEarningsRow({
     required this.hostId,
@@ -17,8 +17,7 @@ class HostEarningsRow {
       hostId: json['host_id'] as String,
       month: DateTime.parse(json['month'] as String),
       reservationCount: json['reservation_count'] as int? ?? 0,
-      grossEarnings:
-          (json['gross_earnings'] as num?)?.toDouble() ?? 0,
+      grossEarnings: (json['gross_earnings'] as num?)?.toDouble() ?? 0,
     );
   }
 }

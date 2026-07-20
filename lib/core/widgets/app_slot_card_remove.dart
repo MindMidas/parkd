@@ -4,7 +4,7 @@ import '../theme/app_colors.dart';
 import '../theme/app_spacing.dart';
 import 'app_display_fields.dart';
 
-// Slot row with blue X to remove, child is weekly or date-range content
+// Slot row with blue X to remove; child is weekly or date-range content
 class AppSlotCardRemove extends StatelessWidget {
   const AppSlotCardRemove({
     super.key,
@@ -22,9 +22,7 @@ class AppSlotCardRemove extends StatelessWidget {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-          Expanded(
-            child: AppDisplayOutlineCard(child: child),
-          ),
+          Expanded(child: AppDisplayOutlineCard(child: child)),
           const SizedBox(width: AppSpacing.xs),
           GestureDetector(
             onTap: onRemove,
@@ -45,6 +43,32 @@ class AppSlotCardRemove extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+}
+
+// Date-range block for inside AppSlotCardRemove
+class AppSlotCardRemoveDateRange extends StatelessWidget {
+  const AppSlotCardRemoveDateRange({
+    super.key,
+    required this.from,
+    required this.to,
+    required this.priceHour,
+    this.priceDay,
+  });
+
+  final String from;
+  final String to;
+  final double priceHour;
+  final double? priceDay;
+
+  @override
+  Widget build(BuildContext context) {
+    return AppAvailabilityDateRangeSlotBlock.fromSlotStrings(
+      from: from,
+      to: to,
+      priceHour: priceHour,
+      priceDay: priceDay,
     );
   }
 }

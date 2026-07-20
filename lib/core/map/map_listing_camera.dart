@@ -2,7 +2,7 @@ import 'package:mapbox_maps_flutter/mapbox_maps_flutter.dart';
 
 import 'map_constants.dart';
 
-// Frames listing in visible map band above bottom sheet
+/// Frames the listing in the visible map band above a bottom sheet (padding insets)
 Future<void> flyMapToListingPreview(
   MapboxMap map, {
   required double latitude,
@@ -26,7 +26,7 @@ Future<void> flyMapToListingPreview(
   );
 }
 
-// Restores camera with no edge padding (clears preview insets)
+/// Restores camera with no edge padding (clears preview insets)
 Future<void> flyMapToLatLonWithoutPadding(
   MapboxMap map, {
   required double latitude,
@@ -41,12 +41,7 @@ Future<void> flyMapToLatLonWithoutPadding(
       zoom: zoom,
       bearing: bearing,
       pitch: pitch,
-      padding: MbxEdgeInsets(
-        top: 0,
-        left: 0,
-        bottom: 0,
-        right: 0,
-      ),
+      padding: MbxEdgeInsets(top: 0, left: 0, bottom: 0, right: 0),
     ),
     null,
   );

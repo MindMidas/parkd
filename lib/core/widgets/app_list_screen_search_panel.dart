@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import 'app_search_field.dart';
 import '../theme/app_colors.dart';
 
-// Shadow card around AppSearchField, parent owns the controller
+// Shadow card around AppSearchField; parent owns the controller
 class AppListScreenSearchPanel extends StatelessWidget {
   const AppListScreenSearchPanel({
     super.key,

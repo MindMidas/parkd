@@ -1,37 +1,17 @@
-import 'dart:async';
-
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import 'package:url_launcher/url_launcher.dart';
 
 import '../../../core/theme/app_spacing.dart';
 import '../../../core/theme/app_typography.dart';
-import '../../../core/utils/scroll_view_bottom_inset.dart';
 import '../../../core/widgets/widgets.dart';
 import 'home_map_screen.dart';
-import '../../../app/main_tab.dart';
+import 'main_tab.dart';
 import '../../../core/theme/app_colors.dart';
 
 class PaymentSuccessScreen extends StatelessWidget {
-  const PaymentSuccessScreen({
-    super.key,
-    required this.latitude,
-    required this.longitude,
-  });
+  const PaymentSuccessScreen({super.key});
 
-  final double latitude;
-  final double longitude;
-
-  Future<void> _openDirections() async {
-    final url = Uri.parse(
-      'https://maps.apple.com/?daddr=$latitude,$longitude&dirflg=d',
-    );
-    if (await canLaunchUrl(url)) {
-      await launchUrl(url, mode: LaunchMode.externalApplication);
-    }
-  }
-
-  void _goHome(BuildContext context) {
+  void _goHome(BuildContext context, {int tab = MainTab.map}) {
     final router = GoRouter.maybeOf(context);
     final nav = Navigator.of(context);
     final rootNav = Navigator.of(context, rootNavigator: true);
@@ -43,16 +23,13 @@ class PaymentSuccessScreen extends StatelessWidget {
     } else {
       rootNav.pushAndRemoveUntil(
         MaterialPageRoute<void>(
-          builder: (_) => const HomeMapScreen(
-            initialIndex: MainTab.map,
-            hasTabInRoute: true,
-          ),
+          builder: (_) => HomeMapScreen(initialIndex: tab, hasTabInRoute: true),
         ),
         (route) => false,
       );
     }
 
-    router?.go('/home?tab=${MainTab.toQuery(MainTab.map)}');
+    router?.go('/home?tab=${MainTab.toQuery(tab)}');
   }
 
   @override
@@ -96,9 +73,10 @@ class PaymentSuccessScreen extends StatelessWidget {
                   ),
                   const SizedBox(height: AppSpacing.md),
                   AppPrimaryButton(
-                    label: 'Get directions',
-                    icon: Icons.explore_outlined,
-                    onPressed: () => unawaited(_openDirections()),
+                    label: 'View reservation',
+                    icon: Icons.local_parking_rounded,
+                    onPressed: () =>
+                        _goHome(context, tab: MainTab.reservations),
                   ),
                   const SizedBox(height: AppSpacing.sm),
                   AppSecondaryButton(

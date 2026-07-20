@@ -3,12 +3,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../../core/theme/app_colors.dart';
 import '../../../../../core/theme/app_spacing.dart';
-import '../../../../../core/messaging/app_messenger.dart';
 import '../../../../../core/theme/app_typography.dart';
 import '../../../../../core/widgets/widgets.dart';
 import '../create_listing_draft.dart';
 import '../create_listing_publish.dart';
 
+// Scroll the legal summary, then checkbox + transactional publish.
 class TermsAndConditionsScreen extends ConsumerStatefulWidget {
   const TermsAndConditionsScreen({
     super.key,
@@ -63,8 +63,7 @@ class _TermsAndConditionsScreenState
 
   @override
   Widget build(BuildContext context) {
-    final useStepBar =
-        widget.currentStep != null && widget.totalSteps != null;
+    final useStepBar = widget.currentStep != null && widget.totalSteps != null;
 
     return Scaffold(
       backgroundColor: AppColors.surface,
@@ -74,10 +73,7 @@ class _TermsAndConditionsScreenState
               currentStep: widget.currentStep!,
               totalSteps: widget.totalSteps!,
             )
-          : const AppTopBar(
-              title: 'Terms and Conditions',
-              showBack: true,
-            ),
+          : const AppTopBar(title: 'Terms and Conditions', showBack: true),
       body: SafeArea(
         bottom: false,
         child: Column(
@@ -180,7 +176,7 @@ class _TermsAndConditionsScreenState
                       body:
                           'By using Parkd, you agree to our Privacy Policy. We collect and use your information '
                           'to operate and improve the platform. Your personal data will not be sold to third parties. '
-                          'Location data is used only for parking bookings.',
+                          'Location data is used solely to facilitate parking bookings.',
                     ),
 
                     const SizedBox(height: AppSpacing.lg),

@@ -4,9 +4,9 @@ import '../theme/app_colors.dart';
 import '../theme/app_spacing.dart';
 import '../theme/app_typography.dart';
 
-// Full-screen terms gates (create listing, checkout)
+// Full-screen terms gates (create listing, checkout); sign-up uses rich checkbox row
 
-// Pinned footer: tappable checkbox + caption (publish/pay)
+// Pinned footer: tappable checkbox + caption (publish / pay)
 class AppTermsAgreementCheckboxRow extends StatelessWidget {
   const AppTermsAgreementCheckboxRow({
     super.key,
@@ -33,16 +33,14 @@ class AppTermsAgreementCheckboxRow extends StatelessWidget {
               borderRadius: BorderRadius.circular(4),
             ),
           ),
-          Expanded(
-            child: Text(label, style: AppTypography.caption),
-          ),
+          Expanded(child: Text(label, style: AppTypography.caption)),
         ],
       ),
     );
   }
 }
 
-// numbered legal bit: "N. Title" + body (caption styles)
+// Numbered legal bit: "N. Title" + body (caption styles)
 class AppTermsNumberedSection extends StatelessWidget {
   const AppTermsNumberedSection({
     super.key,
@@ -62,10 +60,7 @@ class AppTermsNumberedSection extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            '$number. $title',
-            style: AppTypography.captionStrong,
-          ),
+          Text('$number. $title', style: AppTypography.captionStrong),
           const SizedBox(height: AppSpacing.xs),
           Text(body, style: AppTypography.caption),
         ],

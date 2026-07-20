@@ -7,8 +7,10 @@ import '../theme/app_typography.dart';
 import '../utils/display_formatting.dart';
 
 abstract final class AppButtonStyleTokens {
-  static const EdgeInsets symmetricPadding =
-      EdgeInsets.symmetric(horizontal: 16, vertical: 12);
+  static const EdgeInsets symmetricPadding = EdgeInsets.symmetric(
+    horizontal: 16,
+    vertical: 12,
+  );
 }
 
 class AppPrimaryButton extends StatelessWidget {
@@ -29,8 +31,10 @@ class AppPrimaryButton extends StatelessWidget {
   final IconData? icon;
   final bool applyTitleCase;
   final bool loading;
+  // false = icon first, true = label then icon (photo CTAs)
   final bool iconTrailing;
   final bool fullWidth;
+  // short ~32px height for inline actions like copy
   final bool compact;
 
   String get _displayLabel =>
@@ -62,7 +66,9 @@ class AppPrimaryButton extends StatelessWidget {
             tapTargetSize: MaterialTapTargetSize.shrinkWrap,
             visualDensity: VisualDensity.compact,
             textStyle: AppTypography.buttonDense,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(8),
+            ),
             backgroundColor: AppColors.primaryBlue,
             foregroundColor: AppColors.onPrimary,
             disabledBackgroundColor: AppColors.primaryBlue,
@@ -186,6 +192,7 @@ class AppSecondaryButton extends StatelessWidget {
   final bool applyTitleCase;
   final bool loading;
   final bool fullWidth;
+  // red label + border for delete-type actions
   final bool destructive;
 
   String get _displayLabel =>
@@ -204,13 +211,10 @@ class AppSecondaryButton extends StatelessWidget {
       tapTargetSize: MaterialTapTargetSize.shrinkWrap,
       textStyle: AppTypography.button,
       foregroundColor: destructive ? AppColors.error : null,
-      side: destructive
-          ? const BorderSide(color: AppColors.error)
-          : null,
+      side: destructive ? const BorderSide(color: AppColors.error) : null,
     );
 
-    final progressColor =
-        destructive ? AppColors.error : AppColors.primaryBlue;
+    final progressColor = destructive ? AppColors.error : AppColors.primaryBlue;
 
     if (loading) {
       return OutlinedButton(

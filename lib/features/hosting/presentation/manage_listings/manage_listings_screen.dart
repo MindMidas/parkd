@@ -2,13 +2,15 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/models/listing.dart';
+import '../../../../core/theme/app_spacing.dart';
+import '../../../../core/theme/app_typography.dart';
 import '../../../../core/utils/listing_search.dart';
 import '../../../../core/widgets/widgets.dart';
 import '../../../profile/providers/profile_providers.dart';
 import 'edit/edit_listing_screen.dart';
 import '../../../../core/theme/app_colors.dart';
 
-// searchable list of user's listings from Riverpod
+// Searchable list of your listings from Riverpod
 class ManageListingsScreen extends ConsumerStatefulWidget {
   const ManageListingsScreen({super.key});
 
@@ -34,9 +36,7 @@ class _ManageListingsScreenState extends ConsumerState<ManageListingsScreen> {
   }
 
   List<Listing> _filtered(List<Listing> listings) {
-    return listings
-        .where((l) => listingMatchesSearchQuery(l, _query))
-        .toList();
+    return listings.where((l) => listingMatchesSearchQuery(l, _query)).toList();
   }
 
   @override
@@ -44,53 +44,105 @@ class _ManageListingsScreenState extends ConsumerState<ManageListingsScreen> {
     final listingsAsync = ref.watch(myListingsForCurrentUserProvider);
     return Scaffold(
       backgroundColor: AppColors.surface,
-      appBar: const AppTopBar(
-        title: 'Manage Listings',
-        showBack: true,
-      ),
-      body: AppHubSearchListColumn(
-        searchController: _searchController,
-        searchHint: 'Search by address or spot',
-        onSearchChanged: (value) => setState(() => _query = value),
-        expandedChild: listingsAsync.when(
-          data: (listings) {
-            if (listings.isEmpty) {
-              return const AppMutedBodyCenter('No listings yet');
-            }
-            final filtered = _filtered(listings);
-            if (filtered.isEmpty) {
-              return const AppMutedBodyCenter(
-                'No results match your search.',
-              );
-            }
-            return AppDividerSeparatedListView(
-              itemCount: filtered.length,
-              rowBuilder: (context, index) {
-                final listing = filtered[index];
-                return AppParkingListingMenuRow(
-                  listing: listing,
-                  rightKind: AppMenuRightKind.icon,
-                  rightIcon: Icons.edit_outlined,
-                  onTap: () {
-                    Navigator.of(context).push(
-                      MaterialPageRoute(
-                        builder: (_) => EditListingScreen(
-                          listingId: listing.id,
-                        ),
-                      ),
+      appBar: const AppTopBar(title: 'Manage Listings', showBack: true),
+      body: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(
+              AppSpacing.lg,
+              AppSpacing.lg,
+              AppSpacing.lg,
+              AppSpacing.sm,
+            ),
+            child: AppListScreenSearchPanel(
+              controller: _searchController,
+              hintText: 'Search by address or spot',
+              onChanged: (value) => setState(() => _query = value),
+            ),
+          ),
+          Expanded(
+            child: listingsAsync.when(
+              data: (listings) {
+                if (listings.isEmpty) {
+                  return Center(
+                    child: Text(
+                      'No listings yet',
+                      style: AppTypography.bodyMuted,
+                    ),
+                  );
+                }
+                final filtered = _filtered(listings);
+                if (filtered.isEmpty) {
+                  return Center(
+                    child: Text(
+                      'No results match your search.',
+                      textAlign: TextAlign.center,
+                      style: AppTypography.bodyMuted,
+                    ),
+                  );
+                }
+                return ListView.builder(
+                  physics: const BouncingScrollPhysics(
+                    parent: AlwaysScrollableScrollPhysics(),
+                  ),
+                  padding: const EdgeInsets.only(bottom: AppSpacing.xl),
+                  itemCount: filtered.length * 2 + 1,
+                  itemBuilder: (context, index) {
+                    if (index.isEven) {
+                      return const AppDividerWide();
+                    }
+                    final listing = filtered[index ~/ 2];
+                    return _ManageListingRow(
+                      listing: listing,
+                      onEdit: () {
+                        Navigator.of(context).push(
+                          MaterialPageRoute(
+                            builder: (_) =>
+                                EditListingScreen(listingId: listing.id),
+                          ),
+                        );
+                      },
                     );
                   },
                 );
               },
-            );
-          },
-          loading: () => const Center(
-            child: CircularProgressIndicator(),
+              loading: () => const Center(child: CircularProgressIndicator()),
+              error: (err, _) => Center(
+                child: Text(
+                  'Something went wrong',
+                  style: AppTypography.bodyMuted,
+                ),
+              ),
+            ),
           ),
-          error: (err, _) =>
-              const AppMutedBodyCenter('Something went wrong'),
-        ),
+        ],
       ),
+    );
+  }
+}
+
+/// ListTile-based row (like menu pages) so layout never overflows and dividers are consistent
+class _ManageListingRow extends StatelessWidget {
+  const _ManageListingRow({required this.listing, required this.onEdit});
+
+  final Listing listing;
+  final VoidCallback onEdit;
+
+  @override
+  Widget build(BuildContext context) {
+    final hero = listing.heroPhotoUrl;
+    return AppMenuRow(
+      leadingType: AppMenuLeadingType.parking,
+      leadingImageProvider: hero != null && hero.isNotEmpty
+          ? NetworkImage(hero)
+          : null,
+      title: listing.addressLine,
+      subtitle: listing.localityLine.isNotEmpty ? listing.localityLine : null,
+      tertiary: listing.spotLabel,
+      rightKind: AppMenuRightKind.icon,
+      rightIcon: Icons.edit_outlined,
+      onTap: onEdit,
     );
   }
 }

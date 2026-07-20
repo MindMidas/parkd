@@ -5,7 +5,7 @@ import '../../../core/theme/app_spacing.dart';
 import '../../../core/widgets/widgets.dart';
 import 'hosting_menu_body.dart';
 
-// tab hub for hosts, same destinations as the pushed menu but no back bar
+// Tab hub for hosts — same destinations as the pushed menu but no back bar
 class HostingHubScreen extends StatelessWidget {
   const HostingHubScreen({super.key});
 

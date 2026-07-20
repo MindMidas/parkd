@@ -14,9 +14,11 @@ import '../../../core/theme/app_typography.dart';
 import '../../../core/utils/profile_avatar_image_provider.dart';
 import '../../../core/widgets/widgets.dart';
 import '../../auth/providers/auth_providers.dart';
-import '../../listings/data/listings_repository.dart';
+import '../../moderation/presentation/moderation_actions.dart';
+import '../../profile/data/listings_repository.dart';
 import '../../profile/data/profile_repository.dart';
 import '../../profile/providers/profile_providers.dart';
+import '../providers/map_providers.dart';
 import 'reservation_screen.dart';
 
 ListingsRepository _listingsRepo(WidgetRef ref) =>
@@ -40,7 +42,9 @@ String _formatWeeklyRange(String start, String end) {
 }
 
 Set<int> _weekdaysFromWeekly(List<AvailabilityWeekly> weekly) {
-  return weekly.map((w) => AvailabilityWeekly.toDartWeekday(w.dayOfWeek)).toSet();
+  return weekly
+      .map((w) => w.dayOfWeek == 0 ? DateTime.sunday : w.dayOfWeek)
+      .toSet();
 }
 
 String _hostHandleFromName(String displayName) {
@@ -59,16 +63,13 @@ String _hostHandle(Profile? profile, String displayName) {
   List<AvailabilityWeekly> weekly,
   List<AvailabilitySpecific> specific,
   List<BookingTimeWindow> bookings,
-}) _heatmapSchedule(
+})
+_heatmapSchedule(
   List<AvailabilityWeekly> apiWeekly,
   List<AvailabilitySpecific> apiSpecific,
   List<BookingTimeWindow> apiBookings,
 ) {
-  return (
-    weekly: apiWeekly,
-    specific: apiSpecific,
-    bookings: apiBookings,
-  );
+  return (weekly: apiWeekly, specific: apiSpecific, bookings: apiBookings);
 }
 
 bool _noPublishedAvailability(
@@ -78,14 +79,18 @@ bool _noPublishedAvailability(
     List<AvailabilityWeekly> weekly,
     List<AvailabilitySpecific> specific,
     List<BookingTimeWindow> bookings,
-  }) data,
+  })
+  data,
 ) {
   return data.weekly.isEmpty && data.specific.isEmpty;
 }
 
-
+/// Pops with result `'full'` when the user drags the sheet handle up so the map can
+/// push [ListingDetailFromMapScreen] as a separate route
 const String kListingDetailSheetResultFull = 'full';
 
+/// Fixed ~70% height; only the top handle expands to full detail — body scrolls independently
+// Map listing detail sheet — drag handle + embedded detail body over the map
 class ListingDetailFromMapSheet extends StatefulWidget {
   const ListingDetailFromMapSheet({super.key, required this.listing});
 
@@ -105,6 +110,7 @@ class _ListingDetailFromMapSheetState extends State<ListingDetailFromMapSheet> {
     _handlePointer = null;
     _handleDragAccum = 0;
 
+    // Ignore tiny jitter; pointer events avoid competing with scroll gesture arena
     if (d < -36) {
       Navigator.of(context).pop(kListingDetailSheetResultFull);
       return;
@@ -126,6 +132,8 @@ class _ListingDetailFromMapSheetState extends State<ListingDetailFromMapSheet> {
         fit: StackFit.expand,
         clipBehavior: Clip.none,
         children: [
+          // Map / dimmed area: must sit in this overlay so Flutter wins over the map
+          // platform view for hit-testing (barrier alone is unreliable)
           Positioned.fill(
             child: GestureDetector(
               behavior: HitTestBehavior.opaque,
@@ -191,6 +199,7 @@ class _ListingDetailFromMapSheetState extends State<ListingDetailFromMapSheet> {
   }
 }
 
+// Full-screen version when you drag the handle up — same scroll body + footer as the sheet
 class ListingDetailFromMapScreen extends ConsumerStatefulWidget {
   const ListingDetailFromMapScreen({
     super.key,
@@ -220,6 +229,32 @@ class _ListingDetailFromMapScreenState
   bool _loading = true;
   bool _loadFailed = false;
 
+  Future<void> _onSafetyAction(String action) async {
+    final listing = widget.listing;
+    if (action == 'report') {
+      await showParkdReportDialog(
+        context: context,
+        ref: ref,
+        targetType: 'listing',
+        targetId: listing.id,
+        targetLabel: 'listing',
+      );
+      return;
+    }
+    if (action == 'block') {
+      final hostName = _data?.profile?.displayName ?? 'this host';
+      final blocked = await confirmAndBlockParkdUser(
+        context: context,
+        ref: ref,
+        userId: listing.hostId,
+        displayName: hostName,
+      );
+      if (!blocked || !mounted) return;
+      ref.invalidate(mapPublishedListingsProvider);
+      Navigator.of(context).pop();
+    }
+  }
+
   @override
   void initState() {
     super.initState();
@@ -235,8 +270,16 @@ class _ListingDetailFromMapScreenState
     try {
       final results = await Future.wait([
         listings.getListingPhotos(id),
-        listings.getAvailabilityWeekly(id),
-        listings.getAvailabilitySpecific(id),
+        widget.listing.isApproximateLocation
+            ? Future<List<AvailabilityWeekly>>.value(
+                widget.listing.publicWeeklyAvailability,
+              )
+            : listings.getAvailabilityWeekly(id),
+        widget.listing.isApproximateLocation
+            ? Future<List<AvailabilitySpecific>>.value(
+                widget.listing.publicSpecificAvailability,
+              )
+            : listings.getAvailabilitySpecific(id),
         listings.getBookingBlocksOverlapping(
           id,
           rangeStart: rangeStart,
@@ -298,17 +341,22 @@ class _ListingDetailFromMapScreenState
           avatarImageProvider: profileAvatarImageProvider(profile),
         ),
         const SizedBox(height: AppSpacing.md),
-        AppListingPhotoFrame(
-          borderRadius: 12,
-          child: _heroPhoto(
-            listing: listing,
-            photos: data?.photos,
-            loading: false,
+        ClipRRect(
+          borderRadius: BorderRadius.circular(12),
+          child: AspectRatio(
+            aspectRatio: appListingPhotoFrameAspectRatio,
+            child: _heroPhoto(
+              listing: listing,
+              photos: data?.photos,
+              loading: false,
+            ),
           ),
         ),
         const SizedBox(height: AppSpacing.md),
         AppStreetAddressCard(
-          title: 'Parking location',
+          title: listing.isApproximateLocation
+              ? 'Approximate parking area'
+              : 'Parking location',
           streetLine: listing.addressLine,
           localityLine: listing.localityLine.isNotEmpty
               ? listing.localityLine
@@ -316,6 +364,15 @@ class _ListingDetailFromMapScreenState
           spotLine: listing.spotLabel,
           usePrimaryColorForSecondaryLines: true,
         ),
+        if (listing.isApproximateLocation) ...[
+          const SizedBox(height: AppSpacing.xs),
+          Text(
+            'For host privacy, the exact address and map pin unlock only after '
+            'a test reservation is confirmed.',
+            style: AppTypography.caption,
+            textAlign: TextAlign.center,
+          ),
+        ],
         const SizedBox(height: AppSpacing.md),
         AppDisplayTitledOutlineCard(
           title: 'Availability heatmap',
@@ -376,15 +433,16 @@ class _ListingDetailFromMapScreenState
     return AppPrimaryButton(
       label: 'Make a reservation',
       icon: Icons.chevron_right_rounded,
-      onPressed: isOwnListing ||
-              data == null ||
-              _noPublishedAvailability(data)
+      onPressed: isOwnListing || data == null || _noPublishedAvailability(data)
           ? null
           : () {
               final w = data.weekly;
               final weekdays = _weekdaysFromWeekly(w);
               final minH = SlotPricingSummary.minHourly(w, data.specific);
-              final minD = SlotPricingSummary.minDailyWhereSet(w, data.specific);
+              final minD = SlotPricingSummary.minDailyWhereSet(
+                w,
+                data.specific,
+              );
               final hr = minH ?? 0;
               final heat = _heatmapSchedule(
                 data.weekly,
@@ -419,7 +477,9 @@ class _ListingDetailFromMapScreenState
     final listing = widget.listing;
     final data = _data;
 
-    // Match ReservationScreen footer
+    // Match [ReservationScreen] footer: only horizontal + lg bottom — do not add
+    // view bottom safe inset here; on the map sheet that inset is global and
+    // stacks as empty space above the sheet’s rounded bottom
     const reserveBarPadding = EdgeInsets.fromLTRB(
       AppSpacing.lg,
       0,
@@ -440,11 +500,7 @@ class _ListingDetailFromMapScreenState
             child: ready
                 ? AppDetailScrollBody(
                     bottomScrollPadding: AppSpacing.md,
-                    child: _buildListingDetailBody(
-                      context,
-                      listing,
-                      data,
-                    ),
+                    child: _buildListingDetailBody(context, listing, data),
                   )
                 : _buildLoadingOrErrorBody(),
           ),
@@ -468,18 +524,44 @@ class _ListingDetailFromMapScreenState
 
     return Scaffold(
       backgroundColor: AppColors.surface,
-      appBar: AppTopBar(title: listing.addressLine, showBack: true),
+      appBar: AppTopBar(
+        title: listing.addressLine,
+        showBack: true,
+        actions: isOwnListing
+            ? null
+            : [
+                PopupMenuButton<String>(
+                  tooltip: 'Safety options',
+                  icon: const Icon(Icons.more_vert_rounded),
+                  onSelected: _onSafetyAction,
+                  itemBuilder: (_) => const [
+                    PopupMenuItem<String>(
+                      value: 'report',
+                      child: ListTile(
+                        contentPadding: EdgeInsets.zero,
+                        leading: Icon(Icons.flag_outlined),
+                        title: Text('Report listing'),
+                      ),
+                    ),
+                    PopupMenuItem<String>(
+                      value: 'block',
+                      child: ListTile(
+                        contentPadding: EdgeInsets.zero,
+                        leading: Icon(Icons.block_rounded),
+                        title: Text('Block host'),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+      ),
       body: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Expanded(
             child: ready
                 ? AppDetailScrollBody(
-                    child: _buildListingDetailBody(
-                      context,
-                      listing,
-                      data,
-                    ),
+                    child: _buildListingDetailBody(context, listing, data),
                   )
                 : _buildLoadingOrErrorBody(),
           ),
@@ -512,7 +594,7 @@ class _ListingDetailFromMapScreenState
     );
   }
 
-  // uses Supabase photos when loaded
+  /// Uses Supabase [photos] when loaded; until then [Listing.heroPhotoUrl] from the map query embed
   Widget _heroPhoto({
     required Listing listing,
     required List<ListingPhoto>? photos,
@@ -527,10 +609,9 @@ class _ListingDetailFromMapScreenState
     final fromRow = heroRow?.photoUrl.trim() ?? '';
     final fromMapPin = listing.heroPhotoUrl?.trim() ?? '';
     final url = fromRow.isNotEmpty ? fromRow : fromMapPin;
-    final markerFraction =
-        heroRow?.markerX != null && heroRow?.markerY != null
-            ? Offset(heroRow!.markerX!, heroRow.markerY!)
-            : null;
+    final markerFraction = heroRow?.markerX != null && heroRow?.markerY != null
+        ? Offset(heroRow!.markerX!, heroRow.markerY!)
+        : null;
 
     if (url.isEmpty) {
       if (loading) {

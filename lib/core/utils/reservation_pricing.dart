@@ -1,23 +1,24 @@
 import 'dart:math' as math;
 
-// Parkd reservation subtotal rules:
-// - Min billable duration 10mins: spans under 10m are priced as 10m
-// - Under 1ht: bill in 10min increments at hourly/6 per increment
-// - 1hr to 24hrs: whole hours at hourlyRate + remainder in 10min increments
-// - Over 24hrs: min of (all-hourly pricing) and (whole 24h blocks at dailyRate + remainder priced with the hourly rules), when dailyRate is positive
+/// Parkd reservation subtotal rules:
+/// - Minimum billable duration **10 minutes**: spans under 10m are priced as 10m (UI may still require ≥10m to confirm)
+/// - Under **1 hour**: bill in **10-minute** increments at **hourly÷6** per increment
+/// - **1 hour to 24 hours**: whole hours at [hourlyRate] + remainder in 10-minute increments
+/// - **Over 24 hours**: minimum of (all-hourly pricing) and (whole 24h blocks at [dailyRate]
+///   + remainder priced with the hourly rules), when [dailyRate] is positive
 abstract final class ReservationPricing {
   static const int minBillableMinutes = 10;
   static const int minutesPerDay = 24 * 60;
 
-  // driver add-on: 3.5% of parking subtotal (not flat), rounded to cents
-  // host payout in data/UI uses subtotal only, fee is not deducted from host
+  /// Driver-facing add-on: **3.5%** of parking subtotal (not flat), rounded to cents
+  /// Host payout in data/UI uses the subtotal only; this fee is not deducted from the host
   static double serviceFeeForSubtotal(double subtotal) =>
       (subtotal * 0.035 * 100).round() / 100;
 
-  // rounds to cents
+  /// Rounds to cents
   static double roundMoney(double v) => (v * 100).round() / 100;
 
-  // rawMinutes = 'end.difference(start).inMinutes' (tsub-10m bills as 10m)
+  /// [rawMinutes] = `end.difference(start).inMinutes` (truncated; sub-10m still bills as 10m)
   static double computeSubtotal({
     required int rawMinutes,
     required double hourlyRate,
@@ -62,12 +63,11 @@ abstract final class ReservationPricing {
     if (rem > 0 && rem < minBillableMinutes) {
       rem = minBillableMinutes;
     }
-    final remCost =
-        rem == 0 ? 0.0 : _hourlyStyleTotalMinutes(rem, hourly);
+    final remCost = rem == 0 ? 0.0 : _hourlyStyleTotalMinutes(rem, hourly);
     return days * daily + remCost;
   }
 
-  // display, duration (uses total mins)
+  /// Human-readable duration (calendar-agnostic; uses total minutes)
   static String formatDurationLabel(int totalMinutes) {
     if (totalMinutes <= 0) return '';
     final days = totalMinutes ~/ minutesPerDay;

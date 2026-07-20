@@ -1,4 +1,4 @@
-// title outline sections for add/edit payment card forms
+// Titled outline sections for add/edit payment card forms
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
@@ -7,7 +7,7 @@ import '../theme/app_typography.dart';
 import 'app_display_fields.dart';
 import 'app_text_field.dart';
 
-// card brand + number, name, expiry, CVV
+// Card brand + number, name, expiry, CVV in one titled outline card
 class AppPaymentCardDetailsFieldsCard extends StatelessWidget {
   const AppPaymentCardDetailsFieldsCard({
     super.key,
@@ -96,9 +96,7 @@ class AppPaymentCardDetailsFieldsCard extends StatelessWidget {
                   label: 'Expiry (MM/YY)',
                   hint: '09/28',
                   keyboardType: TextInputType.datetime,
-                  inputFormatters: [
-                    LengthLimitingTextInputFormatter(5),
-                  ],
+                  inputFormatters: [LengthLimitingTextInputFormatter(5)],
                   validator: (v) {
                     final s = (v ?? '').trim();
                     if (!RegExp(r'^\d{2}/\d{2}$').hasMatch(s)) {
@@ -135,7 +133,7 @@ class AppPaymentCardDetailsFieldsCard extends StatelessWidget {
   }
 }
 
-// street, city, postal in one titled outline card
+// Street, city, postal in one titled outline card
 class AppBillingAddressFieldsCard extends StatelessWidget {
   const AppBillingAddressFieldsCard({
     super.key,

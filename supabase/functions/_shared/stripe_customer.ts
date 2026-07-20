@@ -1,6 +1,9 @@
 import type { SupabaseClient } from "jsr:@supabase/supabase-js@2";
 import Stripe from "npm:stripe@17.4.0";
 
+import { HttpError } from "./http.ts";
+import { assertTestModeObject, stripeIdempotencyKey } from "./runtime.ts";
+
 /** One Stripe Customer per Supabase user; required to reuse saved PaymentMethods on PaymentIntents. */
 export async function getOrCreateStripeCustomer(
   stripe: Stripe,
@@ -19,19 +22,34 @@ export async function getOrCreateStripeCustomer(
 
   const existing = (row?.stripe_customer_id as string | null | undefined)?.trim();
   if (existing) {
+    if (!existing.startsWith("cus_")) {
+      throw new HttpError(
+        500,
+        "invalid_customer_record",
+        "The saved payment profile is invalid.",
+      );
+    }
     return existing;
   }
 
   const email = (row?.email as string | null | undefined)?.trim() || undefined;
-  const customer = await stripe.customers.create({
-    email: email || undefined,
-    metadata: { supabase_user_id: userId },
-  });
+  const customer = await stripe.customers.create(
+    {
+      email: email || undefined,
+      metadata: {
+        supabase_user_id: userId,
+        environment: "portfolio_demo",
+      },
+    },
+    { idempotencyKey: stripeIdempotencyKey("customer", userId) },
+  );
+  assertTestModeObject(customer, "customer");
 
   const { data: updated, error: upErr } = await admin
     .from("profiles")
     .update({ stripe_customer_id: customer.id })
     .eq("id", userId)
+    .is("stripe_customer_id", null)
     .select("id")
     .maybeSingle();
 
@@ -39,7 +57,18 @@ export async function getOrCreateStripeCustomer(
     throw new Error(`Could not save Stripe customer: ${upErr.message}`);
   }
   if (!updated) {
-    throw new Error("Profile not found; cannot attach Stripe customer.");
+    // Another concurrent request may have won the profile update. Stripe's
+    // idempotency key means both requests still created/retrieved one customer.
+    const { data: concurrent, error: concurrentError } = await admin
+      .from("profiles")
+      .select("stripe_customer_id")
+      .eq("id", userId)
+      .maybeSingle();
+    const concurrentId = (concurrent?.stripe_customer_id as string | null)?.trim();
+    if (concurrentError || !concurrentId) {
+      throw new Error("Profile not found; cannot attach Stripe customer.");
+    }
+    return concurrentId;
   }
 
   return customer.id;
@@ -52,6 +81,7 @@ export async function ensurePaymentMethodOnCustomer(
   paymentMethodId: string,
 ): Promise<void> {
   const pm = await stripe.paymentMethods.retrieve(paymentMethodId);
+  assertTestModeObject(pm, "payment_method");
   if (pm.customer === customerId) {
     return;
   }

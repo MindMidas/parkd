@@ -4,7 +4,6 @@ import 'app_colors.dart';
 import 'app_spacing.dart';
 import 'app_typography.dart';
 
-// theme for the app
 class AppTheme {
   static ThemeData light() {
     const scheme = ColorScheme(
@@ -36,6 +35,7 @@ class AppTheme {
         floatingLabelStyle: AppTypography.label,
         hintStyle: AppTypography.bodyMuted,
         labelStyle: AppTypography.label,
+        // Keeps placeholder (hint) in the input area when focused; label stays in the border gap (M3-style)
         floatingLabelBehavior: FloatingLabelBehavior.always,
         contentPadding: const EdgeInsets.symmetric(
           horizontal: 16,
@@ -87,6 +87,7 @@ class AppTheme {
       ),
       navigationBarTheme: NavigationBarThemeData(
         backgroundColor: AppColors.surface,
+        // [AppBottomNav] is custom (top-aligned); theme still applies if a screen uses [NavigationBar]
         indicatorColor: AppColors.secondaryBlue,
         labelTextStyle: WidgetStateProperty.all(AppTypography.navBarLabel),
         iconTheme: WidgetStateProperty.resolveWith((states) {

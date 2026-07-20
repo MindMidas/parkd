@@ -1,13 +1,28 @@
-# verify_jwt false: gateway JWT quirks; each handler still checks auth.getUser() in code
-# redeploy after edits: supabase functions deploy …
+# Authenticated functions use both gateway verification and auth.getUser() in the
+# handler. The Stripe webhook is the sole public endpoint and verifies Stripe's
+# signature against the raw request body.
 [functions.create-setup-intent]
-verify_jwt = false
+verify_jwt = true
 
 [functions.complete-payment-method-setup]
-verify_jwt = false
+verify_jwt = true
 
 [functions.create-payment-intent]
-verify_jwt = false
+verify_jwt = true
 
 [functions.finalize-reservation-payment]
+verify_jwt = true
+
+[functions.delete-account]
+verify_jwt = true
+
+# This machine-only cron endpoint requires both gateway JWT verification and an
+# exact service-role bearer-token check in the handler.
+[functions.purge-expired-demo-data]
+verify_jwt = true
+
+[functions.geocode-search]
+verify_jwt = true
+
+[functions.stripe-webhook]
 verify_jwt = false

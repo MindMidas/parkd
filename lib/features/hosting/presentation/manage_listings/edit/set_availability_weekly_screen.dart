@@ -7,30 +7,31 @@ import '../../../../../core/theme/app_spacing.dart';
 import '../../../../../core/theme/app_typography.dart';
 import '../../../../../core/utils/availability_overlap.dart';
 import '../../../../../core/utils/time_step_minutes.dart';
+import '../../../../../core/utils/weekday_ui_to_db.dart';
 import '../../../../../core/widgets/widgets.dart';
-import '../../../../../app/listing_invalidation.dart';
+import '../../../../profile/providers/listing_invalidation.dart';
 import '../../../../profile/providers/profile_providers.dart';
 import '../../create_listing/create_listing_flow/set_pricing_screen.dart';
 import 'confirmation_success_screen.dart';
 
-// Weekly slot editor, merges Riverpod rows with in-mem drafts until Confirm
+// Weekly slot editor — merges Riverpod rows with in-memory drafts until Confirm
 class _PendingWeeklySlot {
   _PendingWeeklySlot({
     required this.localId,
-    required this.dayOfWeek,
+    required this.dayOfWeekPg,
     required this.startHhMm,
     required this.endHhMm,
   });
 
   final int localId;
-  final int dayOfWeek;
+  final int dayOfWeekPg;
   final String startHhMm;
   final String endHhMm;
   double priceHour = 0;
   double? priceDay;
 }
 
-// Set availability using weekly schedule: days + start/end time, add slots, list with remove, confirm
+/// Set availability using weekly schedule: days + start/end time, add slots, list with remove, confirm
 class SetAvailabilityWeeklyScreen extends ConsumerStatefulWidget {
   const SetAvailabilityWeeklyScreen({
     super.key,
@@ -56,24 +57,30 @@ class _SetAvailabilityWeeklyScreenState
 
   String? _overlapError;
 
+  static const _postgresDow = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+
   static void _noopClose() {}
 
   List<
-      ({
-        String id,
-        String day,
-        String timeRange,
-        double priceHour,
-        double? priceDay,
-      })> _mergedRows(List<AvailabilityWeekly> server) {
-    final out = <
-        ({
-          String id,
-          String day,
-          String timeRange,
-          double priceHour,
-          double? priceDay,
-        })>[];
+    ({
+      String id,
+      String day,
+      String timeRange,
+      double priceHour,
+      double? priceDay,
+    })
+  >
+  _mergedRows(List<AvailabilityWeekly> server) {
+    final out =
+        <
+          ({
+            String id,
+            String day,
+            String timeRange,
+            double priceHour,
+            double? priceDay,
+          })
+        >[];
     for (final w in server) {
       out.add((
         id: w.id,
@@ -84,7 +91,7 @@ class _SetAvailabilityWeeklyScreenState
       ));
     }
     for (final p in _pendingSlots) {
-      final day = kWeekdayLabels[p.dayOfWeek.clamp(0, 6)];
+      final day = _postgresDow[p.dayOfWeekPg.clamp(0, 6)];
       final tr =
           '${TimeStepMinutes.formatHhMmOrAmPmToDisplay(p.startHhMm)} – '
           '${TimeStepMinutes.formatHhMmOrAmPmToDisplay(p.endHhMm)}';
@@ -114,13 +121,15 @@ class _SetAvailabilityWeeklyScreenState
   Future<void> _openPricingForSlot(
     int index,
     List<
-        ({
-          String id,
-          String day,
-          String timeRange,
-          double priceHour,
-          double? priceDay,
-        })> rows,
+      ({
+        String id,
+        String day,
+        String timeRange,
+        double priceHour,
+        double? priceDay,
+      })
+    >
+    rows,
   ) async {
     final r = rows[index];
     if (r.id.startsWith('local-')) {
@@ -138,8 +147,7 @@ class _SetAvailabilityWeeklyScreenState
         context,
         MaterialPageRoute(
           builder: (_) => SetPricingScreen(
-            initialHourly:
-                pending.priceHour > 0 ? pending.priceHour : 10,
+            initialHourly: pending.priceHour > 0 ? pending.priceHour : 10,
             initialDaily: pending.priceDay,
           ),
         ),
@@ -162,7 +170,9 @@ class _SetAvailabilityWeeklyScreenState
       ),
     );
     if (result == null || !mounted) return;
-    await ref.read(listingsRepositoryProvider).updateAvailabilityWeeklySlotPrices(
+    await ref
+        .read(listingsRepositoryProvider)
+        .updateAvailabilityWeeklySlotPrices(
           slotId: r.id,
           priceHour: result.hourly,
           priceDay: result.daily,
@@ -197,11 +207,7 @@ class _SetAvailabilityWeeklyScreenState
         endHhMm: w.endTime,
       );
       if (r != null) {
-        out.add((
-          dayPg: w.dayOfWeek,
-          startMin: r.startMin,
-          endMin: r.endMin,
-        ));
+        out.add((dayPg: w.dayOfWeek, startMin: r.startMin, endMin: r.endMin));
       }
     }
     for (final p in _pendingSlots) {
@@ -210,11 +216,7 @@ class _SetAvailabilityWeeklyScreenState
         endHhMm: p.endHhMm,
       );
       if (r != null) {
-        out.add((
-          dayPg: p.dayOfWeek,
-          startMin: r.startMin,
-          endMin: r.endMin,
-        ));
+        out.add((dayPg: p.dayOfWeekPg, startMin: r.startMin, endMin: r.endMin));
       }
     }
     return out;
@@ -240,12 +242,8 @@ class _SetAvailabilityWeeklyScreenState
     final toAdd = <_PendingWeeklySlot>[];
 
     for (final dayIndex in indices) {
-      final dayOfWeek = dayIndex;
-      final candidate = (
-        dayPg: dayOfWeek,
-        startMin: sm,
-        endMin: em,
-      );
+      final dayOfWeek = weekdayUiMonFirstToPostgres(dayIndex);
+      final candidate = (dayPg: dayOfWeek, startMin: sm, endMin: em);
       final trial = [...working, candidate];
       if (AvailabilityOverlap.weeklyAnyPairOverlaps(trial)) {
         setState(() {
@@ -257,7 +255,7 @@ class _SetAvailabilityWeeklyScreenState
       toAdd.add(
         _PendingWeeklySlot(
           localId: _nextLocalId++,
-          dayOfWeek: dayOfWeek,
+          dayOfWeekPg: dayOfWeek,
           startHhMm: startHh,
           endHhMm: endHh,
         ),
@@ -295,7 +293,7 @@ class _SetAvailabilityWeeklyScreenState
       );
       if (r != null) {
         preInsert.add((
-          dayPg: p.dayOfWeek,
+          dayPg: p.dayOfWeekPg,
           startMin: r.startMin,
           endMin: r.endMin,
         ));
@@ -327,7 +325,7 @@ class _SetAvailabilityWeeklyScreenState
       for (final p in toSave) {
         await repo.insertAvailabilityWeeklySlot(
           listingId: widget.listingId,
-          dayOfWeek: p.dayOfWeek,
+          dayOfWeek: p.dayOfWeekPg,
           startTimeHhMm: p.startHhMm,
           endTimeHhMm: p.endHhMm,
           priceHour: p.priceHour,
@@ -338,8 +336,7 @@ class _SetAvailabilityWeeklyScreenState
       if (mounted) {
         final overlap = AvailabilityOverlap.messageForException(e);
         setState(() {
-          _overlapError = overlap ??
-              'Could not save new slots. Try again.';
+          _overlapError = overlap ?? 'Could not save new slots. Try again.';
         });
       }
       return;
@@ -363,15 +360,13 @@ class _SetAvailabilityWeeklyScreenState
 
   @override
   Widget build(BuildContext context) {
-    final weeklyAsync =
-        ref.watch(listingAvailabilityWeeklyProvider(widget.listingId));
+    final weeklyAsync = ref.watch(
+      listingAvailabilityWeeklyProvider(widget.listingId),
+    );
 
     return Scaffold(
       backgroundColor: AppColors.surface,
-      appBar: const AppTopBar(
-        title: 'Availability',
-        showBack: true,
-      ),
+      appBar: const AppTopBar(title: 'Availability', showBack: true),
       body: SafeArea(
         bottom: false,
         child: weeklyAsync.when(

@@ -5,7 +5,7 @@ import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/theme/app_typography.dart';
 import '../../../../core/widgets/widgets.dart';
 
-// card saved, outcome chrome then pop twice back to the list
+// Card saved — outcome chrome then pop twice back to the list
 class CardSuccessScreen extends StatelessWidget {
   const CardSuccessScreen({super.key, this.message = 'Card added'});
 

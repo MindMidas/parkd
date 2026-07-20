@@ -1,19 +1,18 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
-import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../../../core/config/app_environment.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_spacing.dart';
-import '../../../core/messaging/app_messenger.dart';
 import '../../../core/utils/auth_error_messages.dart';
-import '../../../core/validation/form_validators.dart';
 import '../../../core/widgets/widgets.dart';
 import '../providers/auth_providers.dart';
 
+// Forgot password flow: Supabase emails a link that returns to the update screen.
 class PasswordRecoveryScreen extends ConsumerStatefulWidget {
   const PasswordRecoveryScreen({super.key});
 
@@ -22,7 +21,8 @@ class PasswordRecoveryScreen extends ConsumerStatefulWidget {
       _PasswordRecoveryScreenState();
 }
 
-class _PasswordRecoveryScreenState extends ConsumerState<PasswordRecoveryScreen> {
+class _PasswordRecoveryScreenState
+    extends ConsumerState<PasswordRecoveryScreen> {
   static const _resendCooldownSeconds = 30;
   static const _rateLimitCooldownSeconds = 180;
 
@@ -43,9 +43,7 @@ class _PasswordRecoveryScreenState extends ConsumerState<PasswordRecoveryScreen>
   }
 
   String? _passwordResetRedirectUrl() {
-    final v = dotenv.env['PASSWORD_RESET_REDIRECT_URL'];
-    if (v == null || v.trim().isEmpty) return null;
-    return v.trim();
+    return AppEnvironment.optional(AppEnvironmentKey.passwordResetRedirectUrl);
   }
 
   void _ensureCooldownTicker() {
@@ -82,7 +80,9 @@ class _PasswordRecoveryScreenState extends ConsumerState<PasswordRecoveryScreen>
     final email = _emailCtrl.text.trim();
     setState(() => _emailSendBusy = true);
     try {
-      await ref.read(authRepositoryProvider).resetPasswordForEmail(
+      await ref
+          .read(authRepositoryProvider)
+          .resetPasswordForEmail(
             email: email,
             redirectTo: _passwordResetRedirectUrl(),
           );
@@ -99,7 +99,8 @@ class _PasswordRecoveryScreenState extends ConsumerState<PasswordRecoveryScreen>
           (e.code == 'over_request_rate_limit' ||
               e.code == 'over_email_send_rate_limit')) {
         setState(() {
-          // Treat this like a "cooldown until resend" so the user doesn't spam
+          // Treat this like a "cooldown until resend" so the user doesn't
+          // keep hammering the endpoint and getting 429 with no email
           _emailSentOnce = true;
           _emailResendRemaining = _rateLimitCooldownSeconds;
         });
@@ -126,7 +127,9 @@ class _PasswordRecoveryScreenState extends ConsumerState<PasswordRecoveryScreen>
     final email = _emailCtrl.text.trim();
     setState(() => _emailResendBusy = true);
     try {
-      await ref.read(authRepositoryProvider).resetPasswordForEmail(
+      await ref
+          .read(authRepositoryProvider)
+          .resetPasswordForEmail(
             email: email,
             redirectTo: _passwordResetRedirectUrl(),
           );
@@ -186,7 +189,7 @@ class _PasswordRecoveryScreenState extends ConsumerState<PasswordRecoveryScreen>
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               const AppFormHelperText(
-                'We will email you a link. Open it from your mail app or browser to set a new password.',
+                'We will email you a link. Open it to return to Parkd and choose a new password.',
               ),
               const SizedBox(height: AppSpacing.lg),
               AppTextField(

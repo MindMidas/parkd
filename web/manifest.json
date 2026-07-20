@@ -1,12 +1,16 @@
 {
-    "name": "parkd",
-    "short_name": "parkd",
-    "start_url": ".",
+    "id": "/",
+    "name": "Parkd portfolio demo",
+    "short_name": "Parkd",
+    "description": "Find, list, and reserve parking spaces with a safe Stripe test-mode checkout.",
+    "lang": "en-CA",
+    "start_url": "/",
+    "scope": "/",
     "display": "standalone",
-    "background_color": "#0175C2",
-    "theme_color": "#0175C2",
-    "description": "A new Flutter project.",
+    "background_color": "#FFFFFF",
+    "theme_color": "#006FFD",
     "orientation": "portrait-primary",
+    "categories": ["navigation", "travel"],
     "prefer_related_applications": false,
     "icons": [
         {

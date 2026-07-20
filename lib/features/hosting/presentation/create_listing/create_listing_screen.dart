@@ -6,7 +6,7 @@ import '../../../../core/theme/app_typography.dart';
 import '../../../../core/widgets/widgets.dart';
 import 'create_listing_flow/add_location_screen.dart';
 
-// wizard entry, hero frame + CTA into add-location
+// Wizard entry — hero frame plus CTA into add-location
 class CreateListingScreen extends StatelessWidget {
   const CreateListingScreen({super.key});
 
@@ -14,9 +14,7 @@ class CreateListingScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.surface,
-      appBar: const AppTopBar(
-        title: 'Create listing',
-      ),
+      appBar: const AppTopBar(title: 'Create listing'),
       body: SafeArea(
         top: false,
         child: Column(
@@ -94,9 +92,7 @@ class _WelcomePhotoSectionState extends State<_WelcomePhotoSection> {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.only(
-        top: AppSpacing.lg,
-      ),
+      padding: const EdgeInsets.only(top: AppSpacing.lg),
       child: AppListingPhotoFrame(
         borderRadius: 0,
         child: Container(

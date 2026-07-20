@@ -4,12 +4,18 @@ import '../theme/app_colors.dart';
 import '../theme/app_spacing.dart';
 import '../theme/app_typography.dart';
 
-// Mon-Sun short labels (weekly UI)
+// Mon–Sun short labels (weekly UI)
 const List<String> kWeekdayLabels = [
-  'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun',
+  'Mon',
+  'Tue',
+  'Wed',
+  'Thu',
+  'Fri',
+  'Sat',
+  'Sun',
 ];
 
-// Day chips: row of 4 then 3; selectedIndices 0=Mon to 6=Sun
+// Day chips: row of 4 then 3; selectedIndices 0 = Mon … 6 = Sun
 class AppDayCheckboxes extends StatelessWidget {
   const AppDayCheckboxes({
     super.key,
@@ -50,10 +56,7 @@ class AppDayCheckboxes extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          'Available Days',
-          style: AppTypography.bodyStrong,
-        ),
+        Text('Available Days', style: AppTypography.bodyStrong),
         const SizedBox(height: AppSpacing.sm),
         Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -109,9 +112,7 @@ class _DayChip extends StatelessWidget {
           height: AppDayCheckboxes._chipHeight,
           padding: const EdgeInsets.symmetric(horizontal: 4),
           decoration: BoxDecoration(
-            color: selected
-                ? AppColors.secondaryBlue
-                : AppColors.surface,
+            color: selected ? AppColors.secondaryBlue : AppColors.surface,
             borderRadius: BorderRadius.circular(8),
             border: Border.all(
               color: AppColors.secondaryGrey.withValues(alpha: 0.6),
@@ -133,7 +134,9 @@ class _DayChip extends StatelessWidget {
                 child: Icon(
                   selected ? Icons.check : Icons.close,
                   size: AppDayCheckboxes._iconSize,
-                  color: selected ? AppColors.onPrimary : AppColors.textSecondary,
+                  color: selected
+                      ? AppColors.onPrimary
+                      : AppColors.textSecondary,
                 ),
               ),
               const SizedBox(width: 4),

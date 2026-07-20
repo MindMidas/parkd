@@ -10,14 +10,12 @@ import '../../../../core/theme/app_typography.dart';
 import '../../../../core/utils/auth_error_messages.dart';
 import '../../../../core/utils/profile_avatar_image_provider.dart';
 import '../../../../core/utils/phone_e164.dart';
-import '../../../../core/utils/scroll_view_bottom_inset.dart';
-import '../../../../core/validation/form_validators.dart';
 import '../../../../core/widgets/widgets.dart';
 import '../../../auth/providers/auth_providers.dart';
 import '../../providers/profile_providers.dart';
 import 'upload_profile_photo_screen.dart';
 
-// edit profile plus email OTP when user changes address
+// Edit profile row + email OTP when you change the address — all the boring fields
 class EditProfileScreen extends ConsumerWidget {
   const EditProfileScreen({super.key});
 
@@ -50,9 +48,15 @@ class EditProfileScreen extends ConsumerWidget {
       error: (_, _) => Scaffold(
         backgroundColor: AppColors.surface,
         appBar: const AppTopBar(title: 'Edit Account', showBack: true),
-        body: const AppMutedBodyCenter(
-          'Could not load your profile.',
-          padding: EdgeInsets.all(AppSpacing.lg),
+        body: Center(
+          child: Padding(
+            padding: const EdgeInsets.all(AppSpacing.lg),
+            child: Text(
+              'Could not load your profile.',
+              style: AppTypography.bodyMuted,
+              textAlign: TextAlign.center,
+            ),
+          ),
         ),
       ),
       data: (profile) {
@@ -60,7 +64,7 @@ class EditProfileScreen extends ConsumerWidget {
           return Scaffold(
             backgroundColor: AppColors.surface,
             appBar: const AppTopBar(title: 'Edit Profile', showBack: true),
-            body: const AppMutedBodyCenter('No profile found.'),
+            body: const Center(child: Text('No profile found.')),
           );
         }
         return _EditProfileScaffold(profile: profile);
@@ -75,7 +79,8 @@ class _EditProfileScaffold extends ConsumerStatefulWidget {
   final Profile profile;
 
   @override
-  ConsumerState<_EditProfileScaffold> createState() => _EditProfileScaffoldState();
+  ConsumerState<_EditProfileScaffold> createState() =>
+      _EditProfileScaffoldState();
 }
 
 class _EditProfileScaffoldState extends ConsumerState<_EditProfileScaffold> {
@@ -91,6 +96,7 @@ class _EditProfileScaffoldState extends ConsumerState<_EditProfileScaffold> {
   late String _sessionEmail;
   late String _phoneCountryCode;
 
+  /// Latest E.164-style value from [AppIntlPhoneField] (`+[country][national]`)
   String _phoneE164 = '';
 
   DateTime? _birthDate;
@@ -124,9 +130,7 @@ class _EditProfileScaffoldState extends ConsumerState<_EditProfileScaffold> {
         : '';
     _birthDate = widget.profile.birthDate;
     _birthDateDisplay = TextEditingController(
-      text: _birthDate != null
-          ? DateFormat.yMMMMd().format(_birthDate!)
-          : '',
+      text: _birthDate != null ? DateFormat.yMMMMd().format(_birthDate!) : '',
     );
     _emailOtp = TextEditingController();
 
@@ -181,14 +185,12 @@ class _EditProfileScaffoldState extends ConsumerState<_EditProfileScaffold> {
       final last = _lastName.text.trim();
       final fullName = last.isEmpty ? first : '$first $last';
 
-      final nationalDigits =
-          _phone.text.replaceAll(RegExp(r'\D'), '');
+      final nationalDigits = _phone.text.replaceAll(RegExp(r'\D'), '');
       final String? phoneE164;
       if (nationalDigits.isEmpty) {
         phoneE164 = null;
       } else {
-        phoneE164 =
-            normalizePhoneToE164(_phoneE164) ?? _phoneE164;
+        phoneE164 = normalizePhoneToE164(_phoneE164) ?? _phoneE164;
       }
 
       final newEmail = _email.text.trim();
@@ -200,7 +202,6 @@ class _EditProfileScaffoldState extends ConsumerState<_EditProfileScaffold> {
         fullName: fullName,
         phoneE164: phoneE164,
         birthDate: _birthDate,
-        email: emailChanged ? null : newEmail,
       );
 
       if (emailChanged) {
@@ -232,9 +233,7 @@ class _EditProfileScaffoldState extends ConsumerState<_EditProfileScaffold> {
     } catch (e) {
       if (!mounted) return;
       setState(() => _saving = false);
-      messenger.showSnackBar(
-        SnackBar(content: Text(userFacingAuthMessage(e))),
-      );
+      messenger.showSnackBar(SnackBar(content: Text(userFacingAuthMessage(e))));
     }
   }
 
@@ -251,10 +250,9 @@ class _EditProfileScaffoldState extends ConsumerState<_EditProfileScaffold> {
     setState(() => _verifyingEmail = true);
     final messenger = ScaffoldMessenger.of(context);
     try {
-      await ref.read(authRepositoryProvider).verifyEmailChangeOtp(
-            email: pending,
-            token: code,
-          );
+      await ref
+          .read(authRepositoryProvider)
+          .verifyEmailChangeOtp(email: pending, token: code);
       if (!mounted) return;
       setState(() {
         _verifyingEmail = false;
@@ -269,9 +267,7 @@ class _EditProfileScaffoldState extends ConsumerState<_EditProfileScaffold> {
     } catch (e) {
       if (!mounted) return;
       setState(() => _verifyingEmail = false);
-      messenger.showSnackBar(
-        SnackBar(content: Text(userFacingAuthMessage(e))),
-      );
+      messenger.showSnackBar(SnackBar(content: Text(userFacingAuthMessage(e))));
     }
   }
 
@@ -322,10 +318,7 @@ class _EditProfileScaffoldState extends ConsumerState<_EditProfileScaffold> {
                               ),
                             );
                             if (mounted) {
-                              invalidateProfileSurfaces(
-                                ref,
-                                widget.profile.id,
-                              );
+                              invalidateProfileSurfaces(ref, widget.profile.id);
                             }
                           },
                     child: const SizedBox(
@@ -490,10 +483,7 @@ class _EditProfileScaffoldState extends ConsumerState<_EditProfileScaffold> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      Text(
-                        'Confirm new email',
-                        style: AppTypography.hubTitle,
-                      ),
+                      Text('Confirm new email', style: AppTypography.hubTitle),
                       const SizedBox(height: AppSpacing.xs),
                       Text(
                         'Code sent to $_pendingNewEmail',
@@ -502,20 +492,24 @@ class _EditProfileScaffoldState extends ConsumerState<_EditProfileScaffold> {
                         ),
                       ),
                       const SizedBox(height: AppSpacing.md),
-                      AppTextField(
+                      TextFormField(
                         controller: _emailOtp,
-                        label: 'Confirmation code',
                         keyboardType: TextInputType.number,
                         inputFormatters: [
                           FilteringTextInputFormatter.digitsOnly,
                           LengthLimitingTextInputFormatter(10),
                         ],
+                        decoration: const InputDecoration(
+                          labelText: 'Confirmation code',
+                        ),
+                        onTapOutside: (_) {
+                          FocusManager.instance.primaryFocus?.unfocus();
+                        },
                       ),
                       const SizedBox(height: AppSpacing.md),
                       AppPrimaryButton(
                         label: 'Verify email',
-                        onPressed:
-                            _verifyingEmail ? null : _verifyEmailChange,
+                        onPressed: _verifyingEmail ? null : _verifyEmailChange,
                         loading: _verifyingEmail,
                       ),
                     ],

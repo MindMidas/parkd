@@ -7,7 +7,6 @@ import 'package:flutter/services.dart' show PlatformException;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
 
-import '../../../../core/messaging/app_messenger.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/utils/materialize_xfile_for_crop.dart';
@@ -16,7 +15,7 @@ import '../../../../core/widgets/widgets.dart';
 import '../../../hosting/presentation/manage_listings/edit/confirmation_success_screen.dart';
 import '../../providers/profile_providers.dart';
 
-// new pfp to storage upload to avatar_url, then success screen and bounce back
+// New pfp → storage upload → avatar_url, then success screen and bounce back
 class UploadProfilePhotoScreen extends ConsumerStatefulWidget {
   const UploadProfilePhotoScreen({super.key, required this.userId});
 
@@ -27,7 +26,8 @@ class UploadProfilePhotoScreen extends ConsumerStatefulWidget {
       _UploadProfilePhotoScreenState();
 }
 
-class _UploadProfilePhotoScreenState extends ConsumerState<UploadProfilePhotoScreen> {
+class _UploadProfilePhotoScreenState
+    extends ConsumerState<UploadProfilePhotoScreen> {
   static final ImagePicker _picker = ImagePicker();
 
   XFile? _pickedImage;
@@ -127,10 +127,9 @@ class _UploadProfilePhotoScreenState extends ConsumerState<UploadProfilePhotoScr
     if (path == null) return;
     setState(() => _uploading = true);
     try {
-      await ref.read(profileRepositoryProvider).uploadAvatar(
-            userId: widget.userId,
-            localFilePath: path,
-          );
+      await ref
+          .read(profileRepositoryProvider)
+          .uploadAvatar(userId: widget.userId, localFilePath: path);
       invalidateProfileSurfaces(ref, widget.userId);
       if (!mounted) return;
       await Navigator.of(context).push<void>(
@@ -157,10 +156,7 @@ class _UploadProfilePhotoScreenState extends ConsumerState<UploadProfilePhotoScr
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.surface,
-      appBar: const AppTopBar(
-        title: 'Profile photo',
-        showBack: true,
-      ),
+      appBar: const AppTopBar(title: 'Profile photo', showBack: true),
       body: SafeArea(
         bottom: false,
         child: Column(
@@ -200,8 +196,9 @@ class _UploadProfilePhotoScreenState extends ConsumerState<UploadProfilePhotoScr
                       icon: Icons.camera_alt_rounded,
                       iconTrailing: true,
                       applyTitleCase: false,
-                      onPressed:
-                          _uploading ? null : () => _pickImage(ImageSource.camera),
+                      onPressed: _uploading
+                          ? null
+                          : () => _pickImage(ImageSource.camera),
                     ),
                     const SizedBox(height: AppSpacing.sm),
                     AppPrimaryButton(
@@ -209,8 +206,9 @@ class _UploadProfilePhotoScreenState extends ConsumerState<UploadProfilePhotoScr
                       icon: Icons.add_photo_alternate_outlined,
                       iconTrailing: true,
                       applyTitleCase: false,
-                      onPressed:
-                          _uploading ? null : () => _pickImage(ImageSource.gallery),
+                      onPressed: _uploading
+                          ? null
+                          : () => _pickImage(ImageSource.gallery),
                     ),
                     const Spacer(),
                     if (_hasPhoto)
@@ -250,11 +248,7 @@ class _UploadProfilePhotoScreenState extends ConsumerState<UploadProfilePhotoScr
 
   Widget _placeholder() {
     return const Center(
-      child: Icon(
-        Icons.person_rounded,
-        size: 72,
-        color: AppColors.primaryBlue,
-      ),
+      child: Icon(Icons.person_rounded, size: 72, color: AppColors.primaryBlue),
     );
   }
 }

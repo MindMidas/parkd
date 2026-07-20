@@ -1,230 +1,177 @@
-import "jsr:@supabase/functions-js/edge-runtime.d.ts";
-import { createClient } from "jsr:@supabase/supabase-js@2";
-import Stripe from "npm:stripe@17.4.0";
+import "jsr:@supabase/functions-js@2/edge-runtime.d.ts";
+import type Stripe from "npm:stripe@17.4.0";
 
+import { adminClient, runtimeConfig, stripeClient } from "../_shared/runtime.ts";
+import { authenticateRateLimited } from "../_shared/rate_limit.ts";
 import {
   ensurePaymentMethodOnCustomer,
   getOrCreateStripeCustomer,
 } from "../_shared/stripe_customer.ts";
+import {
+  type CheckoutSessionResult,
+  createPaymentIntentHandler,
+  type PaymentIntentResult,
+  type PreparedCheckout,
+} from "./handler.ts";
 
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers":
-    "authorization, x-client-info, apikey, content-type",
-};
+const config = runtimeConfig();
+const admin = adminClient(config);
+const stripe = stripeClient(config.stripeSecretKey);
+const maxPaymentCents = Number(Deno.env.get("DEMO_MAX_PAYMENT_CENTS") ?? "50000");
+if (
+  !Number.isSafeInteger(maxPaymentCents) ||
+  maxPaymentCents < 50 ||
+  maxPaymentCents > 1_000_000
+) {
+  throw new Error("DEMO_MAX_PAYMENT_CENTS must be an integer from 50 to 1000000");
+}
 
-Deno.serve(async (req: Request) => {
-  if (req.method === "OPTIONS") {
-    return new Response("ok", { headers: corsHeaders });
-  }
+function mapIntent(intent: Stripe.PaymentIntent): PaymentIntentResult {
+  const method = intent.payment_method;
+  return {
+    id: intent.id,
+    clientSecret: intent.client_secret,
+    status: intent.status,
+    livemode: intent.livemode,
+    amount: intent.amount,
+    currency: intent.currency,
+    paymentMethodId: typeof method === "string" ? method : method?.id ?? null,
+    metadata: intent.metadata,
+  };
+}
 
-  try {
-    const authHeader = req.headers.get("Authorization");
-    if (!authHeader) {
-      return json({ error: "Missing authorization" }, 401);
-    }
-
-    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-    const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
-    const serviceRole = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-    const stripeSecret = Deno.env.get("STRIPE_SECRET_KEY");
-    if (!stripeSecret) {
-      return json({ error: "STRIPE_SECRET_KEY not configured on project" }, 500);
-    }
-
-    const userClient = createClient(supabaseUrl, supabaseAnonKey, {
-      global: { headers: { Authorization: authHeader } },
+const handler = createPaymentIntentHandler({
+  authenticate: (req) =>
+    authenticateRateLimited(req, config, admin, "payment", {
+      userLimit: 10,
+      ipLimit: 30,
+      windowSeconds: 60,
+    }),
+  async prepareCheckout(input): Promise<PreparedCheckout> {
+    const { data, error } = await admin.rpc("prepare_reservation_checkout", {
+      p_user_id: input.userId,
+      p_listing_id: input.listingId,
+      p_start_time: input.startTime,
+      p_end_time: input.endTime,
+      p_payment_method_id: input.paymentMethodId,
+      p_idempotency_key: input.idempotencyKey,
+      p_platform: input.platform,
     });
-    const {
-      data: { user },
-      error: userErr,
-    } = await userClient.auth.getUser();
-    if (userErr || !user) {
-      return json({ error: "Unauthorized" }, 401);
-    }
-
-    const body = await req.json().catch(() => ({})) as {
-      reservation_id?: string;
-      /** Our `payment_methods.id` row (must belong to caller, with Stripe id set). */
-      payment_method_id?: string;
+    if (error) throw error;
+    const row = Array.isArray(data) ? data[0] : data;
+    if (!row || typeof row !== "object") throw new Error("Checkout RPC returned no row");
+    const value = row as Record<string, unknown>;
+    return {
+      reservationId: String(value.reservation_id ?? ""),
+      paymentId: String(value.payment_id ?? ""),
+      subtotalCents: Number(value.subtotal_cents),
+      serviceFeeCents: Number(value.service_fee_cents),
+      amountCents: Number(value.amount_cents),
+      currency: String(value.currency ?? "").toLowerCase(),
+      stripePaymentIntentId: nullableString(value.stripe_payment_intent_id),
+      stripeCheckoutSessionId: nullableString(value.stripe_checkout_session_id),
+      stripePaymentMethodId: nullableString(value.stripe_payment_method_id),
     };
-    const reservationId = body.reservation_id?.trim();
-    if (!reservationId) {
-      return json({ error: "reservation_id required" }, 400);
-    }
-
-    const admin = createClient(supabaseUrl, serviceRole);
-    const { data: res, error: resErr } = await admin
-      .from("reservations")
-      .select("id,driver_id,status")
-      .eq("id", reservationId)
-      .maybeSingle();
-
-    if (resErr || !res) {
-      return json({ error: "Reservation not found" }, 404);
-    }
-    if (res.driver_id !== user.id) {
-      return json({ error: "Forbidden" }, 403);
-    }
-    if (res.status !== "pending") {
-      return json({ error: "Reservation is not awaiting payment" }, 400);
-    }
-
-    const { data: pay, error: payErr } = await admin
-      .from("payments")
-      .select("id,amount,service_fee,status,stripe_payment_intent_id")
-      .eq("reservation_id", reservationId)
-      .maybeSingle();
-
-    if (payErr || !pay) {
-      return json({ error: "Payment row not found" }, 404);
-    }
-    if (pay.status !== "pending") {
-      return json({ error: "Payment already processed" }, 400);
-    }
-
-    let stripePmId: string | undefined;
-    const ourPmUuid = body.payment_method_id?.trim();
-    if (ourPmUuid) {
-      const { data: pmRow, error: pmErr } = await admin
-        .from("payment_methods")
-        .select("stripe_payment_method_id")
-        .eq("id", ourPmUuid)
-        .eq("user_id", user.id)
-        .maybeSingle();
-      if (pmErr || !pmRow) {
-        return json({ error: "Payment method not found" }, 404);
-      }
-      const sid = pmRow.stripe_payment_method_id as string | null;
-      if (!sid?.trim()) {
-        return json({
-          error:
-            "This saved card was not added through Stripe. Remove it and add a card again from Payment methods.",
-        }, 400);
-      }
-      stripePmId = sid.trim();
-    }
-
-    const stripe = new Stripe(stripeSecret);
-
-    const amountCents = Math.round(
-      (Number(pay.amount) + Number(pay.service_fee)) * 100,
-    );
-    if (amountCents < 50) {
-      return json({ error: "Amount below Stripe minimum" }, 400);
-    }
-
-    let stripeCustomerId: string | undefined;
-    if (stripePmId) {
-      stripeCustomerId = await getOrCreateStripeCustomer(stripe, admin, user.id);
-      await ensurePaymentMethodOnCustomer(stripe, stripeCustomerId, stripePmId);
-    }
-
-    const metadata = {
-      reservation_id: reservationId,
-      payment_id: pay.id as string,
-    };
-
-    const paymentMethodOn = (pi: Stripe.PaymentIntent): string | undefined => {
-      const pm = pi.payment_method;
-      return typeof pm === "string" ? pm : pm?.id;
-    };
-
-    if (pay.stripe_payment_intent_id) {
-      let existing = await stripe.paymentIntents.retrieve(
-        pay.stripe_payment_intent_id as string,
-      );
-      if (existing.status === "succeeded") {
-        if (existing.client_secret) {
-          return json({ client_secret: existing.client_secret }, 200);
-        }
-        return json({ error: "Payment already completed" }, 400);
-      }
-      const reusableStatuses = [
-        "requires_payment_method",
-        "requires_confirmation",
-        "requires_action",
-        "processing",
-      ];
-      const attached0 = paymentMethodOn(existing);
-      const pmMatches0 =
-        !stripePmId ||
-        (attached0 != null && attached0 === stripePmId);
-
-      if (
-        stripePmId &&
-        pmMatches0 &&
-        existing.status === "requires_confirmation" &&
-        attached0 === stripePmId
-      ) {
-        try {
-          existing = await stripe.paymentIntents.confirm(existing.id);
-        } catch (err) {
-          const msg = err instanceof Error ? err.message : "Card was declined";
-          return json({ error: msg }, 402);
-        }
-      }
-
-      const st = existing.status;
-      const reusable = reusableStatuses.includes(st);
-      if (
-        existing.client_secret &&
-        pmMatches0 &&
-        (st === "succeeded" || reusable)
-      ) {
-        return json({ client_secret: existing.client_secret }, 200);
-      }
-
-      if (
-        reusable &&
-        stripePmId &&
-        (existing.status === "requires_payment_method" ||
-          existing.status === "requires_confirmation")
-      ) {
-        await stripe.paymentIntents.cancel(existing.id).catch(() => {});
-      }
-    }
-
-    let pi: Stripe.PaymentIntent;
-    if (stripePmId) {
-      try {
-        pi = await stripe.paymentIntents.create({
-          amount: amountCents,
-          currency: "cad",
-          customer: stripeCustomerId!,
-          payment_method: stripePmId,
+  },
+  getOrCreateCustomer: (userId) => getOrCreateStripeCustomer(stripe, admin, userId),
+  ensurePaymentMethodOnCustomer: (customerId, paymentMethodId) =>
+    ensurePaymentMethodOnCustomer(stripe, customerId, paymentMethodId),
+  retrievePaymentIntent: async (id) => mapIntent(await stripe.paymentIntents.retrieve(id)),
+  createPaymentIntent: async (input) => {
+    const parameters: Stripe.PaymentIntentCreateParams = {
+      amount: input.amount,
+      currency: input.currency,
+      metadata: input.metadata,
+      ...(input.paymentMethodId
+        ? {
+          customer: input.customerId,
+          payment_method: input.paymentMethodId,
           payment_method_types: ["card"],
-          confirm: true,
-          metadata,
-        });
-      } catch (err) {
-        const msg = err instanceof Error ? err.message : "Card payment failed";
-        return json({ error: msg }, 402);
-      }
-    } else {
-      pi = await stripe.paymentIntents.create({
-        amount: amountCents,
-        currency: "cad",
-        automatic_payment_methods: { enabled: true },
-        metadata,
-      });
-    }
-
-    await admin
-      .from("payments")
-      .update({ stripe_payment_intent_id: pi.id })
-      .eq("id", pay.id);
-
-    return json({ client_secret: pi.client_secret }, 200);
-  } catch (e) {
-    console.error(e);
-    return json({ error: (e as Error).message ?? "Server error" }, 500);
-  }
+          confirm: input.confirm,
+        }
+        : { automatic_payment_methods: { enabled: true } }),
+    };
+    return mapIntent(
+      await stripe.paymentIntents.create(parameters, {
+        idempotencyKey: input.idempotencyKey,
+      }),
+    );
+  },
+  async recordPaymentIntent(paymentId, paymentIntentId): Promise<void> {
+    const { error } = await admin.rpc("record_checkout_payment_intent", {
+      p_payment_id: paymentId,
+      p_payment_intent_id: paymentIntentId,
+    });
+    if (error) throw error;
+  },
+  async retrieveCheckoutSession(id) {
+    const session = await stripe.checkout.sessions.retrieve(id);
+    return mapCheckoutSession(session);
+  },
+  async createCheckoutSession(input) {
+    const session = await stripe.checkout.sessions.create(
+      {
+        mode: "payment",
+        payment_method_types: ["card"],
+        customer: input.customerId,
+        success_url: input.successUrl,
+        cancel_url: input.cancelUrl,
+        client_reference_id: input.reservationId,
+        line_items: [
+          {
+            quantity: 1,
+            price_data: {
+              currency: input.currency,
+              unit_amount: input.amount,
+              product_data: { name: "Parkd reservation (test mode)" },
+            },
+          },
+        ],
+        metadata: {
+          payment_id: input.paymentId,
+          reservation_id: input.reservationId,
+          environment: "portfolio_demo",
+        },
+        payment_intent_data: {
+          metadata: {
+            payment_id: input.paymentId,
+            reservation_id: input.reservationId,
+            environment: "portfolio_demo",
+          },
+        },
+      },
+      { idempotencyKey: input.idempotencyKey },
+    );
+    return mapCheckoutSession(session);
+  },
+  async recordCheckoutSession(paymentId, checkoutSessionId): Promise<void> {
+    const { error } = await admin.rpc("record_checkout_session", {
+      p_payment_id: paymentId,
+      p_checkout_session_id: checkoutSessionId,
+    });
+    if (error) throw error;
+  },
+  maxPaymentCents,
 });
 
-function json(body: Record<string, unknown>, status: number) {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: { ...corsHeaders, "Content-Type": "application/json" },
-  });
+Deno.serve(handler);
+
+function nullableString(value: unknown): string | null {
+  return typeof value === "string" && value.trim() ? value.trim() : null;
+}
+
+function mapCheckoutSession(
+  session: Stripe.Checkout.Session,
+): CheckoutSessionResult {
+  const intent = session.payment_intent;
+  return {
+    id: session.id,
+    url: session.url,
+    livemode: session.livemode,
+    amountTotal: session.amount_total,
+    currency: session.currency,
+    paymentIntentId: typeof intent === "string" ? intent : intent?.id ?? null,
+    metadata: session.metadata ?? {},
+    status: session.status,
+  };
 }

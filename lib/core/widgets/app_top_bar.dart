@@ -4,7 +4,7 @@ import '../theme/app_colors.dart';
 import '../theme/app_typography.dart';
 import '../utils/display_formatting.dart';
 
-// top bar + optional back
+// Top bar + optional back; title wraps 2 lines; title case via formatTitleCaseWords
 class AppTopBar extends StatelessWidget implements PreferredSizeWidget {
   const AppTopBar({
     super.key,
@@ -21,9 +21,13 @@ class AppTopBar extends StatelessWidget implements PreferredSizeWidget {
   final bool centerTitle;
   final VoidCallback? onBack;
   final List<Widget>? actions;
+
+  // Same toolbar height as step bar
   static const double kToolbarHeight = 80;
+
   static const double _leadingWidthWhenBack = 56;
 
+  // Alias for app_step_top_bar and older call sites
   static String formatTitle(String text) => formatTitleCaseWords(text);
 
   @override

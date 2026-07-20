@@ -4,7 +4,7 @@ import 'package:flutter/services.dart';
 import '../messaging/app_messenger.dart';
 import 'app_readonly_copy_field.dart';
 
-// ref UUID with copy, same shell as AppReadonlyCopyField
+/// Reference UUID with copy — same shell as [AppReadonlyCopyField]
 class AppReferenceIdCopyField extends StatelessWidget {
   const AppReferenceIdCopyField({super.key, required this.referenceId});
 

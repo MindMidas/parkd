@@ -3,7 +3,7 @@ import 'package:flutter/services.dart';
 
 import '../theme/app_colors.dart';
 
-// reusable text input for forms like login and signup
+// Reusable text input for forms like login and signup
 class AppTextField extends StatefulWidget {
   const AppTextField({
     super.key,
@@ -34,20 +34,37 @@ class AppTextField extends StatefulWidget {
   final TextEditingController? controller;
   final TextInputType? keyboardType;
   final bool obscureText;
+
+  // Eye toggle (pair with obscureText)
   final bool showPasswordToggle;
+
+  // Set = wrapped in TextFormField for Form.validate
   final String? Function(String?)? validator;
+
+  // Defaults to onUserInteraction when validator exists
   final AutovalidateMode? autovalidateMode;
+
   final List<TextInputFormatter>? inputFormatters;
   final bool autocorrect;
   final TextCapitalization textCapitalization;
   final bool readOnly;
   final VoidCallback? onTap;
   final bool enabled;
+
+  // Extra trailing widget; ignored if password toggle on
   final Widget? suffixIcon;
+
   final ValueChanged<String>? onChanged;
+
+  // e.g. confirm-password field key
   final GlobalKey<FormFieldState<String>>? formFieldKey;
+
+  // Red border on error but hide the error text (use checklist below)
   final bool collapseValidationMessage;
+
+  // Green check when valid + not empty
   final bool showValidCheckmark;
+
   final FocusNode? focusNode;
 
   @override
@@ -66,7 +83,8 @@ class _AppTextFieldState extends State<AppTextField> {
   @override
   void didUpdateWidget(AppTextField oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (!widget.showPasswordToggle && oldWidget.obscureText != widget.obscureText) {
+    if (!widget.showPasswordToggle &&
+        oldWidget.obscureText != widget.obscureText) {
       _obscure = widget.obscureText;
     }
   }
@@ -122,12 +140,17 @@ class _AppTextFieldState extends State<AppTextField> {
       hintText: widget.hint,
       suffixIcon: suffix,
       errorStyle: widget.collapseValidationMessage
-          ? const TextStyle(fontSize: 0, height: 0, color: AppColors.transparent)
+          ? const TextStyle(
+              fontSize: 0,
+              height: 0,
+              color: AppColors.transparent,
+            )
           : null,
     );
 
-    // null = let ancestor Form drive autovalidate (such as after submit))
-    final mode = widget.autovalidateMode ??
+    // null = let ancestor Form drive autovalidate (e.g. only after submit)
+    final mode =
+        widget.autovalidateMode ??
         (widget.validator != null ? null : AutovalidateMode.disabled);
 
     return TextFormField(

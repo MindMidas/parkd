@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../theme/app_typography.dart';
 
-// "Already have an account? Sign in" centered row
+// "Already have an account? Sign in" style centered row
 class AppMutedLinkRow extends StatelessWidget {
   const AppMutedLinkRow({
     super.key,
@@ -22,10 +22,7 @@ class AppMutedLinkRow extends StatelessWidget {
     return Row(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
-        Text(
-          leadingText,
-          style: AppTypography.caption,
-        ),
+        Text(leadingText, style: AppTypography.caption),
         TextButton(
           onPressed: enabled ? onLinkPressed : null,
           style: TextButton.styleFrom(
@@ -33,10 +30,7 @@ class AppMutedLinkRow extends StatelessWidget {
             minimumSize: const Size(0, 0),
             tapTargetSize: MaterialTapTargetSize.shrinkWrap,
           ),
-          child: Text(
-            linkText,
-            style: AppTypography.captionLink,
-          ),
+          child: Text(linkText, style: AppTypography.captionLink),
         ),
       ],
     );

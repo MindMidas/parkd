@@ -1,0 +1,41 @@
+{
+  "version": 3,
+  "routes": [
+    {
+      "src": "^/(.*[.-][a-f0-9]{8,}[.-].*)$",
+      "headers": {
+        "Cache-Control": "public, max-age=31536000, immutable"
+      },
+      "continue": true
+    },
+    {
+      "src": "^/index\\.html$",
+      "headers": {
+        "Cache-Control": "no-store, max-age=0"
+      },
+      "continue": true
+    },
+    {
+      "src": "^/(flutter_service_worker\\.js|flutter_bootstrap\\.js|manifest\\.json|parkd_turnstile\\.js)$",
+      "headers": {
+        "Cache-Control": "no-cache, max-age=0, must-revalidate"
+      },
+      "continue": true
+    },
+    {
+      "src": "^/(.*)$",
+      "headers": {
+        "Content-Security-Policy": "default-src 'self'; script-src 'self' 'unsafe-eval' https://cdnjs.cloudflare.com https://challenges.cloudflare.com https://js.stripe.com; style-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com; font-src 'self' data:; img-src 'self' data: blob: https:; connect-src 'self' https://*.supabase.co wss://*.supabase.co https://*.stripe.com https://challenges.cloudflare.com; frame-src 'self' https://challenges.cloudflare.com https://js.stripe.com https://hooks.stripe.com; worker-src 'self' blob:; child-src 'self' blob:; manifest-src 'self'; form-action 'self' https://*.stripe.com; base-uri 'self'; frame-ancestors 'none'; object-src 'none'; upgrade-insecure-requests",
+        "Content-Security-Policy-Report-Only": "default-src 'self'; script-src 'self' https://cdnjs.cloudflare.com https://challenges.cloudflare.com https://js.stripe.com; style-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com; font-src 'self' data:; img-src 'self' data: blob: https:; connect-src 'self' https://*.supabase.co wss://*.supabase.co https://*.stripe.com https://challenges.cloudflare.com; frame-src 'self' https://challenges.cloudflare.com https://js.stripe.com https://hooks.stripe.com; worker-src 'self' blob:; child-src 'self' blob:; manifest-src 'self'; form-action 'self' https://*.stripe.com; base-uri 'self'; frame-ancestors 'none'; object-src 'none'",
+        "Permissions-Policy": "camera=(), microphone=(), geolocation=(self), payment=(self)",
+        "Referrer-Policy": "strict-origin-when-cross-origin",
+        "Strict-Transport-Security": "max-age=63072000; includeSubDomains; preload",
+        "X-Content-Type-Options": "nosniff",
+        "X-Frame-Options": "DENY"
+      },
+      "continue": true
+    },
+    { "handle": "filesystem" },
+    { "src": "^/.*$", "dest": "/index.html" }
+  ]
+}

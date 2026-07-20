@@ -1,4 +1,4 @@
-// Blue-outline pill for saved cards
+// Blue-outline pill for saved cards; tighter padding than AppPaymentMethodPill
 import 'package:flutter/material.dart';
 
 import '../theme/app_colors.dart';
@@ -50,11 +50,7 @@ class AppSavedPaymentCardRow extends StatelessWidget {
                   ],
                 ),
               ),
-              Icon(
-                Icons.edit_outlined,
-                size: 18,
-                color: AppColors.iconBlue,
-              ),
+              Icon(Icons.edit_outlined, size: 18, color: AppColors.iconBlue),
             ],
           ),
         ),

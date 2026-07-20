@@ -2,7 +2,8 @@ import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:intl_phone_field/countries.dart';
-import 'package:intl_phone_field/country_picker_dialog.dart' show PickerDialogStyle;
+import 'package:intl_phone_field/country_picker_dialog.dart'
+    show PickerDialogStyle;
 import 'package:intl_phone_field/phone_number.dart';
 
 import '../theme/app_colors.dart';
@@ -15,7 +16,9 @@ bool _isNanp(Country country) => country.code == 'CA' || country.code == 'US';
 String _digitsOnly(String value) => value.replaceAll(RegExp(r'\D'), '');
 
 // Parse E.164 into country ISO + national digits for prefilling the field
-({String iso, String nationalDigits})? decodeE164ForIntlPhoneField(String? e164) {
+({String iso, String nationalDigits})? decodeE164ForIntlPhoneField(
+  String? e164,
+) {
   if (e164 == null || e164.trim().isEmpty) return null;
   var d = _digitsOnly(e164);
   if (d.isEmpty) return null;
@@ -35,7 +38,7 @@ String _digitsOnly(String value) => value.replaceAll(RegExp(r'\D'), '');
   return null;
 }
 
-// Phone field + country picker, NANP formatting for CA/US
+// Phone field + country picker; NANP formatting for CA/US; matches AppTextField theme
 class AppIntlPhoneField extends StatefulWidget {
   const AppIntlPhoneField({
     super.key,
@@ -149,7 +152,8 @@ class _AppIntlPhoneFieldState extends State<AppIntlPhoneField> {
     if (digits.isEmpty) {
       return 'Enter your mobile number.';
     }
-    if (digits.length < _country.minLength || digits.length > _country.maxLength) {
+    if (digits.length < _country.minLength ||
+        digits.length > _country.maxLength) {
       return widget.invalidNumberMessage ??
           'Enter a valid mobile number for this country.';
     }
@@ -246,7 +250,9 @@ class _PhoneLeadingPrefix extends StatelessWidget {
                   Icon(
                     Icons.keyboard_arrow_down_rounded,
                     size: 22,
-                    color: enabled ? AppColors.iconGrey : AppColors.textSecondary,
+                    color: enabled
+                        ? AppColors.iconGrey
+                        : AppColors.textSecondary,
                   ),
                 ],
               ),

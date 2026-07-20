@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../theme/app_colors.dart';
 
-// shell for map search UI (surface fill)
+// Elevated shell for map search UI (surface fill)
 class AppMapSearchCard extends StatelessWidget {
   const AppMapSearchCard({super.key, required this.child});
 

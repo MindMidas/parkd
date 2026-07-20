@@ -9,11 +9,10 @@ import '../../../../../core/theme/app_colors.dart';
 import '../../../../../core/theme/app_spacing.dart';
 import '../../../../../core/theme/app_typography.dart';
 import '../../../../../core/utils/auth_error_messages.dart';
-import '../../../../../core/validation/form_validators.dart';
 import '../../../../../core/widgets/widgets.dart';
 import '../../../../auth/providers/auth_providers.dart';
 
-// TOTP and forgot-password (Supabase auth only)
+// TOTP enroll/disable + forgot-password route — Supabase auth, not SQL
 class SecuritySettingsScreen extends ConsumerStatefulWidget {
   const SecuritySettingsScreen({super.key});
 
@@ -33,12 +32,12 @@ class _SecuritySettingsScreenState
   String? _secret;
 
   final _codeController = TextEditingController();
-  final _totpEnrollFormKey = GlobalKey<FormState>();
 
   bool _verifying = false;
   bool _unenrolling = false;
 
-  List<Factor>? _totpFactors; // verified factors (mfaListFactors filters verified)
+  List<Factor>?
+  _totpFactors; // verified factors (mfaListFactors filters verified)
 
   @override
   void initState() {
@@ -69,7 +68,7 @@ class _SecuritySettingsScreenState
     setState(clear);
   }
 
-  // drops in-progress TOTP factor on the server (if any), then clears UI
+  /// Drops the in-progress TOTP factor on the server (if any), then clears UI
   Future<void> _cancelEnroll() async {
     final factorId = _enrollFactorId;
     _resetEnrollUi();
@@ -146,7 +145,7 @@ class _SecuritySettingsScreenState
     if (_enrollFactorId == null || _enrollFactorId!.isEmpty) {
       return;
     }
-    if (_totpEnrollFormKey.currentState?.validate() != true) {
+    if (!(_codeController.text.trim().isNotEmpty)) {
       return;
     }
 
@@ -166,9 +165,9 @@ class _SecuritySettingsScreenState
       await _refreshFactors();
     } on Exception catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(userFacingAuthMessage(e))),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(userFacingAuthMessage(e))));
       setState(() {
         _verifying = false;
       });
@@ -217,9 +216,9 @@ class _SecuritySettingsScreenState
       setState(() {
         _unenrolling = false;
       });
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(userFacingAuthMessage(e))),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(userFacingAuthMessage(e))));
     }
   }
 
@@ -228,10 +227,7 @@ class _SecuritySettingsScreenState
       return const Center(child: CircularProgressIndicator());
     }
     if (_factorsError != null) {
-      return Text(
-        _factorsError!,
-        style: AppTypography.bodyDanger,
-      );
+      return Text(_factorsError!, style: AppTypography.bodyDanger);
     }
     if (hasTotp) {
       return Column(
@@ -262,80 +258,73 @@ class _SecuritySettingsScreenState
             onPressed: _enrolling ? null : _startEnrollTotp,
           )
         else ...[
-          Form(
-            key: _totpEnrollFormKey,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Center(
-                  child: SizedBox(
-                    width: 240,
-                    height: 240,
-                    child: AppDisplayOutlineCard(
-                      child: _svgXmlFromQrDataUri(_qrDataUri) == null
-                          ? Center(
-                              child: Text(
-                                'QR not available',
-                                style: AppTypography.bodyMuted,
-                              ),
-                            )
-                          : SvgPicture.string(
-                              _svgXmlFromQrDataUri(_qrDataUri)!,
-                              fit: BoxFit.contain,
-                            ),
-                    ),
-                  ),
-                ),
-                if (_secret != null && _secret!.isNotEmpty) ...[
-                  const SizedBox(height: AppSpacing.lg),
-                  const AppDivider(),
-                  const SizedBox(height: AppSpacing.md),
-                  Text(
-                    "Can't scan the QR? Enter this key manually in your app.",
-                    style: AppTypography.caption,
-                  ),
-                  const SizedBox(height: AppSpacing.sm),
-                  AppReadonlyCopyField(
-                    label: 'Secret key',
-                    value: _secret!,
-                    onCopy: () async {
-                      await Clipboard.setData(ClipboardData(text: _secret!));
-                      if (!context.mounted) return;
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text('Secret copied to clipboard'),
+          Center(
+            child: SizedBox(
+              width: 240,
+              height: 240,
+              child: AppDisplayOutlineCard(
+                child: _svgXmlFromQrDataUri(_qrDataUri) == null
+                    ? Center(
+                        child: Text(
+                          'QR not available',
+                          style: AppTypography.bodyMuted,
                         ),
-                      );
-                    },
-                  ),
-                ],
-                const SizedBox(height: AppSpacing.lg),
-                const AppDivider(),
-                const SizedBox(height: AppSpacing.md),
-                AppTextField(
-                  controller: _codeController,
-                  label: 'Authenticator code',
-                  keyboardType: TextInputType.number,
-                  inputFormatters: [
-                    FilteringTextInputFormatter.digitsOnly,
-                    LengthLimitingTextInputFormatter(6),
-                  ],
-                  validator: FormValidators.totpCode,
-                ),
-                const SizedBox(height: AppSpacing.md),
-                AppPrimaryButton(
-                  label: 'Verify & enable',
-                  onPressed: _verifying ? null : _verifyEnroll,
-                  loading: _verifying,
-                  applyTitleCase: false,
-                ),
-                const SizedBox(height: AppSpacing.md),
-                AppSecondaryButton(
-                  label: 'Cancel',
-                  onPressed: _enrolling || _verifying ? null : _cancelEnroll,
-                ),
-              ],
+                      )
+                    : SvgPicture.string(
+                        _svgXmlFromQrDataUri(_qrDataUri)!,
+                        fit: BoxFit.contain,
+                      ),
+              ),
             ),
+          ),
+          if (_secret != null && _secret!.isNotEmpty) ...[
+            const SizedBox(height: AppSpacing.lg),
+            const AppDivider(),
+            const SizedBox(height: AppSpacing.md),
+            Text(
+              "Can't scan the QR? Enter this key manually in your app.",
+              style: AppTypography.caption,
+            ),
+            const SizedBox(height: AppSpacing.sm),
+            AppReadonlyCopyField(
+              label: 'Secret key',
+              value: _secret!,
+              onCopy: () async {
+                await Clipboard.setData(ClipboardData(text: _secret!));
+                if (!context.mounted) return;
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Secret copied to clipboard')),
+                );
+              },
+            ),
+          ],
+          const SizedBox(height: AppSpacing.lg),
+          const AppDivider(),
+          const SizedBox(height: AppSpacing.md),
+          TextFormField(
+            controller: _codeController,
+            keyboardType: TextInputType.number,
+            inputFormatters: [
+              FilteringTextInputFormatter.digitsOnly,
+              LengthLimitingTextInputFormatter(6),
+            ],
+            decoration: const InputDecoration(labelText: 'Authenticator code'),
+            validator: FormValidators.totpCode,
+            onTapOutside: (_) {
+              FocusManager.instance.primaryFocus?.unfocus();
+            },
+          ),
+          const SizedBox(height: AppSpacing.md),
+          AppPrimaryButton(
+            label: 'Verify & enable',
+            onPressed: _verifying ? null : _verifyEnroll,
+            loading: _verifying,
+            applyTitleCase: false,
+          ),
+          const SizedBox(height: AppSpacing.md),
+          AppSecondaryButton(
+            label: 'Cancel',
+            onPressed: _enrolling || _verifying ? null : _cancelEnroll,
           ),
         ],
       ],
@@ -348,10 +337,7 @@ class _SecuritySettingsScreenState
 
     return Scaffold(
       backgroundColor: AppColors.surface,
-      appBar: const AppTopBar(
-        title: 'Security',
-        showBack: true,
-      ),
+      appBar: const AppTopBar(title: 'Security', showBack: true),
       body: SafeArea(
         bottom: false,
         child: AppMenuScrollBody(
@@ -378,4 +364,3 @@ class _SecuritySettingsScreenState
     );
   }
 }
-

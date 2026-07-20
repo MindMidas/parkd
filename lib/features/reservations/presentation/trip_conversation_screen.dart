@@ -1,21 +1,24 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../../core/messaging/app_messenger.dart';
+import '../../../app/active_trip_chat_provider.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_spacing.dart';
 import '../../../core/theme/app_typography.dart';
-import '../../../core/utils/scroll_view_bottom_inset.dart';
 import '../../../core/widgets/widgets.dart';
 import '../../auth/providers/auth_providers.dart';
+import '../../moderation/presentation/moderation_actions.dart';
+import '../../profile/providers/notifications_providers.dart';
 import '../providers/reservations_providers.dart';
 
+/// Live chat for one reservation (host or driver). Creates thread on first open if needed
 class TripConversationScreen extends ConsumerStatefulWidget {
   const TripConversationScreen({
     super.key,
     required this.reservationId,
     this.initialConversationId,
     required this.peerDisplayName,
+    required this.peerUserId,
     this.viewTripLabel,
     this.onViewTrip,
   });
@@ -23,6 +26,7 @@ class TripConversationScreen extends ConsumerStatefulWidget {
   final String reservationId;
   final String? initialConversationId;
   final String peerDisplayName;
+  final String peerUserId;
 
   final String? viewTripLabel;
   final VoidCallback? onViewTrip;
@@ -32,33 +36,107 @@ class TripConversationScreen extends ConsumerStatefulWidget {
       _TripConversationScreenState();
 }
 
-class _TripConversationScreenState extends ConsumerState<TripConversationScreen> {
+class _TripConversationScreenState
+    extends ConsumerState<TripConversationScreen> {
   final _textController = TextEditingController();
   String? _conversationId;
   bool _ensuring = false;
   Object? _ensureError;
+  DateTime? _lastSentAt;
 
   List<Widget> get _viewTripActions {
     final label = widget.viewTripLabel?.trim();
     final onTap = widget.onViewTrip;
     if (label == null || label.isEmpty || onTap == null) return const [];
     return [
-      AppCompactPrimaryTextButton(
-        label: label,
+      TextButton(
         onPressed: onTap,
-        labelStyle: AppTypography.textAction,
+        child: Text(label, style: AppTypography.textAction),
       ),
     ];
+  }
+
+  List<Widget> get _appBarActions => [
+    ..._viewTripActions,
+    PopupMenuButton<String>(
+      tooltip: 'Safety options',
+      icon: const Icon(Icons.more_vert_rounded),
+      onSelected: _onSafetyAction,
+      itemBuilder: (_) => const [
+        PopupMenuItem<String>(
+          value: 'report',
+          child: ListTile(
+            contentPadding: EdgeInsets.zero,
+            leading: Icon(Icons.flag_outlined),
+            title: Text('Report user'),
+          ),
+        ),
+        PopupMenuItem<String>(
+          value: 'block',
+          child: ListTile(
+            contentPadding: EdgeInsets.zero,
+            leading: Icon(Icons.block_rounded),
+            title: Text('Block user'),
+          ),
+        ),
+      ],
+    ),
+  ];
+
+  Future<void> _onSafetyAction(String action) async {
+    if (action == 'report') {
+      await showParkdReportDialog(
+        context: context,
+        ref: ref,
+        targetType: 'user',
+        targetId: widget.peerUserId,
+        targetLabel: 'user',
+      );
+      return;
+    }
+    if (action == 'block') {
+      final blocked = await confirmAndBlockParkdUser(
+        context: context,
+        ref: ref,
+        userId: widget.peerUserId,
+        displayName: widget.peerDisplayName,
+      );
+      if (!blocked || !mounted) return;
+      ref.invalidate(messagingInboxProvider);
+      Navigator.of(context).pop();
+    }
   }
 
   @override
   void initState() {
     super.initState();
     _conversationId = widget.initialConversationId;
+    ref.listenManual(myNotificationFeedProvider, (previous, next) {
+      final hasUnreadForTrip =
+          next.value?.latest.any(
+            (row) => !row.isRead && row.reservationId == widget.reservationId,
+          ) ??
+          false;
+      if (hasUnreadForTrip) _markMessageNotificationsRead();
+    });
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      ref.read(activeTripChatProvider.notifier).enter(widget.reservationId);
+      _markMessageNotificationsRead();
+    });
+  }
+
+  Future<void> _markMessageNotificationsRead() async {
+    try {
+      await ref
+          .read(notificationsRemoteProvider)
+          .markMessageNotificationsRead(widget.reservationId);
+    } catch (_) {}
   }
 
   @override
   void dispose() {
+    ref.read(activeTripChatProvider.notifier).leave(widget.reservationId);
     _textController.dispose();
     super.dispose();
   }
@@ -93,12 +171,16 @@ class _TripConversationScreenState extends ConsumerState<TripConversationScreen>
     final cid = _conversationId;
     final uid = ref.read(currentSessionProvider)?.user.id;
     if (text.isEmpty || cid == null || uid == null) return;
+    final now = DateTime.now();
+    if (_lastSentAt != null &&
+        now.difference(_lastSentAt!) < const Duration(milliseconds: 750)) {
+      return;
+    }
+    _lastSentAt = now;
     try {
-      await ref.read(messagingRepositoryProvider).send(
-            conversationId: cid,
-            senderId: uid,
-            text: text,
-          );
+      await ref
+          .read(messagingRepositoryProvider)
+          .send(conversationId: cid, senderId: uid, text: text);
       _textController.clear();
       ref.invalidate(conversationMessagesProvider(cid));
     } catch (_) {
@@ -115,25 +197,30 @@ class _TripConversationScreenState extends ConsumerState<TripConversationScreen>
       if (_ensureError != null) {
         return Scaffold(
           backgroundColor: AppColors.surface,
-          appBar: AppTopBar(
-            title: widget.peerDisplayName,
-            showBack: true,
-          ),
-          body: const AppMutedBodyCenter(
-            'Could not open conversation.',
-            padding: EdgeInsets.all(AppSpacing.lg),
+          appBar: AppTopBar(title: widget.peerDisplayName, showBack: true),
+          body: Center(
+            child: Padding(
+              padding: const EdgeInsets.all(AppSpacing.lg),
+              child: Text(
+                'Could not open conversation.',
+                textAlign: TextAlign.center,
+                style: AppTypography.bodyMuted,
+              ),
+            ),
           ),
         );
       }
       if (!_ensuring) {
-        WidgetsBinding.instance.addPostFrameCallback((_) => _ensureConversation());
+        WidgetsBinding.instance.addPostFrameCallback(
+          (_) => _ensureConversation(),
+        );
       }
       return Scaffold(
         backgroundColor: AppColors.surface,
         appBar: AppTopBar(
           title: widget.peerDisplayName,
           showBack: true,
-          actions: _viewTripActions,
+          actions: _appBarActions,
         ),
         body: const Center(child: CircularProgressIndicator()),
       );
@@ -148,7 +235,7 @@ class _TripConversationScreenState extends ConsumerState<TripConversationScreen>
       appBar: AppTopBar(
         title: widget.peerDisplayName,
         showBack: true,
-        actions: _viewTripActions,
+        actions: _appBarActions,
       ),
       body: SafeArea(
         child: Column(
@@ -157,13 +244,22 @@ class _TripConversationScreenState extends ConsumerState<TripConversationScreen>
               child: messagesAsync.when(
                 loading: () => const Center(child: CircularProgressIndicator()),
                 error: (e, st) => Center(
-                  child: Text('Could not load messages.', style: AppTypography.bodyMuted),
+                  child: Text(
+                    'Could not load messages.',
+                    style: AppTypography.bodyMuted,
+                  ),
                 ),
                 data: (messages) {
                   if (messages.isEmpty) {
-                    return const AppMutedBodyCenter(
-                      'No messages yet. Say hello.',
-                      padding: EdgeInsets.all(AppSpacing.lg),
+                    return Center(
+                      child: Padding(
+                        padding: const EdgeInsets.all(AppSpacing.lg),
+                        child: Text(
+                          'No messages yet. Say hello.',
+                          textAlign: TextAlign.center,
+                          style: AppTypography.bodyMuted,
+                        ),
+                      ),
                     );
                   }
                   return ListView.builder(
@@ -187,6 +283,15 @@ class _TripConversationScreenState extends ConsumerState<TripConversationScreen>
                           senderName: name,
                           message: m.message,
                           isMine: mine,
+                          onLongPress: mine
+                              ? null
+                              : () => showParkdReportDialog(
+                                  context: context,
+                                  ref: ref,
+                                  targetType: 'message',
+                                  targetId: m.id,
+                                  targetLabel: 'message',
+                                ),
                         ),
                       );
                     },
@@ -201,10 +306,56 @@ class _TripConversationScreenState extends ConsumerState<TripConversationScreen>
                 AppSpacing.lg,
                 AppSpacing.md + bottom,
               ),
-              child: AppChatMessageComposer(
-                controller: _textController,
-                onSend: _send,
-                enabled: uid != null,
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  Expanded(
+                    child: TextField(
+                      controller: _textController,
+                      minLines: 1,
+                      maxLines: 4,
+                      maxLength: 2000,
+                      buildCounter:
+                          (
+                            context, {
+                            required currentLength,
+                            required isFocused,
+                            required maxLength,
+                          }) => null,
+                      textCapitalization: TextCapitalization.sentences,
+                      decoration: InputDecoration(
+                        hintText: 'Message',
+                        filled: true,
+                        fillColor: AppColors.surface,
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: const BorderSide(
+                            color: AppColors.secondaryGrey,
+                          ),
+                        ),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: const BorderSide(
+                            color: AppColors.secondaryGrey,
+                          ),
+                        ),
+                        contentPadding: const EdgeInsets.symmetric(
+                          horizontal: AppSpacing.md,
+                          vertical: AppSpacing.sm,
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: AppSpacing.sm),
+                  IconButton.filled(
+                    onPressed: uid == null ? null : _send,
+                    icon: const Icon(Icons.send_rounded),
+                    style: IconButton.styleFrom(
+                      backgroundColor: AppColors.primaryBlue,
+                      foregroundColor: AppColors.onPrimary,
+                    ),
+                  ),
+                ],
               ),
             ),
           ],

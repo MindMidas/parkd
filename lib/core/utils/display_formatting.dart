@@ -1,29 +1,31 @@
-import 'package:intl/intl.dart';
+// String helpers for UI (dates, durations, money) — keep widgets dumb
 
-import '../models/reservation_row.dart';
-
-// title case each whitespace-separated word
+// Title case each whitespace-separated word (nav labels, list rows, buttons)
 String formatTitleCaseWords(String text) {
   if (text.isEmpty) return text;
-  return text.split(' ').map((word) {
-    if (word.isEmpty) return word;
-    return word[0].toUpperCase() + word.substring(1).toLowerCase();
-  }).join(' ');
+  return text
+      .split(' ')
+      .map((word) {
+        if (word.isEmpty) return word;
+        return word[0].toUpperCase() + word.substring(1).toLowerCase();
+      })
+      .join(' ');
 }
 
 (String, String) splitDisplayDateTime(String value) {
-  const sep = ' · ';
-  final i = value.indexOf(sep);
-  if (i >= 0) {
-    return (
-      value.substring(0, i).trim(),
-      value.substring(i + sep.length).trim(),
-    );
+  for (final sep in [' • ', ' · ']) {
+    final i = value.indexOf(sep);
+    if (i >= 0) {
+      return (
+        value.substring(0, i).trim(),
+        value.substring(i + sep.length).trim(),
+      );
+    }
   }
   return (value.trim(), '');
 }
 
-// compact duration for booking timers (2H 15M)
+// Compact duration for booking timers (e.g. 2H 15M)
 String formatDurationCompact(Duration duration) {
   final totalMinutes = duration.inMinutes;
   if (totalMinutes <= 0) return '0M';
@@ -41,9 +43,3 @@ String formatDurationCompact(Duration duration) {
 }
 
 String formatUsdAmount(double amount) => '\$${amount.toStringAsFixed(2)}';
-
-String formatDriverReservationWhenLabel(ReservationRow r) {
-  final d = DateFormat('MMM d').format(r.startTime.toLocal());
-  final t = DateFormat('h:mm a').format(r.startTime.toLocal());
-  return '$d · $t';
-}

@@ -1,7 +1,7 @@
 import 'conversation_row.dart';
 import 'reservation_row.dart';
 
-// host-side inbox row: a booking at one of your listings, chat thread
+/// Host-side inbox row: a booking at one of your listings, optional chat thread
 class HostListingBookingThread {
   const HostListingBookingThread({
     required this.reservation,

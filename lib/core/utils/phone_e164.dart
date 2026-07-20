@@ -1,4 +1,7 @@
-// normalizes user input to E.164 for Supabase phone auth
+/// Normalizes user input to E.164 for Supabase phone auth
+/// - If it already starts with `+`, digits after `+` are kept
+/// - 10-digit North American numbers get `+1`
+/// - 11 digits starting with `1` become `+1…`
 String? normalizePhoneToE164(String raw) {
   final trimmed = raw.trim();
   if (trimmed.isEmpty) return null;

@@ -7,18 +7,9 @@ import 'app_display_fields.dart';
 import 'app_divider.dart';
 import 'app_listing_photo_frame.dart';
 
-enum AppMenuLeadingType {
-  profile,
-  parking,
-}
+enum AppMenuLeadingType { profile, parking }
 
-enum AppMenuRightKind {
-  chevron,
-  icon,
-  pillIcon,
-  amount,
-  none,
-}
+enum AppMenuRightKind { chevron, icon, pillIcon, amount, none }
 
 class AppMenuRow extends StatelessWidget {
   const AppMenuRow({
@@ -63,11 +54,7 @@ class AppMenuRow extends StatelessWidget {
   Widget? _buildLeading() {
     if (leading != null) return leading;
     if (leadingIcon != null) {
-      return Icon(
-        leadingIcon,
-        size: 22,
-        color: AppColors.iconGrey,
-      );
+      return Icon(leadingIcon, size: 22, color: AppColors.iconGrey);
     }
     if (leadingType == null) return null;
 
@@ -85,17 +72,9 @@ class AppMenuRow extends StatelessWidget {
       case AppMenuRightKind.none:
         return null;
       case AppMenuRightKind.chevron:
-        return Icon(
-          rightIcon,
-          size: 22,
-          color: AppColors.iconGrey,
-        );
+        return Icon(rightIcon, size: 22, color: AppColors.iconGrey);
       case AppMenuRightKind.icon:
-        return Icon(
-          rightIcon,
-          size: 22,
-          color: AppColors.iconGrey,
-        );
+        return Icon(rightIcon, size: 22, color: AppColors.iconGrey);
       case AppMenuRightKind.pillIcon:
         return AppMenuPillIconButton(
           onPressed: onTap ?? () {},
@@ -156,7 +135,8 @@ class AppMenuRow extends StatelessWidget {
               ],
             ],
           ),
-          trailing: rightKind == AppMenuRightKind.amount && trailingWidget != null
+          trailing:
+              rightKind == AppMenuRightKind.amount && trailingWidget != null
               ? SizedBox(
                   width: 84,
                   child: Align(
@@ -215,6 +195,7 @@ class AppMenuProfileAvatar extends StatelessWidget {
     this.hostListingSolidPlaceholder = false,
   });
 
+  /// Solid blue circle used on listing cards when there is no host photo (40dp or 36dp compact)
   factory AppMenuProfileAvatar.hostListingPlaceholder({
     Key? key,
     bool compact = false,
@@ -252,15 +233,12 @@ class AppMenuProfileAvatar extends StatelessWidget {
                   filterQuality: FilterQuality.medium,
                   gaplessPlayback: true,
                 )
-              : Icon(
-                  fallbackIcon,
-                  size: iconSize,
-                  color: AppColors.onPrimary,
-                ),
+              : Icon(fallbackIcon, size: iconSize, color: AppColors.onPrimary),
         ),
       );
     }
 
+    // Material + CircleBorder + clipBehavior = smooth circle (plain Container + shadow can look faceted)
     return Material(
       elevation: 2,
       shadowColor: AppColors.shadowMedium,
@@ -293,6 +271,8 @@ class AppMenuParkingAvatar extends StatelessWidget {
   const AppMenuParkingAvatar({
     super.key,
     required this.imageProvider,
+
+    /// Height of the 4:3 thumbnail; width follows [appListingPhotoFrameAspectRatio]
     this.size = 48,
   });
 

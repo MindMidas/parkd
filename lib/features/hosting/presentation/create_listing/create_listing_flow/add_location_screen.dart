@@ -17,13 +17,10 @@ import '../../../../map/presentation/map.dart';
 import '../create_listing_draft.dart';
 import '../create_listing_flow_constants.dart';
 
-enum _LocationPhase {
-  search,
+enum _LocationPhase { search, adjustPin }
 
-  adjustPin,
-}
-
-// Map step: drop a pin, wizard stays in memory until user publish on terms
+/// Pin the spot, then continue the wizard with an in-memory [CreateListingDraft]
+/// (no DB row until publish on the terms step)
 class AddLocationScreen extends StatefulWidget {
   const AddLocationScreen({super.key});
 
@@ -182,57 +179,57 @@ class _AddLocationScreenState extends State<AddLocationScreen> {
                 compassBottomMargin: compassMb,
               ),
             ),
-          if (showSearch)
-            Positioned(
-              left: AppSpacing.mapSearchOverlayHorizontal,
-              right: AppSpacing.mapSearchOverlayHorizontal,
-              top: AppSpacing.sm,
-              child: AppMapAddressSearchPanel(
-                controller: _searchController,
-                hintText: 'Search for an address…',
-                showFilterButton: false,
-                searchFn: searchAddressesForParkd,
-                onResultSelected: _onAddressPicked,
+            if (showSearch)
+              Positioned(
+                left: AppSpacing.mapSearchOverlayHorizontal,
+                right: AppSpacing.mapSearchOverlayHorizontal,
+                top: AppSpacing.sm,
+                child: AppMapAddressSearchPanel(
+                  controller: _searchController,
+                  hintText: 'Search for an address…',
+                  showFilterButton: false,
+                  searchFn: searchAddressesForCreateListing,
+                  onResultSelected: _onAddressPicked,
+                ),
               ),
-            ),
-          if (_phase == _LocationPhase.adjustPin)
-            Positioned(
-              left: AppSpacing.mapSearchOverlayHorizontal,
-              right: AppSpacing.mapSearchOverlayHorizontal,
-              top: AppSpacing.sm,
-              child: AppMapSearchCard(
-                child: Padding(
-                  padding: const EdgeInsets.all(AppSpacing.md),
-                  child: Text(
-                    'If the location isn’t accurate, tap the map or drag the '
-                    'pin to the exact spot, then confirm.',
-                    style: AppTypography.caption.copyWith(height: 1.45),
+            if (_phase == _LocationPhase.adjustPin)
+              Positioned(
+                left: AppSpacing.mapSearchOverlayHorizontal,
+                right: AppSpacing.mapSearchOverlayHorizontal,
+                top: AppSpacing.sm,
+                child: AppMapSearchCard(
+                  child: Padding(
+                    padding: const EdgeInsets.all(AppSpacing.md),
+                    child: Text(
+                      'If the location isn’t accurate, tap the map or drag the '
+                      'pin to the exact spot, then confirm.',
+                      style: AppTypography.caption.copyWith(height: 1.45),
+                    ),
                   ),
                 ),
               ),
-            ),
-          if (_phase == _LocationPhase.search && _picked != null)
-            Positioned(
-              left: AppSpacing.mapSearchOverlayHorizontal,
-              right: AppSpacing.mapSearchOverlayHorizontal,
-              bottom: bottomInset,
-              child: AppPrimaryButton(
-                label: 'Use this location',
-                onPressed: _useSearchResultLocation,
+            if (_phase == _LocationPhase.search && _picked != null)
+              Positioned(
+                left: AppSpacing.mapSearchOverlayHorizontal,
+                right: AppSpacing.mapSearchOverlayHorizontal,
+                bottom: bottomInset,
+                child: AppPrimaryButton(
+                  label: 'Use this location',
+                  onPressed: _useSearchResultLocation,
+                ),
               ),
-            ),
-          if (_phase == _LocationPhase.adjustPin)
-            Positioned(
-              left: AppSpacing.mapSearchOverlayHorizontal,
-              right: AppSpacing.mapSearchOverlayHorizontal,
-              bottom: bottomInset,
-              child: AppPrimaryButton(
-                label: 'Looks good',
-                icon: Icons.thumb_up_rounded,
-                onPressed: _goToPhotoStep,
-                applyTitleCase: false,
+            if (_phase == _LocationPhase.adjustPin)
+              Positioned(
+                left: AppSpacing.mapSearchOverlayHorizontal,
+                right: AppSpacing.mapSearchOverlayHorizontal,
+                bottom: bottomInset,
+                child: AppPrimaryButton(
+                  label: 'Looks good',
+                  icon: Icons.thumb_up_rounded,
+                  onPressed: _goToPhotoStep,
+                  applyTitleCase: false,
+                ),
               ),
-            ),
           ],
         ),
       ),

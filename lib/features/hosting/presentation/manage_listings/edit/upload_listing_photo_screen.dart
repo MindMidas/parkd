@@ -5,16 +5,16 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
 
-import '../../../../../core/messaging/app_messenger.dart';
 import '../../../../../core/theme/app_colors.dart';
 import '../../../../../core/theme/app_spacing.dart';
 import '../../../../../core/utils/materialize_xfile_for_crop.dart';
 import '../../../../../core/utils/parkd_image_cropper.dart';
-import '../../../../../core/utils/scroll_view_bottom_inset.dart';
 import '../../../../../core/widgets/widgets.dart';
 import '../../create_listing/create_listing_draft.dart';
 import 'annotate_listing_photo_screen.dart';
 
+// Gallery/camera pick then push annotate. [createDraft] = wizard (no DB until publish);
+// [listingId] = add photo to existing listing
 class UploadListingPhotoScreen extends StatefulWidget {
   const UploadListingPhotoScreen({
     super.key,
@@ -26,9 +26,9 @@ class UploadListingPhotoScreen extends StatefulWidget {
     this.latitude,
     this.longitude,
   }) : assert(
-          (listingId != null && createDraft == null) ||
-              (listingId == null && createDraft != null),
-        );
+         (listingId != null && createDraft == null) ||
+             (listingId == null && createDraft != null),
+       );
 
   final String? listingId;
   final CreateListingDraft? createDraft;
@@ -54,8 +54,7 @@ class _UploadListingPhotoScreenState extends State<UploadListingPhotoScreen> {
     super.initState();
     final d = widget.createDraft;
     if (d != null) {
-      _spotNumberController =
-          TextEditingController(text: d.spotNumber ?? '');
+      _spotNumberController = TextEditingController(text: d.spotNumber ?? '');
     }
   }
 
@@ -67,7 +66,7 @@ class _UploadListingPhotoScreenState extends State<UploadListingPhotoScreen> {
 
   bool get _hasPhoto => _pickedImage != null;
 
-  // sim has no camera; opening it often fails hard (process exit)
+  /// Simulator has no camera; opening it often fails hard (process exit)
   bool get _isIosSimulator =>
       !kIsWeb &&
       Platform.isIOS &&
@@ -175,8 +174,7 @@ class _UploadListingPhotoScreenState extends State<UploadListingPhotoScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final bottomPad =
-        AppSpacing.lg + scrollViewBottomInset(context);
+    final bottomPad = AppSpacing.lg + scrollViewBottomInset(context);
     return Scaffold(
       backgroundColor: AppColors.surface,
       appBar: widget.currentStep != null && widget.totalSteps != null
@@ -185,10 +183,7 @@ class _UploadListingPhotoScreenState extends State<UploadListingPhotoScreen> {
               currentStep: widget.currentStep!,
               totalSteps: widget.totalSteps!,
             )
-          : const AppTopBar(
-              title: 'Add parking spot photo',
-              showBack: true,
-            ),
+          : const AppTopBar(title: 'Add parking spot photo', showBack: true),
       body: SafeArea(
         top: false,
         bottom: false,
@@ -255,9 +250,7 @@ class _UploadListingPhotoScreenState extends State<UploadListingPhotoScreen> {
                   label: 'Parking spot # (optional)',
                   hint: 'e.g. Stall B2, Unit 4',
                   controller: _spotNumberController,
-                  inputFormatters: [
-                    LengthLimitingTextInputFormatter(40),
-                  ],
+                  inputFormatters: [LengthLimitingTextInputFormatter(40)],
                 ),
                 const SizedBox(height: AppSpacing.sm),
                 const AppFormHelperText(

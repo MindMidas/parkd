@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../theme/app_colors.dart';
 
-// pill on bottom sheets so users know they can drag
+// Little pill on bottom sheets so users know they can drag
 class AppBottomSheetGrabber extends StatelessWidget {
   const AppBottomSheetGrabber({super.key});
 

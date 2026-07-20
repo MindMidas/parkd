@@ -1,0 +1,9 @@
+{
+  "PARKD_DEMO": "true",
+  "SUPABASE_URL": "https://your-project.supabase.co",
+  "SUPABASE_ANON_KEY": "your-public-anon-key",
+  "MAPBOX_ACCESS_TOKEN": "your-public-mapbox-token",
+  "STRIPE_PUBLISHABLE_KEY": "pk_test_your-test-publishable-key",
+  "TURNSTILE_SITE_KEY": "your-public-turnstile-site-key",
+  "PASSWORD_RESET_REDIRECT_URL": "http://localhost:8080/auth/reset-password"
+}

@@ -3,20 +3,18 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
-import 'package:url_launcher/url_launcher.dart';
 
 import '../../../../core/models/listing.dart';
 import '../../../../core/models/reservation_row.dart';
 import '../../../../core/models/reservation_status.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_spacing.dart';
-import '../../../../core/messaging/app_messenger.dart';
-import '../../../../core/utils/display_formatting.dart';
+import '../../../../core/utils/directions_launcher.dart';
 import '../../../../core/utils/profile_avatar_image_provider.dart';
 import '../../../../core/widgets/widgets.dart';
 import '../../../profile/providers/profile_providers.dart';
 
-// host view of a single booking (driver is guest)
+/// Host view of a single booking (driver is the guest)
 class BookingDetailsScreen extends ConsumerStatefulWidget {
   const BookingDetailsScreen({
     super.key,
@@ -28,7 +26,8 @@ class BookingDetailsScreen extends ConsumerStatefulWidget {
   final Listing? listing;
 
   @override
-  ConsumerState<BookingDetailsScreen> createState() => _BookingDetailsScreenState();
+  ConsumerState<BookingDetailsScreen> createState() =>
+      _BookingDetailsScreenState();
 }
 
 class _BookingDetailsScreenState extends ConsumerState<BookingDetailsScreen> {
@@ -60,18 +59,13 @@ class _BookingDetailsScreenState extends ConsumerState<BookingDetailsScreen> {
   }
 
   String get _fullAddress => [
-        _streetLine,
-        if (_localityLine.isNotEmpty) _localityLine,
-        if (_spotLabel != null && _spotLabel!.isNotEmpty) _spotLabel!,
-      ].join(', ');
+    _streetLine,
+    if (_localityLine.isNotEmpty) _localityLine,
+    if (_spotLabel != null && _spotLabel!.isNotEmpty) _spotLabel!,
+  ].join(', ');
 
   Future<void> _openDirections(BuildContext context) async {
-    final destination = Uri.encodeComponent(_fullAddress);
-    final url = Uri.parse('https://maps.apple.com/?daddr=$destination&dirflg=d');
-    if (await canLaunchUrl(url)) {
-      await launchUrl(url, mode: LaunchMode.externalApplication);
-      return;
-    }
+    if (await launchDrivingDirections(_fullAddress)) return;
     if (!context.mounted) return;
     AppMessenger.showError(context, 'Could not open directions.');
   }
@@ -104,8 +98,7 @@ class _BookingDetailsScreenState extends ConsumerState<BookingDetailsScreen> {
       data: (p) => p?.username != null ? '@${p!.username}' : '@guest',
       orElse: () => '@guest',
     );
-    final guestAvatar =
-        profileAvatarImageProvider(guestProfile.asData?.value);
+    final guestAvatar = profileAvatarImageProvider(guestProfile.asData?.value);
 
     final df = DateFormat('MMM d, y');
     final tf = DateFormat('h:mm a');
@@ -119,10 +112,7 @@ class _BookingDetailsScreenState extends ConsumerState<BookingDetailsScreen> {
 
     return Scaffold(
       backgroundColor: AppColors.surface,
-      appBar: const AppTopBar(
-        title: 'Booking details',
-        showBack: true,
-      ),
+      appBar: const AppTopBar(title: 'Booking details', showBack: true),
       body: AppDetailScrollBody(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -156,7 +146,9 @@ class _BookingDetailsScreenState extends ConsumerState<BookingDetailsScreen> {
                       toValue: toStr,
                       totalTimeLabel: formatDurationCompact(_totalTime),
                       timeLeftLabel: formatDurationCompact(_timeLeft),
-                      animatedKey: ValueKey<String>(formatDurationCompact(_timeLeft)),
+                      animatedKey: ValueKey<String>(
+                        formatDurationCompact(_timeLeft),
+                      ),
                     )
                   : AppDetailDurationTimingBlock(
                       fromValue: fromStr,

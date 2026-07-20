@@ -2,7 +2,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../models/host_earnings_row.dart';
 
-// read-only public.host_earnings
+/// Read-only public.host_earnings
 class HostEarningsRemote {
   HostEarningsRemote(this._client);
 
@@ -15,7 +15,9 @@ class HostEarningsRemote {
         .eq('host_id', hostId)
         .order('month', ascending: false);
     return (rows as List)
-        .map((e) => HostEarningsRow.fromJson(Map<String, dynamic>.from(e as Map)))
+        .map(
+          (e) => HostEarningsRow.fromJson(Map<String, dynamic>.from(e as Map)),
+        )
         .toList();
   }
 }

@@ -5,22 +5,23 @@ import '../models/listing.dart';
 import '../utils/time_step_minutes.dart';
 import 'listing_next_available.dart' show mergeBookingWindows;
 
-// 5min slots per day (24x12 steps)
+/// 5-minute slots per day (24×12 steps)
 const int kHeatmapSlotsPerDay = (24 * 60) ~/ TimeStepMinutes.step;
 
-// closed outside host hours, open bookable, booked by confirmed+active (pending doesn't block)
-enum AvailabilitySlotState {
-  hostClosed,
-  open,
-  booked,
-}
+/// closed outside host hours / open bookable / booked by confirmed+active (pending does not block)
+enum AvailabilitySlotState { hostClosed, open, booked }
 
-// host allowed window in local time
+/// host-allowed window in local time
 class OpenInterval {
   const OpenInterval({required this.start, required this.end});
 
   final DateTime start;
   final DateTime end;
+}
+
+int _pgDayToDartWeekday(int pg) {
+  final p = pg < 0 ? 0 : (pg > 6 ? 6 : pg);
+  return p == 0 ? DateTime.sunday : p;
 }
 
 List<OpenInterval> _mergeOpenIntervals(List<OpenInterval> raw) {
@@ -42,7 +43,7 @@ List<OpenInterval> _mergeOpenIntervals(List<OpenInterval> raw) {
   return out;
 }
 
-// host open intervals for day (local)
+/// merged host open intervals for [day] (local)
 List<OpenInterval> hostOpenIntervalsForDay(
   DateTime dayLocal,
   Listing listing,
@@ -56,7 +57,7 @@ List<OpenInterval> hostOpenIntervalsForDay(
   if (listing.isWeeklyAvailability && weekly.isNotEmpty) {
     final dartDow = dayStart.weekday;
     for (final w in weekly) {
-      if (AvailabilityWeekly.toDartWeekday(w.dayOfWeek) != dartDow) continue;
+      if (_pgDayToDartWeekday(w.dayOfWeek) != dartDow) continue;
       final sm = TimeStepMinutes.tryParseMinutesFromHhMm(w.startTime);
       final em = TimeStepMinutes.tryParseMinutesFromHhMm(w.endTime);
       if (sm == null || em == null || em <= sm) continue;
@@ -99,7 +100,7 @@ List<BookingTimeWindow> _bookingsForDay(
   return clipped;
 }
 
-// 5min grid: hostClosed vs open vs booked
+/// 5-min grid: hostClosed vs open vs booked
 List<AvailabilitySlotState> computeFiveMinuteSlotStates({
   required DateTime dayLocal,
   required Listing listing,
@@ -121,9 +122,7 @@ List<AvailabilitySlotState> computeFiveMinuteSlotStates({
 
   final slots = <AvailabilitySlotState>[];
   for (var i = 0; i < kHeatmapSlotsPerDay; i++) {
-    final slotStart = dayStart.add(
-      Duration(minutes: i * TimeStepMinutes.step),
-    );
+    final slotStart = dayStart.add(Duration(minutes: i * TimeStepMinutes.step));
     final slotEnd = slotStart.add(
       const Duration(minutes: TimeStepMinutes.step),
     );
@@ -145,7 +144,7 @@ List<AvailabilitySlotState> computeFiveMinuteSlotStates({
   return slots;
 }
 
-// 5min to 24hrs (booked wins, then open, else closed)
+/// 5-min → 24 hours (booked wins, then open, else closed)
 List<AvailabilitySlotState> aggregateFiveMinuteToHourly(
   List<AvailabilitySlotState> fiveMinute,
 ) {
@@ -157,7 +156,7 @@ List<AvailabilitySlotState> aggregateFiveMinuteToHourly(
   });
 }
 
-// 24 hourly to four 6hr blocks
+/// 24 hourly → four 6-hour blocks (same priority)
 List<AvailabilitySlotState> aggregateHourlyToFourBlocks(
   List<AvailabilitySlotState> hourly24,
 ) {
@@ -182,3 +181,19 @@ AvailabilitySlotState aggregateSlotSlice(
   return AvailabilitySlotState.open;
 }
 
+/// legacy bool grid — true only where [open]
+List<bool> computeFiveMinuteAvailabilityGrid({
+  required DateTime dayLocal,
+  required Listing listing,
+  required List<AvailabilityWeekly> weekly,
+  required List<AvailabilitySpecific> specific,
+  required List<BookingTimeWindow> bookings,
+}) {
+  return computeFiveMinuteSlotStates(
+    dayLocal: dayLocal,
+    listing: listing,
+    weekly: weekly,
+    specific: specific,
+    bookings: bookings,
+  ).map((s) => s == AvailabilitySlotState.open).toList();
+}

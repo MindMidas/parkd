@@ -1,4 +1,4 @@
-// passed from ConfirmPayScreen through ReservationCheckoutTermsScreen for Supabase + Stripe
+/// Passed from [ConfirmPayScreen] through [ReservationCheckoutTermsScreen] for Supabase + Stripe
 class ReservationCheckoutArgs {
   const ReservationCheckoutArgs({
     required this.listingId,

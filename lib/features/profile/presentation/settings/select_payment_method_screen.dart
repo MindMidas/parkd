@@ -8,7 +8,7 @@ import '../../../../core/widgets/widgets.dart';
 import '../../providers/payment_method_provider.dart';
 import '../../providers/profile_providers.dart';
 
-// tap a pill to set default id to pop
+// Tap a pill → set default id → pop
 class SelectPaymentMethodScreen extends ConsumerWidget {
   const SelectPaymentMethodScreen({super.key});
 
@@ -25,11 +25,10 @@ class SelectPaymentMethodScreen extends ConsumerWidget {
       appBar: const AppTopBar(title: 'Payment method', showBack: true),
       body: methodsAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
-        error: (e, st) =>
-            const AppMutedBodyCenter('Could not load cards.'),
+        error: (e, st) => const Center(child: Text('Could not load cards.')),
         data: (methods) {
           if (methods.isEmpty) {
-            return const AppMutedBodyCenter('No saved cards.');
+            return const Center(child: Text('No saved cards.'));
           }
           return ListView.separated(
             padding: const EdgeInsets.symmetric(
@@ -46,7 +45,9 @@ class SelectPaymentMethodScreen extends ConsumerWidget {
                 lastFour: _last4(m),
                 selected: selected,
                 onTap: () {
-                  ref.read(selectedPaymentMethodIdProvider.notifier).select(m.id);
+                  ref
+                      .read(selectedPaymentMethodIdProvider.notifier)
+                      .select(m.id);
                   Navigator.of(context).maybePop();
                 },
               );

@@ -1,4 +1,7 @@
-// public.listings (+ embed hero url)
+import 'availability_specific.dart';
+import 'availability_weekly.dart';
+
+/// public.listings (+ embed hero url); rates on availability rows — supabase/schema.sql
 class ListingAvailabilityMode {
   static const weekly = 'weekly';
   static const specific = 'specific';
@@ -22,7 +25,15 @@ class Listing {
     this.termsAcceptedAt,
     this.createdAt,
     this.updatedAt,
-    // hero image URL for list rows (from embedded 'listing_photos', not DB column)
+
+    /// Public discovery rows intentionally contain only a coarse location.
+    this.isApproximateLocation = false,
+    this.minHourlyPrice,
+    this.minDailyPrice,
+    this.publicWeeklyAvailability = const [],
+    this.publicSpecificAvailability = const [],
+
+    /// Hero image URL for list rows (from embedded `listing_photos`, not a DB column)
     this.heroPhotoUrl,
   });
 
@@ -42,6 +53,11 @@ class Listing {
   final DateTime? termsAcceptedAt;
   final DateTime? createdAt;
   final DateTime? updatedAt;
+  final bool isApproximateLocation;
+  final double? minHourlyPrice;
+  final double? minDailyPrice;
+  final List<AvailabilityWeekly> publicWeeklyAvailability;
+  final List<AvailabilitySpecific> publicSpecificAvailability;
 
   final String? heroPhotoUrl;
 
@@ -84,16 +100,24 @@ class Listing {
       availabilityMode == ListingAvailabilityMode.specific;
 
   static Listing fromJson(Map<String, dynamic> json) {
+    final isPublicCard = json.containsKey('approximate_latitude');
+    final id = json['id'] as String;
     return Listing(
-      id: json['id'] as String,
+      id: id,
       hostId: json['host_id'] as String,
-      address: json['address'] as String? ?? '',
+      address:
+          json['address'] as String? ?? json['display_name'] as String? ?? '',
       city: json['city'] as String? ?? '',
-      postalCode: json['postal_code'] as String?,
+      postalCode:
+          json['postal_code'] as String? ?? json['postal_area'] as String?,
       country: json['country'] as String? ?? 'Canada',
       spotNumber: json['spot_number'] as String?,
-      latitude: (json['latitude'] as num).toDouble(),
-      longitude: (json['longitude'] as num).toDouble(),
+      latitude:
+          (json['latitude'] as num? ?? json['approximate_latitude'] as num)
+              .toDouble(),
+      longitude:
+          (json['longitude'] as num? ?? json['approximate_longitude'] as num)
+              .toDouble(),
       availabilityMode:
           (json['availability_mode'] as String?) ??
           ListingAvailabilityMode.weekly,
@@ -109,8 +133,47 @@ class Listing {
       updatedAt: json['updated_at'] != null
           ? DateTime.parse(json['updated_at'] as String)
           : null,
+      isApproximateLocation: isPublicCard,
+      minHourlyPrice: (json['min_hourly_price'] as num?)?.toDouble(),
+      minDailyPrice: (json['min_daily_price'] as num?)?.toDouble(),
+      publicWeeklyAvailability: _weeklyFromPublicJson(
+        json['weekly_availability'],
+        id,
+      ),
+      publicSpecificAvailability: _specificFromPublicJson(
+        json['specific_availability'],
+        id,
+      ),
       heroPhotoUrl: _nonEmptyString(json['hero_photo_url']),
     );
+  }
+
+  static List<AvailabilityWeekly> _weeklyFromPublicJson(
+    dynamic raw,
+    String listingId,
+  ) {
+    if (raw is! List) return const [];
+    return raw
+        .map((value) {
+          final row = Map<String, dynamic>.from(value as Map);
+          row['listing_id'] ??= listingId;
+          return AvailabilityWeekly.fromJson(row);
+        })
+        .toList(growable: false);
+  }
+
+  static List<AvailabilitySpecific> _specificFromPublicJson(
+    dynamic raw,
+    String listingId,
+  ) {
+    if (raw is! List) return const [];
+    return raw
+        .map((value) {
+          final row = Map<String, dynamic>.from(value as Map);
+          row['listing_id'] ??= listingId;
+          return AvailabilitySpecific.fromJson(row);
+        })
+        .toList(growable: false);
   }
 
   static String? _nonEmptyString(dynamic v) {
@@ -136,6 +199,17 @@ class Listing {
     'terms_accepted_at': termsAcceptedAt?.toIso8601String(),
     'created_at': createdAt?.toIso8601String(),
     'updated_at': updatedAt?.toIso8601String(),
+    'is_approximate_location': isApproximateLocation,
+    'min_hourly_price': minHourlyPrice,
+    'min_daily_price': minDailyPrice,
+    if (publicWeeklyAvailability.isNotEmpty)
+      'weekly_availability': publicWeeklyAvailability
+          .map((slot) => slot.toJson())
+          .toList(),
+    if (publicSpecificAvailability.isNotEmpty)
+      'specific_availability': publicSpecificAvailability
+          .map((slot) => slot.toJson())
+          .toList(),
     if (heroPhotoUrl != null) 'hero_photo_url': heroPhotoUrl,
   };
 }

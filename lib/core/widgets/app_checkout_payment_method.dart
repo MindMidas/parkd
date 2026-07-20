@@ -1,4 +1,4 @@
-// Checkout row in the same price card as the breakdown
+// Checkout payment row inside the same titled outline card as price breakdown. README.md
 import 'package:flutter/material.dart';
 
 import '../theme/app_colors.dart';
@@ -39,10 +39,7 @@ class AppCheckoutPaymentMethodField extends StatelessWidget {
                     TextSpan(
                       style: AppTypography.body,
                       children: [
-                        TextSpan(
-                          text: brand,
-                          style: AppTypography.bodyStrong,
-                        ),
+                        TextSpan(text: brand, style: AppTypography.bodyStrong),
                         TextSpan(
                           text: ' •••• $lastFour',
                           style: AppTypography.bodyMuted,

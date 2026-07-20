@@ -1,51 +1,90 @@
-import 'dart:convert';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
-import 'package:http/http.dart' as http;
-
-import 'map_constants.dart';
 import '../models/search_result.dart';
+import 'map_constants.dart';
 
-// Nominatim/Photon needs userAgent
-const _userAgent = 'Parkd/1.0 (student project; +https://github.com/parkd-app)';
+/// Guelph default center — same as [MapConstants].
+const double kDefaultMapLat = MapConstants.defaultLatitude;
+const double kDefaultMapLon = MapConstants.defaultLongitude;
+const double kDefaultMapZoom = MapConstants.defaultZoom;
 
-// address search: Photon + Nominatim (map tiles stay Mapbox)
+/// Searches through the Parkd Edge proxy.
+///
+/// Browsers and mobile clients never call Nominatim or Photon directly. The
+/// proxy supplies the required contact identity, normalizes responses, applies
+/// a per-user/IP rate limit, and can fail over between providers.
 Future<List<SearchResult>> searchAddressesForParkd(String query) async {
   final q = query.trim();
-  if (q.isEmpty) return [];
-
-  final looksLikeStreetAddress = RegExp(r'\d').hasMatch(q);
-
-  if (looksLikeStreetAddress) {
-    List<SearchResult> nom = [];
-    List<SearchResult> photon = [];
-    try {
-      nom = await _nominatimSearchAddresses(q);
-    } catch (_) {}
-    try {
-      photon = await _photonSearchAddresses(q);
-    } catch (_) {}
-    final merged = _dedupeSearchResults([...nom, ...photon]);
-    if (merged.isEmpty) return [];
-    return _rankResultsForQuery(merged, q);
+  if (q.isEmpty) return const [];
+  if (q.length > 160) {
+    throw const GeocodingException('Search text is too long.');
   }
 
   try {
-    final photon = await _photonSearchAddresses(q);
-    if (photon.isNotEmpty) {
-      return _rankResultsForQuery(_dedupeSearchResults(photon), q);
+    final response = await Supabase.instance.client.functions.invoke(
+      'geocode-search',
+      body: {'q': q, 'limit': 8},
+    );
+    if (response.status != 200) {
+      throw GeocodingException(_errorMessage(response.data));
     }
-  } catch (_) {}
+    final data = response.data;
+    if (data is! Map || data['results'] is! List) {
+      throw const GeocodingException(
+        'The address service returned an invalid response.',
+      );
+    }
 
-  try {
-    final nom = await _nominatimSearchAddresses(q);
-    return _rankResultsForQuery(_dedupeSearchResults(nom), q);
+    final results = <SearchResult>[];
+    for (final value in data['results'] as List) {
+      if (value is! Map) continue;
+      final row = Map<String, dynamic>.from(value);
+      final displayName = row['display_name'];
+      final latitude = _coordinate(row['lat']);
+      final longitude = _coordinate(row['lon']);
+      if (displayName is! String ||
+          displayName.trim().isEmpty ||
+          latitude == null ||
+          longitude == null ||
+          latitude < -90 ||
+          latitude > 90 ||
+          longitude < -180 ||
+          longitude > 180) {
+        continue;
+      }
+      results.add(
+        SearchResult(
+          displayName: displayName.trim(),
+          lat: latitude,
+          lon: longitude,
+          road: _string(row['road']),
+          houseNumber: _string(row['house_number']),
+          city: _string(row['city']),
+          state: _string(row['state']),
+          postcode: _string(row['postcode']),
+        ),
+      );
+    }
+    return _rankResultsForQuery(_dedupeSearchResults(results), q);
+  } on FunctionException catch (error) {
+    throw GeocodingException(_errorMessage(error.details));
+  } on GeocodingException {
+    rethrow;
   } catch (_) {
-    return [];
+    throw const GeocodingException(
+      'Address search is temporarily unavailable. Try again shortly.',
+    );
   }
 }
 
-// Nominatim + photon often return same place with different displayName strings
-// so dedupe by rounded coordinates and keep clearest label
+/// Backwards-compatible name used by map call sites.
+Future<List<SearchResult>> nominatimSearchAddresses(String query) =>
+    searchAddressesForParkd(query);
+
+/// Create-listing step: geocoded addresses/places only.
+Future<List<SearchResult>> searchAddressesForCreateListing(String query) =>
+    searchAddressesForParkd(query);
+
 List<SearchResult> _dedupeSearchResults(List<SearchResult> results) {
   if (results.isEmpty) return results;
   final sorted = [...results]
@@ -53,221 +92,85 @@ List<SearchResult> _dedupeSearchResults(List<SearchResult> results) {
       (a, b) => _duplicateQualityScore(b).compareTo(_duplicateQualityScore(a)),
     );
   final seen = <String>{};
-  final out = <SearchResult>[];
-  for (final r in sorted) {
-    final key = '${r.lat.toStringAsFixed(5)}_${r.lon.toStringAsFixed(5)}';
-    if (seen.contains(key)) continue;
-    seen.add(key);
-    out.add(r);
-    if (out.length >= 18) break;
+  final output = <SearchResult>[];
+  for (final result in sorted) {
+    final key =
+        '${result.lat.toStringAsFixed(5)}_${result.lon.toStringAsFixed(5)}';
+    if (!seen.add(key)) continue;
+    output.add(result);
+    if (output.length >= 8) break;
   }
-  return out;
+  return output;
 }
 
-// prefer full street lines over jus house nums when coords collide
-int _duplicateQualityScore(SearchResult r) {
-  var s = 0;
-  final hn = r.houseNumber.trim();
-  final road = r.road.trim();
-  if (hn.isNotEmpty && road.isNotEmpty) s += 500;
-  if (hn.isNotEmpty) s += 40;
-  if (road.isNotEmpty) s += 40;
-
-  final (title, _) = r.listTitleAndSubtitle;
-  final t = title.trim();
-  if (RegExp(r'^\d+$').hasMatch(t)) s -= 400;
-  if (RegExp(r'^\d+\s+\S').hasMatch(t)) s += 200;
-
-  s += (r.displayName.length ~/ 6).clamp(0, 35);
-  return s;
+int _duplicateQualityScore(SearchResult result) {
+  var score = 0;
+  final houseNumber = result.houseNumber.trim();
+  final road = result.road.trim();
+  if (houseNumber.isNotEmpty && road.isNotEmpty) score += 500;
+  if (houseNumber.isNotEmpty) score += 40;
+  if (road.isNotEmpty) score += 40;
+  final (title, _) = result.listTitleAndSubtitle;
+  if (RegExp(r'^\d+$').hasMatch(title.trim())) score -= 400;
+  if (RegExp(r'^\d+\s+\S').hasMatch(title.trim())) score += 200;
+  return score + (result.displayName.length ~/ 6).clamp(0, 35);
 }
 
-// Prefer exact house-num matches and query token overlap
-List<SearchResult> _rankResultsForQuery(List<SearchResult> results, String q) {
+List<SearchResult> _rankResultsForQuery(
+  List<SearchResult> results,
+  String query,
+) {
   if (results.length <= 1) return results;
-  final qTrim = q.trim();
-  final qLower = qTrim.toLowerCase();
-  final tokens = qLower
+  final normalizedQuery = query.trim().toLowerCase();
+  final tokens = normalizedQuery
       .split(RegExp(r'\s+'))
-      .where((s) => s.length >= 2)
+      .where((token) => token.length >= 2)
       .toList();
-  final wantedHouse = RegExp(r'^(\d+)\b').firstMatch(qTrim)?.group(1);
+  final wantedHouse = RegExp(r'^(\d+)\b').firstMatch(query.trim())?.group(1);
 
-  final scored = results.map((r) {
+  final scored = results.map((result) {
     var score = 0;
-    final dn = r.displayName.toLowerCase();
-    final hn = r.houseNumber.trim();
-    if (wantedHouse != null && hn.isNotEmpty) {
-      if (hn == wantedHouse) {
+    final displayName = result.displayName.toLowerCase();
+    final houseNumber = result.houseNumber.trim();
+    if (wantedHouse != null && houseNumber.isNotEmpty) {
+      if (houseNumber == wantedHouse) {
         score += 200;
-      } else if (hn.startsWith(wantedHouse)) {
+      } else if (houseNumber.startsWith(wantedHouse)) {
         score += 80;
       }
     }
-    if (dn.contains(qLower)) score += 40;
-    for (final t in tokens) {
-      if (dn.contains(t)) score += 6;
+    if (displayName.contains(normalizedQuery)) score += 40;
+    for (final token in tokens) {
+      if (displayName.contains(token)) score += 6;
     }
-    return MapEntry(score, r);
+    return MapEntry(score, result);
   }).toList()..sort((a, b) => b.key.compareTo(a.key));
-
-  return scored.map((e) => e.value).toList();
+  return scored.map((entry) => entry.value).toList(growable: false);
 }
 
-// Photon (komoot)
+double? _coordinate(Object? value) {
+  if (value is num) return value.toDouble();
+  if (value is String) return double.tryParse(value);
+  return null;
+}
 
-Future<List<SearchResult>> _photonSearchAddresses(String query) async {
-  final uri = Uri.https('photon.komoot.io', '/api', {
-    'q': query,
-    'limit': '12',
-    'lang': 'en',
-    // bias toward Guelph/Wellington County area (minLon, minLat, maxLon, maxLat)
-    'bbox': '-80.75,43.35,-79.95,43.75',
-    // proximity bias (Photon), city center improves street-level rank
-    'lat': '${MapConstants.defaultLatitude}',
-    'lon': '${MapConstants.defaultLongitude}',
-  });
+String _string(Object? value) => value is String ? value.trim() : '';
 
-  final response = await http.get(
-    uri,
-    headers: {'User-Agent': _userAgent, 'Accept': 'application/json'},
-  );
-
-  if (response.statusCode != 200) return [];
-
-  final decoded = json.decode(response.body);
-  if (decoded is! Map) return [];
-  final root = Map<String, dynamic>.from(decoded);
-  final features = root['features'];
-  if (features is! List<dynamic>) return [];
-
-  final out = <SearchResult>[];
-  for (final raw in features) {
-    if (raw is! Map) continue;
-    try {
-      final f = Map<String, dynamic>.from(raw);
-      final geom = f['geometry'];
-      if (geom is! Map) continue;
-      final geomMap = Map<String, dynamic>.from(geom);
-      final coords = geomMap['coordinates'];
-      if (coords is! List || coords.length < 2) continue;
-      final lon = (coords[0] as num).toDouble();
-      final lat = (coords[1] as num).toDouble();
-
-      final props = f['properties'];
-      final p = props is Map
-          ? Map<String, dynamic>.from(props)
-          : <String, dynamic>{};
-
-      final name = p['name'] as String? ?? '';
-      final street = p['street'] as String? ?? '';
-      final housenumber = p['housenumber'] as String? ?? '';
-      final city =
-          p['city'] as String? ??
-          p['town'] as String? ??
-          p['district'] as String? ??
-          '';
-      final state = p['state'] as String? ?? '';
-      final postcode = p['postcode'] as String? ?? '';
-      final country = p['country'] as String? ?? '';
-
-      final line1 = [
-        if (housenumber.isNotEmpty) housenumber,
-        if (street.isNotEmpty) street,
-      ].join(' ').trim();
-
-      final displayName = [
-        if (name.isNotEmpty) name,
-        if (line1.isNotEmpty) line1,
-        if (city.isNotEmpty) city,
-        if (state.isNotEmpty) state,
-        if (postcode.isNotEmpty) postcode,
-        if (country.isNotEmpty) country,
-      ].where((s) => s.isNotEmpty).join(', ');
-
-      if (displayName.isEmpty) continue;
-
-      out.add(
-        SearchResult(
-          displayName: displayName,
-          lat: lat,
-          lon: lon,
-          road: street,
-          houseNumber: housenumber,
-          city: city,
-          state: state,
-          postcode: postcode,
-        ),
-      );
-    } catch (_) {
-      continue;
-    }
+String _errorMessage(Object? data) {
+  if (data is Map) {
+    final error = data['error'];
+    if (error is String && error.trim().isNotEmpty) return error.trim();
+    final message = data['message'];
+    if (message is String && message.trim().isNotEmpty) return message.trim();
   }
-  return out;
+  return 'Address search is temporarily unavailable. Try again shortly.';
 }
 
-Future<List<SearchResult>> _nominatimSearchAddresses(String query) async {
-  final uri = Uri.https('nominatim.openstreetmap.org', '/search', {
-    'q': query,
-    'format': 'json',
-    'addressdetails': '1',
-    'limit': '15',
-    'countrycodes': 'ca',
-    'viewbox': '-80.75,43.75,-79.95,43.35',
-    'bounded': '0',
-  });
+class GeocodingException implements Exception {
+  const GeocodingException(this.message);
 
-  final response = await http.get(
-    uri,
-    headers: {'User-Agent': _userAgent, 'Accept': 'application/json'},
-  );
+  final String message;
 
-  if (response.statusCode != 200) return [];
-
-  final decoded = json.decode(response.body);
-  if (decoded is Map) return [];
-  if (decoded is! List<dynamic>) return [];
-
-  final out = <SearchResult>[];
-  for (final raw in decoded) {
-    if (raw is! Map) continue;
-    try {
-      final item = Map<String, dynamic>.from(raw);
-      final addr = item['address'];
-      final addrMap = addr is Map
-          ? Map<String, dynamic>.from(addr)
-          : <String, dynamic>{};
-
-      final name = item['display_name'];
-      if (name is! String || name.isEmpty) continue;
-
-      out.add(
-        SearchResult(
-          displayName: name,
-          lat: _parseCoord(item['lat']),
-          lon: _parseCoord(item['lon']),
-          road: addrMap['road'] as String? ?? '',
-          houseNumber: addrMap['house_number'] as String? ?? '',
-          city:
-              addrMap['city'] as String? ??
-              addrMap['town'] as String? ??
-              addrMap['village'] as String? ??
-              addrMap['hamlet'] as String? ??
-              '',
-          state: addrMap['state'] as String? ?? '',
-          postcode: addrMap['postcode'] as String? ?? '',
-        ),
-      );
-    } catch (_) {
-      continue;
-    }
-  }
-  return out;
-}
-
-double _parseCoord(dynamic v) {
-  if (v == null) throw FormatException('missing coordinate');
-  if (v is num) return v.toDouble();
-  if (v is String) return double.parse(v);
-  throw FormatException('invalid coordinate');
+  @override
+  String toString() => message;
 }

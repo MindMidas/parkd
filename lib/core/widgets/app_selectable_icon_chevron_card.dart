@@ -4,7 +4,7 @@ import '../theme/app_colors.dart';
 import '../theme/app_spacing.dart';
 import '../theme/app_typography.dart';
 
-// Tappable row with fat leading icon + title/subtitle (weekly vs specific picker)
+// Tappable row with fat leading icon + title/subtitle (weekly vs specific picker, etc)
 class AppSelectableIconChevronCard extends StatelessWidget {
   const AppSelectableIconChevronCard({
     super.key,

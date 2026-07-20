@@ -3,7 +3,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/chat_message_row.dart';
 import '../models/conversation_row.dart';
 
-// conversations + messages, participants set by trigger on insert
+/// conversations + messages — participants set by trigger on insert
 class ConversationsRemote {
   ConversationsRemote(this._client);
 
@@ -33,7 +33,9 @@ class ConversationsRemote {
         .or('host_id.eq.$userId,driver_id.eq.$userId')
         .order('updated_at', ascending: false);
     return (rows as List)
-        .map((e) => ConversationRow.fromJson(Map<String, dynamic>.from(e as Map)))
+        .map(
+          (e) => ConversationRow.fromJson(Map<String, dynamic>.from(e as Map)),
+        )
         .toList();
   }
 
@@ -46,11 +48,13 @@ class ConversationsRemote {
         .select()
         .inFilter('reservation_id', reservationIds);
     return (rows as List)
-        .map((e) => ConversationRow.fromJson(Map<String, dynamic>.from(e as Map)))
+        .map(
+          (e) => ConversationRow.fromJson(Map<String, dynamic>.from(e as Map)),
+        )
         .toList();
   }
 
-  // latest message text per convo (one query)
+  /// Latest message text per conversation (one query)
   Future<Map<String, String>> lastMessagePreviewByConversationId(
     Iterable<String> conversationIds,
   ) async {
@@ -79,8 +83,26 @@ class ConversationsRemote {
         .eq('conversation_id', conversationId)
         .order('created_at', ascending: true);
     return (rows as List)
-        .map((e) => ChatMessageRow.fromJson(Map<String, dynamic>.from(e as Map)))
+        .map(
+          (e) => ChatMessageRow.fromJson(Map<String, dynamic>.from(e as Map)),
+        )
         .toList();
+  }
+
+  Stream<List<ChatMessageRow>> watchMessages(String conversationId) {
+    return _client
+        .from('messages')
+        .stream(primaryKey: ['id'])
+        .eq('conversation_id', conversationId)
+        .order('created_at', ascending: true)
+        .map(
+          (rows) => rows
+              .map(
+                (row) =>
+                    ChatMessageRow.fromJson(Map<String, dynamic>.from(row)),
+              )
+              .toList(growable: false),
+        );
   }
 
   Future<ChatMessageRow> sendMessage({
@@ -101,6 +123,9 @@ class ConversationsRemote {
   }
 
   Future<void> markMessageRead(String messageId) async {
-    await _client.from('messages').update({'status': 'read'}).eq('id', messageId);
+    await _client
+        .from('messages')
+        .update({'status': 'read'})
+        .eq('id', messageId);
   }
 }

@@ -6,10 +6,13 @@ import 'package:mapbox_maps_flutter/mapbox_maps_flutter.dart';
 
 import '../../../core/assets/parkd_assets.dart';
 import '../../../core/map/map_constants.dart';
+import '../../../core/map/mapbox_runtime.dart';
 import '../../../core/map/mapbox_ornaments.dart';
 import '../../../core/models/listing.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../../core/widgets/app_static_map_preview.dart';
 
+// Mapbox + listing pins; optional draft pin for host create flow
 class MapView extends StatefulWidget {
   const MapView({
     super.key,
@@ -73,6 +76,7 @@ bool _sameListingIds(List<Listing> a, List<Listing> b) {
 class _MapViewState extends State<MapView> {
   static const double _listingPinScale = 0.68;
   static const double _draftPinScale = 0.70;
+  static const String _mapTapInteractionId = 'parkd-map-surface-tap';
 
   MapboxMap? _map;
   PointAnnotationManager? _pointManager;
@@ -88,10 +92,12 @@ class _MapViewState extends State<MapView> {
     await applyParkdMapCompass(mapboxMap, marginBottom: compassMb);
     await hideStreetStylePoiLayers(mapboxMap);
 
-    final listingBytes =
-        (await rootBundle.load(ParkdAssets.mapPinPng)).buffer.asUint8List();
-    final draftBytes =
-        (await rootBundle.load(ParkdAssets.mapPinDraftPng)).buffer.asUint8List();
+    final listingBytes = (await rootBundle.load(
+      ParkdAssets.mapPinPng,
+    )).buffer.asUint8List();
+    final draftBytes = (await rootBundle.load(
+      ParkdAssets.mapPinDraftPng,
+    )).buffer.asUint8List();
     _listingPinImage = listingBytes;
     _draftPinImage = draftBytes;
 
@@ -124,10 +130,14 @@ class _MapViewState extends State<MapView> {
       },
     );
     await _syncAnnotations();
-    mapboxMap.setOnMapTapListener(_handleMapTap);
+    mapboxMap.addInteraction(
+      TapInteraction.onMap(_handleMapTap),
+      interactionID: _mapTapInteractionId,
+    );
 
-    // Location puck is turned on from HomeMapScreen when GPS permission is ok
-    // stays off if denied so we do not show a fake dot
+    // Location puck is configured in [HomeMapScreen] only when permission is
+    // granted (person icon + GPS). Stays off if denied so we don't prompt with
+    // a misleading dot
     widget.onMapReady?.call(mapboxMap);
   }
 
@@ -154,8 +164,7 @@ class _MapViewState extends State<MapView> {
 
     final draft = widget.draftPin;
     if (draft != null) {
-      final pinBytes =
-          widget.useListingPinForDraft ? listingImg : draftImg;
+      final pinBytes = widget.useListingPinForDraft ? listingImg : draftImg;
       final scale = widget.useListingPinForDraft
           ? _listingPinScale
           : _draftPinScale;
@@ -190,8 +199,8 @@ class _MapViewState extends State<MapView> {
   @override
   void didUpdateWidget(MapView oldWidget) {
     super.didUpdateWidget(oldWidget);
-    final mapTapToggled = (widget.onMapContentTap != null) !=
-        (oldWidget.onMapContentTap != null);
+    final mapTapToggled =
+        (widget.onMapContentTap != null) != (oldWidget.onMapContentTap != null);
     if (!_sameListingIds(widget.listings, oldWidget.listings) ||
         widget.draftPin != oldWidget.draftPin ||
         mapTapToggled) {
@@ -216,13 +225,16 @@ class _MapViewState extends State<MapView> {
   void dispose() {
     _tapCancel?.cancel();
     _dragCancel?.cancel();
-    _map?.setOnMapTapListener(null);
+    _map?.removeInteraction(_mapTapInteractionId);
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    // Mapbox iOS may read GlobalKey size before layout if constraints are loose
+    // Mapbox iOS calls `GlobalKey.currentContext.size` from `onPlatformViewCreated`
+    // before layout can complete if the view only sees loose/unbounded constraints
+    // Pin explicit width/height from the nearest bounded constraints so the first
+    // layout pass has a definite size (see mapbox_maps_flutter MapWidgetState)
     return LayoutBuilder(
       builder: (context, constraints) {
         final mq = MediaQuery.sizeOf(context);
@@ -235,6 +247,25 @@ class _MapViewState extends State<MapView> {
         if (w <= 0 || h <= 0) {
           return const SizedBox.shrink();
         }
+        if (!supportsNativeMapboxMaps) {
+          final isPinAdjustment = widget.onMapContentTap != null;
+          return SizedBox(
+            width: w,
+            height: h,
+            child: AppStaticMapPreview(
+              title: isPinAdjustment
+                  ? 'Using your selected address'
+                  : 'Interactive map available on mobile',
+              message: isPinAdjustment
+                  ? 'Exact pin adjustment is available on iOS and Android. '
+                        'On this device, the searched location will be used.'
+                  : 'Browse parking spots in the list, or use Parkd on iOS or '
+                        'Android for the interactive map.',
+              pinCount: widget.draftPin == null ? widget.listings.length : 1,
+              compact: false,
+            ),
+          );
+        }
         return SizedBox(
           width: w,
           height: h,
@@ -245,7 +276,7 @@ class _MapViewState extends State<MapView> {
               MapWidget(
                 key: ValueKey(widget.mapLayerId),
                 styleUri: widget.styleUri,
-                cameraOptions: CameraOptions(
+                viewport: CameraViewportState(
                   center: Point(
                     coordinates: Position(
                       widget.initialLongitude,

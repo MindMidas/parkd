@@ -22,10 +22,9 @@ class AppFormScrollBody extends StatelessWidget {
   Widget build(BuildContext context) {
     final bottom = scrollViewBottomInset(context);
     return SingleChildScrollView(
-      physics: physics ??
-          const BouncingScrollPhysics(
-            parent: AlwaysScrollableScrollPhysics(),
-          ),
+      physics:
+          physics ??
+          const BouncingScrollPhysics(parent: AlwaysScrollableScrollPhysics()),
       padding: EdgeInsets.fromLTRB(
         horizontalPadding,
         topPadding,
@@ -37,7 +36,7 @@ class AppFormScrollBody extends StatelessWidget {
   }
 }
 
-// Vertical padding only, rows/dividers go full width; sections pad themselves
+// Vertical padding only — rows/dividers go full width; sections pad themselves
 class AppMenuScrollBody extends StatelessWidget {
   const AppMenuScrollBody({
     super.key,
@@ -56,14 +55,10 @@ class AppMenuScrollBody extends StatelessWidget {
   Widget build(BuildContext context) {
     final bottom = scrollViewBottomInset(context);
     return SingleChildScrollView(
-      physics: physics ??
-          const BouncingScrollPhysics(
-            parent: AlwaysScrollableScrollPhysics(),
-          ),
-      padding: EdgeInsets.only(
-        top: topPadding,
-        bottom: bottomPadding + bottom,
-      ),
+      physics:
+          physics ??
+          const BouncingScrollPhysics(parent: AlwaysScrollableScrollPhysics()),
+      padding: EdgeInsets.only(top: topPadding, bottom: bottomPadding + bottom),
       child: child,
     );
   }

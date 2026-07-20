@@ -39,8 +39,9 @@ Future<int?> showAppTimePickerMinutes({
                     onPressed: () => Navigator.pop(ctx),
                     child: Text(
                       'Cancel',
-                      style: AppTypography.bodySecondary
-                          .copyWith(color: AppColors.iconGrey),
+                      style: AppTypography.bodySecondary.copyWith(
+                        color: AppColors.iconGrey,
+                      ),
                     ),
                   ),
                   CupertinoButton(
@@ -52,10 +53,7 @@ Future<int?> showAppTimePickerMinutes({
                         m.clamp(0, TimeStepMinutes.maxMinutes),
                       );
                     },
-                    child: Text(
-                      'Done',
-                      style: AppTypography.textAction,
-                    ),
+                    child: Text('Done', style: AppTypography.textAction),
                   ),
                 ],
               ),
@@ -129,14 +127,18 @@ class _AllowedMinutesPickerSheet extends StatefulWidget {
       _AllowedMinutesPickerSheetState();
 }
 
-class _AllowedMinutesPickerSheetState extends State<_AllowedMinutesPickerSheet> {
+class _AllowedMinutesPickerSheetState
+    extends State<_AllowedMinutesPickerSheet> {
   late int _selectedIndex;
   late FixedExtentScrollController _controller;
 
   @override
   void initState() {
     super.initState();
-    _selectedIndex = widget.initialIndex.clamp(0, widget.allowedMinutes.length - 1);
+    _selectedIndex = widget.initialIndex.clamp(
+      0,
+      widget.allowedMinutes.length - 1,
+    );
     _controller = FixedExtentScrollController(initialItem: _selectedIndex);
   }
 
@@ -169,8 +171,9 @@ class _AllowedMinutesPickerSheetState extends State<_AllowedMinutesPickerSheet> 
                   onPressed: () => Navigator.pop(context),
                   child: Text(
                     'Cancel',
-                    style: AppTypography.bodySecondary
-                        .copyWith(color: AppColors.iconGrey),
+                    style: AppTypography.bodySecondary.copyWith(
+                      color: AppColors.iconGrey,
+                    ),
                   ),
                 ),
                 CupertinoButton(
@@ -179,10 +182,7 @@ class _AllowedMinutesPickerSheetState extends State<_AllowedMinutesPickerSheet> 
                     context,
                     widget.allowedMinutes[_selectedIndex],
                   ),
-                  child: Text(
-                    'Done',
-                    style: AppTypography.textAction,
-                  ),
+                  child: Text('Done', style: AppTypography.textAction),
                 ),
               ],
             ),
@@ -201,9 +201,8 @@ class _AllowedMinutesPickerSheetState extends State<_AllowedMinutesPickerSheet> 
                   onSelectedItemChanged: (i) => _selectedIndex = i,
                   children: widget.allowedMinutes
                       .map(
-                        (m) => Center(
-                          child: Text(TimeStepMinutes.formatAmPm(m)),
-                        ),
+                        (m) =>
+                            Center(child: Text(TimeStepMinutes.formatAmPm(m))),
                       )
                       .toList(),
                 ),

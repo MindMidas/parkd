@@ -4,14 +4,13 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/models/payment_method_row.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_spacing.dart';
-import '../../../../core/utils/scroll_view_bottom_inset.dart';
 import '../../../../core/widgets/widgets.dart';
 import '../../providers/payment_method_provider.dart';
 import '../../providers/profile_providers.dart';
 import 'add_card_screen.dart';
 import 'select_payment_method_screen.dart';
 
-// all saved cards, default picker, FAB-style add
+// All saved cards, default picker, FAB-style add
 class AllCardsScreen extends ConsumerWidget {
   const AllCardsScreen({super.key});
 
@@ -29,8 +28,7 @@ class AllCardsScreen extends ConsumerWidget {
       appBar: const AppTopBar(title: 'All Cards', showBack: true),
       body: methodsAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
-        error: (e, st) =>
-            const AppMutedBodyCenter('Could not load cards.'),
+        error: (e, st) => const Center(child: Text('Could not load cards.')),
         data: (cards) {
           final defaultRow = method ?? (cards.isNotEmpty ? cards.first : null);
           return SingleChildScrollView(
@@ -69,7 +67,9 @@ class AllCardsScreen extends ConsumerWidget {
                     children: [
                       if (cards.isEmpty)
                         const Padding(
-                          padding: EdgeInsets.symmetric(vertical: AppSpacing.md),
+                          padding: EdgeInsets.symmetric(
+                            vertical: AppSpacing.md,
+                          ),
                           child: Text('No cards yet.'),
                         )
                       else

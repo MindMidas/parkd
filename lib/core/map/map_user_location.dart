@@ -8,13 +8,16 @@ import 'package:url_launcher/url_launcher.dart';
 import '../theme/app_colors.dart';
 import 'map_constants.dart';
 
-// Centers map on user when permission and services allow, otherwise on def map center (Guelph)
+/// Centers [map] on the user when permission and services allow; otherwise on
+/// the default map center (Guelph). Matches the simple “try GPS first” behavior
+/// used for create-listing / embedded maps (no first-run dialog)
 Future<void> tryCenterMapOnUserLocation(MapboxMap map) async {
   var perm = await geo.Geolocator.checkPermission();
   if (perm == geo.LocationPermission.denied) {
     perm = await geo.Geolocator.requestPermission();
   }
-  final granted = perm == geo.LocationPermission.whileInUse ||
+  final granted =
+      perm == geo.LocationPermission.whileInUse ||
       perm == geo.LocationPermission.always;
   if (!granted) {
     await configureMapLocationPuck(map, enabled: false);
@@ -63,16 +66,14 @@ Future<void> tryCenterMapOnUserLocation(MapboxMap map) async {
   }
 }
 
-// Opens app's Settings page (Location, etc.). On iOS 18+, falls back from 'App-prefs:<bundle id>' to [Geolocator.openAppSettings] if needed
+/// Opens this app’s Settings page (Location, etc.). On iOS 18+, falls back from
+/// `App-prefs:<bundle id>` to [Geolocator.openAppSettings] if needed
 Future<void> openAppLocationSettings() async {
   if (Platform.isIOS) {
     try {
       final bundleId = (await PackageInfo.fromPlatform()).packageName;
       final uri = Uri.parse('App-prefs:$bundleId');
-      final opened = await launchUrl(
-        uri,
-        mode: LaunchMode.externalApplication,
-      );
+      final opened = await launchUrl(uri, mode: LaunchMode.externalApplication);
       if (opened) return;
     } catch (_) {
       // Fall through
@@ -95,23 +96,25 @@ Future<void> configureMapLocationPuck(
     LocationComponentSettings(
       enabled: true,
       pulsingEnabled: true,
-      pulsingColor:
-          AppColors.primaryBlue.withValues(alpha: 0x66 / 255).toARGB32(),
+      pulsingColor: AppColors.primaryBlue
+          .withValues(alpha: 0x66 / 255)
+          .toARGB32(),
       showAccuracyRing: true,
-      accuracyRingColor:
-          AppColors.primaryBlue.withValues(alpha: 0x33 / 255).toARGB32(),
-      accuracyRingBorderColor:
-          AppColors.primaryBlue.withValues(alpha: 0x59 / 255).toARGB32(),
+      accuracyRingColor: AppColors.primaryBlue
+          .withValues(alpha: 0x33 / 255)
+          .toARGB32(),
+      accuracyRingBorderColor: AppColors.primaryBlue
+          .withValues(alpha: 0x59 / 255)
+          .toARGB32(),
       puckBearingEnabled: true,
       puckBearing: PuckBearing.COURSE,
-      locationPuck: LocationPuck(
-        locationPuck2D: DefaultLocationPuck2D(),
-      ),
+      locationPuck: LocationPuck(locationPuck2D: DefaultLocationPuck2D()),
     ),
   );
 }
 
-// Reqs location permission (when-in-use) and returns the current fix, or 'null' if denied / unavailable
+/// Requests location permission (when-in-use) and returns the current fix, or
+/// `null` if denied / unavailable
 Future<geo.Position?> getCurrentUserPositionIfAllowed() async {
   var perm = await geo.Geolocator.checkPermission();
   if (perm == geo.LocationPermission.denied) {
@@ -134,7 +137,7 @@ Future<geo.Position?> getCurrentUserPositionIfAllowed() async {
   }
 }
 
-// animates map to lat/long (WGS84)
+/// Animates the map to [latitude] / [longitude] (WGS84)
 Future<void> flyMapToLatLon(
   MapboxMap map, {
   required double latitude,

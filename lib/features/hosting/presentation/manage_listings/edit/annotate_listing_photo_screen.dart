@@ -3,16 +3,16 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../../../../core/messaging/app_messenger.dart';
 import '../../../../../core/theme/app_colors.dart';
 import '../../../../../core/theme/app_spacing.dart';
 import '../../../../../core/widgets/widgets.dart';
-import '../../../../../app/listing_invalidation.dart';
+import '../../../../profile/providers/listing_invalidation.dart';
 import '../../../../profile/providers/profile_providers.dart';
 import '../../create_listing/create_listing_draft.dart';
 import 'confirmation_success_screen.dart';
 import '../../create_listing/create_listing_flow/set_availability_screen.dart';
 
+// Drag marker on the photo — [createDraft] continues wizard; [listingId] saves immediately
 class AnnotateListingPhotoScreen extends ConsumerStatefulWidget {
   const AnnotateListingPhotoScreen({
     super.key,
@@ -23,9 +23,9 @@ class AnnotateListingPhotoScreen extends ConsumerStatefulWidget {
     this.totalSteps,
     this.selectedAddress,
   }) : assert(
-          (listingId != null && createDraft == null) ||
-              (listingId == null && createDraft != null),
-        );
+         (listingId != null && createDraft == null) ||
+             (listingId == null && createDraft != null),
+       );
 
   final String? listingId;
   final CreateListingDraft? createDraft;
@@ -80,11 +80,7 @@ class _AnnotateListingPhotoScreenState
         localFilePath: widget.photoPath,
         sortOrder: 0,
       );
-      await repo.setHeroPhotoSpotMarker(
-        listingId: id,
-        markerX: x,
-        markerY: y,
-      );
+      await repo.setHeroPhotoSpotMarker(listingId: id, markerX: x, markerY: y);
       invalidateListingSurfaces(ref, id);
     } catch (_) {
       if (mounted) {

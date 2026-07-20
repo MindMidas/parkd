@@ -3,7 +3,8 @@ import 'package:flutter/material.dart';
 import '../theme/app_typography.dart';
 import 'app_search_field_decoration.dart';
 
-// List/menu search, same shape as AppMapSearchField; onChanged only
+// List/menu search — same 12px shape as AppMapSearchField; onChanged only
+// Parent filters the list; map + filter → AppMapSearchField
 class AppSearchField extends StatefulWidget {
   const AppSearchField({
     super.key,
@@ -37,7 +38,7 @@ class _AppSearchFieldState extends State<AppSearchField> {
 
   @override
   Widget build(BuildContext context) {
-    // No outer shadow, AppListScreenSearchPanel supplies hub chrome
+    // No outer shadow — AppListScreenSearchPanel supplies hub chrome
     return TextField(
       controller: _controller,
       onChanged: widget.onChanged,

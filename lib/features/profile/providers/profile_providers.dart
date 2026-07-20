@@ -6,34 +6,34 @@ import '../../../core/models/listing.dart';
 import '../../../core/models/listing_photo.dart';
 import '../../../core/models/payment_method_row.dart';
 import '../../../core/models/profile.dart';
-import '../../../core/cloudinary/cloudinary_provider.dart';
 import '../../auth/providers/auth_providers.dart';
+import '../data/listings_repository.dart';
 import '../data/payment_methods_repository.dart';
 import '../data/profile_repository.dart';
-import '../../listings/data/listings_repository.dart';
-import '../../listings/data/supabase_listings_repository.dart';
+import '../data/supabase_listings_repository.dart';
 import '../data/supabase_payment_methods_repository.dart';
 import '../data/supabase_profile_repository.dart';
 
 final listingsRepositoryProvider = Provider<ListingsRepository>((ref) {
   final client = ref.watch(supabaseClientProvider);
-  final cloudinary = ref.watch(cloudinaryUploaderProvider);
-  return SupabaseListingsRepository(client, cloudinary: cloudinary);
+  return SupabaseListingsRepository(client);
 });
 
 final profileRepositoryProvider = Provider<ProfileRepository>((ref) {
   final client = ref.watch(supabaseClientProvider);
-  final cloudinary = ref.watch(cloudinaryUploaderProvider);
-  return SupabaseProfileRepository(client, cloudinary: cloudinary);
+  return SupabaseProfileRepository(client);
 });
 
-final paymentMethodsRepositoryProvider =
-    Provider<PaymentMethodsRepository>((ref) {
+final paymentMethodsRepositoryProvider = Provider<PaymentMethodsRepository>((
+  ref,
+) {
   return SupabasePaymentMethodsRepository(ref.watch(supabaseClientProvider));
 });
 
-final profileByUserIdProvider =
-    FutureProvider.family<Profile?, String>((ref, userId) async {
+final profileByUserIdProvider = FutureProvider.family<Profile?, String>((
+  ref,
+  userId,
+) async {
   return ref.read(profileRepositoryProvider).getProfile(userId);
 });
 
@@ -46,10 +46,10 @@ final currentProfileProvider = FutureProvider<Profile?>((ref) async {
 
 final paymentMethodsForCurrentUserProvider =
     FutureProvider<List<PaymentMethodRow>>((ref) async {
-  final uid = ref.watch(currentSessionProvider)?.user.id;
-  if (uid == null) return [];
-  return ref.read(paymentMethodsRepositoryProvider).listForUser(uid);
-});
+      final uid = ref.watch(currentSessionProvider)?.user.id;
+      if (uid == null) return [];
+      return ref.read(paymentMethodsRepositoryProvider).listForUser(uid);
+    });
 
 final myListingsForCurrentUserProvider = FutureProvider<List<Listing>>((
   ref,
@@ -93,7 +93,7 @@ final listingAvailabilitySpecificProvider =
           .getAvailabilitySpecific(listingId);
     });
 
-// Refetch profile everywhere it is shown (account, edit form, chats, trip cards)
+/// Refetch profile everywhere it is shown (account, edit form, chats, trip cards)
 void invalidateProfileSurfaces(WidgetRef ref, String userId) {
   ref.invalidate(currentProfileProvider);
   ref.invalidate(profileByUserIdProvider(userId));

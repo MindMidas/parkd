@@ -23,10 +23,7 @@ class AppSurfaceFooterPad extends StatelessWidget {
   Widget build(BuildContext context) {
     return ColoredBox(
       color: AppColors.surface,
-      child: Padding(
-        padding: padding,
-        child: child,
-      ),
+      child: Padding(padding: padding, child: child),
     );
   }
 }

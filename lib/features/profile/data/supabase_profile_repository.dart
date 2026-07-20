@@ -1,15 +1,12 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
 
-import '../../../core/cloudinary/cloudinary_uploader.dart';
 import '../../../core/supabase/profiles_remote.dart';
 import '../../../core/models/profile.dart';
 import 'profile_repository.dart';
 
 class SupabaseProfileRepository implements ProfileRepository {
-  SupabaseProfileRepository(
-    SupabaseClient client, {
-    CloudinaryUploader? cloudinary,
-  }) : _remote = ProfilesRemote(client, cloudinary: cloudinary);
+  SupabaseProfileRepository(SupabaseClient client)
+    : _remote = ProfilesRemote(client);
 
   final ProfilesRemote _remote;
 
@@ -23,7 +20,6 @@ class SupabaseProfileRepository implements ProfileRepository {
     String? phoneE164,
     DateTime? birthDate,
     String? username,
-    String? email,
   }) {
     return _remote.updateProfile(
       userId: userId,
@@ -31,7 +27,6 @@ class SupabaseProfileRepository implements ProfileRepository {
       phoneE164: phoneE164,
       birthDate: birthDate,
       username: username,
-      email: email,
     );
   }
 

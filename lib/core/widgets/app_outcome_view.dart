@@ -11,11 +11,7 @@ enum AppOutcomeKind { success, failure }
 
 // Blue check or red X in a circle
 class AppOutcomeMark extends StatelessWidget {
-  const AppOutcomeMark({
-    super.key,
-    required this.kind,
-    this.size = 56,
-  });
+  const AppOutcomeMark({super.key, required this.kind, this.size = 56});
 
   final AppOutcomeKind kind;
   final double size;
@@ -24,8 +20,10 @@ class AppOutcomeMark extends StatelessWidget {
   Widget build(BuildContext context) {
     final ok = kind == AppOutcomeKind.success;
     final icon = ok ? Icons.check_rounded : Icons.close_rounded;
-    final iconSize =
-        AppOutcomeMarkLayout.iconSize(success: ok, markDiameter: size);
+    final iconSize = AppOutcomeMarkLayout.iconSize(
+      success: ok,
+      markDiameter: size,
+    );
     return Container(
       width: size,
       height: size,
@@ -38,7 +36,7 @@ class AppOutcomeMark extends StatelessWidget {
   }
 }
 
-// title + message under mark (no buttons)
+// Title + message under the mark (no buttons); use in custom layouts or AppOutcomeView
 class AppOutcomeHeadline extends StatelessWidget {
   const AppOutcomeHeadline({
     super.key,
@@ -84,7 +82,7 @@ class AppOutcomeHeadline extends StatelessWidget {
   }
 }
 
-// centered headline + primary button, or pass actions instead of button
+// Centered headline + primary button, or pass actions instead of the button
 class AppOutcomeView extends StatelessWidget {
   const AppOutcomeView({
     super.key,
@@ -115,7 +113,8 @@ class AppOutcomeView extends StatelessWidget {
   final Widget? actions;
   final EdgeInsetsGeometry padding;
 
-  String get _resolvedTitle => title ??
+  String get _resolvedTitle =>
+      title ??
       (kind == AppOutcomeKind.success ? 'Success' : 'Something went wrong');
 
   @override

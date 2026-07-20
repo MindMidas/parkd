@@ -1,15 +1,15 @@
-// def map camera: Guelph, Ontario, Canada (lat / lon in WGS84)
+/// Default map camera: Guelph, Ontario, Canada (lat / lon in WGS84)
 abstract final class MapConstants {
   static const double defaultLatitude = 43.5448;
   static const double defaultLongitude = -80.2482;
   static const double defaultZoom = 14;
 }
 
-// bottom offset for map "my location"
+/// Bottom offset for the map “my location” FAB (logical px; add safe-area in UI)
 const double kParkdMapRecenterFabBottomOffset = 16;
 
-// tap target size of re-center FAB
+/// Tap target size of the re-center FAB (for compass clearance)
 const double kParkdMapRecenterFabSize = 44;
 
-// gap between recenter FAB and compass above
+/// Gap between re-center FAB and the compass above it
 const double kParkdMapCompassGapAboveFab = 10;

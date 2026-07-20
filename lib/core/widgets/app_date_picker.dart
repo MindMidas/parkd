@@ -68,7 +68,9 @@ Future<DateTime?> showAppDatePicker({
             weekdayStyle: AppTypography.calendarWeekdayHeader,
             dayStyle: AppTypography.body,
             yearStyle: AppTypography.body,
-            todayForegroundColor: WidgetStateProperty.all(AppColors.primaryBlue),
+            todayForegroundColor: WidgetStateProperty.all(
+              AppColors.primaryBlue,
+            ),
             dayForegroundColor: WidgetStateProperty.resolveWith((states) {
               if (states.contains(WidgetState.selected)) {
                 return AppColors.onPrimary;
@@ -86,9 +88,7 @@ Future<DateTime?> showAppDatePicker({
             }),
           ),
           textButtonTheme: TextButtonThemeData(
-            style: TextButton.styleFrom(
-              foregroundColor: AppColors.primaryBlue,
-            ),
+            style: TextButton.styleFrom(foregroundColor: AppColors.primaryBlue),
           ),
         ),
         child: child!,
@@ -129,17 +129,15 @@ Future<DateTime?> _showCupertinoDatePicker({
                     onPressed: () => Navigator.pop(ctx),
                     child: Text(
                       'Cancel',
-                      style: AppTypography.bodySecondary
-                          .copyWith(color: AppColors.iconGrey),
+                      style: AppTypography.bodySecondary.copyWith(
+                        color: AppColors.iconGrey,
+                      ),
                     ),
                   ),
                   CupertinoButton(
                     padding: const EdgeInsets.symmetric(horizontal: 16),
                     onPressed: () => Navigator.pop(ctx, selected),
-                    child: Text(
-                      'Done',
-                      style: AppTypography.textAction,
-                    ),
+                    child: Text('Done', style: AppTypography.textAction),
                   ),
                 ],
               ),

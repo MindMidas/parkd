@@ -1,0 +1,217 @@
+name: Quality and Vercel deployment
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: parkd-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  FLUTTER_VERSION: 3.41.5
+  VERCEL_CLI_VERSION: 56.4.0
+
+jobs:
+  secret-scan:
+    name: Secret scan
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out full history
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          fetch-depth: 0
+      - name: Keep retired Firebase clients out of the release tree
+        shell: bash
+        run: |
+          test ! -e android/app/google-services.json
+          test ! -e ios/Runner/GoogleService-Info.plist
+      - name: Scan committed history for secrets
+        uses: gitleaks/gitleaks-action@ff98106e4c7b2bc287b24eaf42907196329070c7 # v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  edge-functions:
+    name: Supabase Edge Function checks
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+
+      - name: Install Deno
+        uses: denoland/setup-deno@22d081ff2d3a40755e97629de92e3bcbfa7cf2ed # v2.0.5
+        with:
+          deno-version: v2.4.5
+
+      - name: Check Edge Function formatting
+        working-directory: supabase/functions
+        run: deno fmt --check
+
+      - name: Type-check and lint Edge Functions
+        working-directory: supabase/functions
+        run: |
+          deno lint
+          deno task check
+
+      - name: Run hermetic Edge Function tests
+        working-directory: supabase/functions
+        run: deno task test
+
+  database-security:
+    name: Supabase RLS and database contracts
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+
+      - name: Install Supabase CLI
+        uses: supabase/setup-cli@ab058987d8d6c725971f6cf9d0b5c98467e30bd1 # v1
+        with:
+          version: 2.75.0
+
+      - name: Start isolated local database
+        run: >-
+          supabase start -x
+          gotrue,realtime,storage-api,imgproxy,kong,mailpit,postgrest,postgres-meta,studio,edge-runtime,logflare,vector,supavisor
+
+      - name: Lint database schema
+        run: supabase db lint --local --level error --fail-on error
+
+      - name: Run pgTAP RLS and security contracts
+        run: supabase test db
+
+      - name: Stop local database
+        if: always()
+        run: supabase stop --no-backup
+
+  quality:
+    name: Flutter quality gates
+    runs-on: ubuntu-latest
+    env:
+      SUPABASE_URL: ${{ vars.SUPABASE_URL || 'https://placeholder.supabase.co' }}
+      SUPABASE_ANON_KEY: ${{ vars.SUPABASE_ANON_KEY || 'public-anon-placeholder' }}
+      MAPBOX_ACCESS_TOKEN: ${{ vars.MAPBOX_ACCESS_TOKEN || '' }}
+      STRIPE_PUBLISHABLE_KEY: ${{ vars.STRIPE_PUBLISHABLE_KEY || '' }}
+      TURNSTILE_SITE_KEY: ${{ vars.TURNSTILE_SITE_KEY || '' }}
+      PASSWORD_RESET_REDIRECT_URL: ${{ vars.PASSWORD_RESET_REDIRECT_URL || '' }}
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+
+      - name: Install Flutter
+        uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+          cache: true
+
+      - name: Report toolchain
+        run: flutter --version
+
+      - name: Resolve dependencies
+        run: flutter pub get
+
+      - name: Check formatting
+        run: dart format --output=none --set-exit-if-changed lib test integration_test supabase/functions
+
+      - name: Analyze
+        run: flutter analyze
+
+      - name: Run unit and widget tests with coverage
+        run: flutter test test --coverage --test-randomize-ordering-seed=20260720
+
+      - name: Enforce global coverage ratchet
+        run: dart run .github/scripts/check_coverage.dart coverage/lcov.info 13.0 90.0
+
+      - name: Require Stripe test mode
+        shell: bash
+        run: |
+          if [[ -n "$STRIPE_PUBLISHABLE_KEY" && "$STRIPE_PUBLISHABLE_KEY" != pk_test_* ]]; then
+            echo "STRIPE_PUBLISHABLE_KEY must be empty or start with pk_test_."
+            exit 1
+          fi
+
+      - name: Require production demo configuration
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        shell: bash
+        run: |
+          if [[ "$SUPABASE_URL" == "https://placeholder.supabase.co" ]]; then
+            echo "Set the SUPABASE_URL repository variable before deploying."
+            exit 1
+          fi
+          for name in SUPABASE_ANON_KEY STRIPE_PUBLISHABLE_KEY TURNSTILE_SITE_KEY PASSWORD_RESET_REDIRECT_URL; do
+            if [[ -z "${!name}" || "${!name}" == "public-anon-placeholder" ]]; then
+              echo "Set the $name repository variable before deploying."
+              exit 1
+            fi
+          done
+
+      - name: Build Flutter web release
+        run: >-
+          flutter build web --release
+          --dart-define=SUPABASE_URL="$SUPABASE_URL"
+          --dart-define=SUPABASE_ANON_KEY="$SUPABASE_ANON_KEY"
+          --dart-define=MAPBOX_ACCESS_TOKEN="$MAPBOX_ACCESS_TOKEN"
+          --dart-define=STRIPE_PUBLISHABLE_KEY="$STRIPE_PUBLISHABLE_KEY"
+          --dart-define=TURNSTILE_SITE_KEY="$TURNSTILE_SITE_KEY"
+          --dart-define=PASSWORD_RESET_REDIRECT_URL="$PASSWORD_RESET_REDIRECT_URL"
+          --dart-define=PARKD_DEMO=true
+
+      - name: Upload deployable web artifact
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: parkd-web-${{ github.sha }}
+          path: build/web
+          if-no-files-found: error
+          retention-days: 7
+
+  deploy:
+    name: Deploy production demo to Vercel
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: [secret-scan, edge-functions, database-security, quality]
+    runs-on: ubuntu-latest
+    environment:
+      name: production
+      url: ${{ steps.deploy.outputs.url }}
+    env:
+      VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+      VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+      VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+    steps:
+      - name: Check out deployment configuration
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+
+      - name: Download tested web artifact
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: parkd-web-${{ github.sha }}
+          path: build/web
+
+      - name: Install Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 22
+
+      - name: Link Vercel project
+        run: npx --yes vercel@${VERCEL_CLI_VERSION} pull --yes --environment=production --token="$VERCEL_TOKEN"
+
+      - name: Assemble Vercel prebuilt output
+        shell: bash
+        run: |
+          mkdir -p .vercel/output/static
+          cp -R build/web/. .vercel/output/static/
+          cp .github/vercel/output-config.json .vercel/output/config.json
+
+      - name: Deploy tested prebuilt artifact
+        id: deploy
+        shell: bash
+        run: |
+          url="$(npx --yes vercel@${VERCEL_CLI_VERSION} deploy --prebuilt --prod --token="$VERCEL_TOKEN")"
+          echo "url=$url" >> "$GITHUB_OUTPUT"
+          echo "Deployed $url"

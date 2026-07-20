@@ -9,8 +9,8 @@ import 'messaging_repository.dart';
 
 class SupabaseMessagingRepository implements MessagingRepository {
   SupabaseMessagingRepository(SupabaseClient client)
-      : _remote = ConversationsRemote(client),
-        _reservations = ReservationsRemote(client);
+    : _remote = ConversationsRemote(client),
+      _reservations = ReservationsRemote(client);
 
   final ConversationsRemote _remote;
   final ReservationsRemote _reservations;
@@ -37,9 +37,7 @@ class SupabaseMessagingRepository implements MessagingRepository {
     if (reservations.isEmpty) return [];
     final resIds = reservations.map((r) => r.id).toList();
     final conversations = await _remote.listByReservationIds(resIds);
-    final byResId = {
-      for (final c in conversations) c.reservationId: c,
-    };
+    final byResId = {for (final c in conversations) c.reservationId: c};
     final convIds = conversations.map((c) => c.id).toList();
     final previews = await _remote.lastMessagePreviewByConversationId(convIds);
     return reservations
@@ -60,16 +58,19 @@ class SupabaseMessagingRepository implements MessagingRepository {
       _remote.listMessages(conversationId);
 
   @override
+  Stream<List<ChatMessageRow>> watchMessages(String conversationId) =>
+      _remote.watchMessages(conversationId);
+
+  @override
   Future<ChatMessageRow> send({
     required String conversationId,
     required String senderId,
     required String text,
-  }) =>
-      _remote.sendMessage(
-        conversationId: conversationId,
-        senderId: senderId,
-        text: text,
-      );
+  }) => _remote.sendMessage(
+    conversationId: conversationId,
+    senderId: senderId,
+    text: text,
+  );
 
   @override
   Future<void> markRead(String messageId) => _remote.markMessageRead(messageId);

@@ -3,16 +3,21 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/utils/availability_overlap.dart';
 import '../../../../core/utils/time_step_minutes.dart';
 import '../../../../core/widgets/app_day_checkboxes.dart';
+import '../../../../core/utils/weekday_ui_to_db.dart';
 import '../../../auth/providers/auth_providers.dart';
 import '../../../map/providers/map_providers.dart';
 import '../../../profile/providers/profile_providers.dart';
 import 'create_listing_draft.dart';
 
-// publish listing in one shot (photos, pin, availability, terms), deletes row if anything fails after insert
+/// Single publish flow: listing row → protected Storage upload → marker →
+/// availability rows → publish + terms flags
+/// [listings.availability_mode] is set on insert **before** any availability rows
+/// so DB triggers allow inserts. On any failure after the listing row exists,
+/// the listing is deleted so you do not get half-published rows
 class CreateListingPublish {
   CreateListingPublish._();
 
-  // user-facing error line for the terms step
+  /// Short message for the terms-step snackbar / banner
   static String describePublishError(Object e) {
     final raw = e.toString();
     if (raw.contains('23505') ||
@@ -116,7 +121,7 @@ class CreateListingPublish {
         for (final s in d.weeklySlots) {
           final i = kWeekdayLabels.indexOf(s.day);
           if (i < 0) continue;
-          final dow = i;
+          final dow = weekdayUiMonFirstToPostgres(i);
           final p = AvailabilityOverlap.tryParseAmPmTimeRange(s.timeRange);
           if (p == null) continue;
           final startHhMm = TimeStepMinutes.minutesToHhMm(p.startMin);

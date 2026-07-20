@@ -5,7 +5,7 @@ import '../../../core/theme/app_colors.dart';
 import '../../../core/widgets/widgets.dart';
 import 'reservations_menu/reservations_menu_body.dart';
 
-// tab shell for driver reservations (no back, nested routes use AppTopBar)
+// Tab shell for driver reservations (no back; nested routes use AppTopBar)
 class ReservationsHubScreen extends StatelessWidget {
   const ReservationsHubScreen({super.key});
 

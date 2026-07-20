@@ -8,17 +8,19 @@ import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/theme/app_typography.dart';
 import '../../../../core/utils/profile_avatar_image_provider.dart';
-import '../../../../core/utils/scroll_view_bottom_inset.dart';
 import '../../../../core/widgets/widgets.dart';
 import '../../../auth/providers/auth_providers.dart';
-import '../../../../app/main_tab.dart';
+import '../../../map/presentation/main_tab.dart';
 import '../../providers/profile_providers.dart';
+import '../../providers/notifications_providers.dart';
 import '../settings/all_cards_screen.dart';
 import '../settings/edit_profile_screen.dart';
+import '../settings/notification_preferences_screen.dart';
 import '../settings/security/security_screen.dart';
+import 'notifications_screen.dart';
 import 'support_screen.dart';
 
-// account tab, user pfp, the tiles, sign out when done
+// Account tab — your face, the tiles, sign out when you're done
 class AccountTabScreen extends ConsumerWidget {
   const AccountTabScreen({super.key});
 
@@ -30,8 +32,7 @@ class AccountTabScreen extends ConsumerWidget {
       context: context,
       builder: (ctx) => AppConfirmDialog(
         title: 'Sign out?',
-        message:
-            'You will need to sign in again to use your account.',
+        message: 'You will need to sign in again to use your account.',
         cancelLabel: 'Cancel',
         confirmLabel: 'Sign out',
         confirmDestructive: true,
@@ -58,6 +59,7 @@ class AccountTabScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final profileAsync = ref.watch(currentProfileProvider);
+    final notificationCounts = ref.watch(myNotificationHubCountsProvider);
     return Scaffold(
       backgroundColor: AppColors.surface,
       body: SafeArea(
@@ -74,10 +76,7 @@ class AccountTabScreen extends ConsumerWidget {
                   0,
                 ),
                 child: Center(
-                  child: Text(
-                    'Account',
-                    style: AppTypography.hubTitle,
-                  ),
+                  child: Text('Account', style: AppTypography.hubTitle),
                 ),
               ),
               const SizedBox(height: AppSpacing.lg),
@@ -106,19 +105,35 @@ class AccountTabScreen extends ConsumerWidget {
                 },
               ),
               AppSettingsNavTile(
-                icon: Icons.notifications_none_rounded,
-                label: 'Notifications',
-                onTap: () {
-                  // TODO: navigate to Notifications
-                },
-              ),
-              AppSettingsNavTile(
                 icon: Icons.security_rounded,
                 label: 'Security',
                 onTap: () {
                   Navigator.of(context).push(
                     MaterialPageRoute<void>(
                       builder: (_) => const SecuritySettingsScreen(),
+                    ),
+                  );
+                },
+              ),
+              AppSettingsNavTile(
+                icon: Icons.notifications_none_rounded,
+                label: 'Notifications',
+                badgeCount: notificationCounts.total,
+                onTap: () {
+                  Navigator.of(context).push(
+                    MaterialPageRoute<void>(
+                      builder: (_) => const NotificationsScreen(),
+                    ),
+                  );
+                },
+              ),
+              AppSettingsNavTile(
+                icon: Icons.notifications_active_outlined,
+                label: 'In-app alerts',
+                onTap: () {
+                  Navigator.of(context).push(
+                    MaterialPageRoute<void>(
+                      builder: (_) => const NotificationPreferencesScreen(),
                     ),
                   );
                 },
@@ -142,19 +157,82 @@ class AccountTabScreen extends ConsumerWidget {
                   AppSpacing.md,
                   AppSpacing.sm,
                 ),
-                child: AppPrimaryButton(
-                  label: 'Sign out',
-                  icon: Icons.logout_rounded,
-                  onPressed: () => _confirmAndSignOut(context, ref),
+                child: Column(
+                  children: [
+                    AppPrimaryButton(
+                      label: 'Sign out',
+                      icon: Icons.logout_rounded,
+                      onPressed: () => _confirmAndSignOut(context, ref),
+                    ),
+                    const SizedBox(height: AppSpacing.sm),
+                    const _DeleteDemoAccountButton(),
+                  ],
                 ),
               ),
-              SizedBox(
-                height: AppSpacing.lg + scrollViewBottomInset(context),
-              ),
+              SizedBox(height: AppSpacing.lg + scrollViewBottomInset(context)),
             ],
           ),
         ),
       ),
+    );
+  }
+}
+
+class _DeleteDemoAccountButton extends ConsumerStatefulWidget {
+  const _DeleteDemoAccountButton();
+
+  @override
+  ConsumerState<_DeleteDemoAccountButton> createState() =>
+      _DeleteDemoAccountButtonState();
+}
+
+class _DeleteDemoAccountButtonState
+    extends ConsumerState<_DeleteDemoAccountButton> {
+  bool _busy = false;
+
+  Future<void> _delete() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AppConfirmDialog(
+        title: 'Delete demo account?',
+        message:
+            'Your profile and demo content will be removed or anonymized. '
+            'This cannot be undone.',
+        cancelLabel: 'Keep account',
+        confirmLabel: 'Delete account',
+        confirmDestructive: true,
+        onCancel: () => Navigator.of(dialogContext).pop(false),
+        onConfirm: () => Navigator.of(dialogContext).pop(true),
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+
+    setState(() => _busy = true);
+    final shellTab = ref.read(mainShellTabIndexProvider.notifier);
+    try {
+      await ref.read(authRepositoryProvider).deleteCurrentAccount();
+      shellTab.setTab(MainTab.map);
+      if (mounted) context.go('/auth');
+    } on Exception catch (_) {
+      if (mounted) {
+        AppMessenger.showError(
+          context,
+          'Account deletion could not be completed. Please try again.',
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AppSecondaryButton(
+      label: 'Delete demo account',
+      icon: Icons.delete_outline_rounded,
+      destructive: true,
+      loading: _busy,
+      onPressed: _busy ? null : _delete,
     );
   }
 }
@@ -169,8 +247,9 @@ class _AccountHeader extends StatelessWidget {
     return profileAsync.when(
       data: (profile) {
         final name = profile?.displayName ?? 'User';
-        final handle =
-            profile?.username != null ? '@${profile!.username}' : null;
+        final handle = profile?.username != null
+            ? '@${profile!.username}'
+            : null;
         return Column(
           children: [
             AppMenuProfileAvatar(
@@ -205,10 +284,7 @@ class _AccountHeader extends StatelessWidget {
       ),
       error: (_, _) => Column(
         children: [
-          const AppMenuProfileAvatar(
-            imageProvider: null,
-            size: 96,
-          ),
+          const AppMenuProfileAvatar(imageProvider: null, size: 96),
           const SizedBox(height: AppSpacing.md),
           Text('User', style: AppTypography.profileDisplayName),
         ],

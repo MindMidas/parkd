@@ -4,7 +4,8 @@ import '../theme/app_colors.dart';
 import '../theme/app_typography.dart';
 import 'app_search_field_decoration.dart';
 
-// Map overlay search
+// Map overlay search: flat 12px field, optional in-field or side filter chip
+// Suggestions live in AppMapAddressSearchPanel, not here
 class AppMapSearchField extends StatefulWidget {
   const AppMapSearchField({
     super.key,
@@ -41,8 +42,7 @@ class _AppMapSearchFieldState extends State<AppMapSearchField> {
   }
 
   InputDecoration _decoration() {
-    final filterInField =
-        widget.showFilterButton && widget.onFilterTap != null;
+    final filterInField = widget.showFilterButton && widget.onFilterTap != null;
     return AppSearchFieldDecoration.outline(
       hintText: widget.hintText,
       suffixIcon: filterInField
@@ -54,10 +54,7 @@ class _AppMapSearchFieldState extends State<AppMapSearchField> {
                 size: 18,
               ),
               padding: EdgeInsets.zero,
-              constraints: const BoxConstraints(
-                minWidth: 40,
-                minHeight: 40,
-              ),
+              constraints: const BoxConstraints(minWidth: 40, minHeight: 40),
               visualDensity: VisualDensity.compact,
             )
           : null,
@@ -69,23 +66,20 @@ class _AppMapSearchFieldState extends State<AppMapSearchField> {
 
   @override
   Widget build(BuildContext context) {
-    final filterInside =
-        widget.showFilterButton && widget.onFilterTap != null;
+    final filterInside = widget.showFilterButton && widget.onFilterTap != null;
 
     final searchRow = filterInside
         ? TextField(
             controller: _controller,
             onChanged: widget.onChanged,
-            onTapOutside: (_) =>
-                FocusManager.instance.primaryFocus?.unfocus(),
+            onTapOutside: (_) => FocusManager.instance.primaryFocus?.unfocus(),
             decoration: _decoration(),
             style: AppTypography.body,
           )
         : TextField(
             controller: _controller,
             onChanged: widget.onChanged,
-            onTapOutside: (_) =>
-                FocusManager.instance.primaryFocus?.unfocus(),
+            onTapOutside: (_) => FocusManager.instance.primaryFocus?.unfocus(),
             decoration: _decoration(),
             style: AppTypography.body,
           );

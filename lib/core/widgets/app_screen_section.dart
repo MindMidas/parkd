@@ -5,7 +5,7 @@ import 'app_divider.dart';
 import 'app_form_helper_text.dart';
 import 'app_section_title.dart';
 
-// titled block + optional helper, optional top divider
+// Titled block + optional helper; optional top divider (use in full-width scroll)
 class AppScreenSection extends StatelessWidget {
   const AppScreenSection({
     super.key,

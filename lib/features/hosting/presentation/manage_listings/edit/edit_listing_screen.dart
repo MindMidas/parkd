@@ -6,10 +6,10 @@ import '../../../../../core/models/availability_weekly.dart';
 import '../../../../../core/models/listing.dart';
 import '../../../../../core/models/listing_photo.dart';
 import '../../../../../core/theme/app_colors.dart';
-import '../../../../../core/messaging/app_messenger.dart';
 import '../../../../../core/theme/app_spacing.dart';
+import '../../../../../core/theme/app_typography.dart';
 import '../../../../../core/widgets/widgets.dart';
-import '../../../../../app/listing_invalidation.dart';
+import '../../../../profile/providers/listing_invalidation.dart';
 import '../../../../profile/providers/profile_providers.dart';
 import 'confirmation_success_screen.dart';
 import 'set_availability_dates_screen.dart';
@@ -36,7 +36,9 @@ class EditListingScreen extends ConsumerWidget {
       body: listingAsync.when(
         data: (listing) {
           if (listing == null) {
-            return const AppMutedBodyCenter('Listing not found');
+            return Center(
+              child: Text('Listing not found', style: AppTypography.bodyMuted),
+            );
           }
           return SingleChildScrollView(
             physics: const BouncingScrollPhysics(
@@ -67,8 +69,9 @@ class EditListingScreen extends ConsumerWidget {
           );
         },
         loading: () => const Center(child: CircularProgressIndicator()),
-        error: (e, st) =>
-            const AppMutedBodyCenter('Something went wrong'),
+        error: (e, st) => Center(
+          child: Text('Something went wrong', style: AppTypography.bodyMuted),
+        ),
       ),
     );
   }
@@ -95,8 +98,8 @@ class _HeroPhotoSection extends StatelessWidget {
       orElse: () => null,
     );
     final firstPhotoUrl = firstPhoto?.photoUrl.trim() ?? '';
-    final markerFraction = firstPhoto?.markerX != null &&
-            firstPhoto?.markerY != null
+    final markerFraction =
+        firstPhoto?.markerX != null && firstPhoto?.markerY != null
         ? Offset(firstPhoto!.markerX!, firstPhoto.markerY!)
         : null;
 

@@ -4,7 +4,7 @@ import '../models/booking_time_window.dart';
 import '../models/listing.dart';
 import '../utils/time_step_minutes.dart';
 
-// preset parking durations for map listing preview (mins)
+/// Preset parking durations for the map listing preview (minutes)
 const List<int> kMapPreviewDurationPresetsMinutes = [15, 30, 60, 120, 300];
 
 String formatMapPreviewDurationLabel(int minutes) {
@@ -17,6 +17,12 @@ String formatMapPreviewDurationLabel(int minutes) {
 }
 
 DateTime _dateOnlyLocal(DateTime t) => DateTime(t.year, t.month, t.day);
+
+/// Postgres `day_of_week`: 0 = Sunday … 6 = Saturday → Dart [DateTime.weekday]
+int _pgDayToDartWeekday(int pg) {
+  final p = pg < 0 ? 0 : (pg > 6 ? 6 : pg);
+  return p == 0 ? DateTime.sunday : p;
+}
 
 List<BookingTimeWindow> mergeBookingWindows(List<BookingTimeWindow> raw) {
   if (raw.isEmpty) return [];
@@ -58,9 +64,11 @@ DateTime _alignStartUpToGrid(DateTime t, int gridMinutes) {
   return base.add(Duration(minutes: aligned));
 }
 
-// Soonest local DT when a stay of desiredDurationMinutes fits inside posted availability and does not overlap bookings (merged first)
-// Uses [listing.isWeeklyAvailability] to choose weekly vs specific rows only, weekly overnight slots (end <= start) are skipped.
-// gridMinutes is search step (def 5)
+/// Soonest local [DateTime] when a stay of [desiredDurationMinutes] fits inside
+/// posted availability and does not overlap [bookings] (merged first)
+/// Uses [listing.isWeeklyAvailability] to choose weekly vs specific rows only
+/// Weekly overnight slots (end ≤ start) are skipped. [gridMinutes] is the
+/// search step (default 5)
 DateTime? findSoonestAvailableStart({
   required DateTime now,
   required int desiredDurationMinutes,
@@ -83,7 +91,7 @@ DateTime? findSoonestAvailableStart({
       final d = startDay.add(Duration(days: i));
       final dartDow = d.weekday;
       for (final w in weekly) {
-        if (AvailabilityWeekly.toDartWeekday(w.dayOfWeek) != dartDow) continue;
+        if (_pgDayToDartWeekday(w.dayOfWeek) != dartDow) continue;
         final sm = TimeStepMinutes.tryParseMinutesFromHhMm(w.startTime);
         final em = TimeStepMinutes.tryParseMinutesFromHhMm(w.endTime);
         if (sm == null || em == null || em <= sm) continue;
@@ -129,15 +137,26 @@ DateTime? findSoonestAvailableStart({
   return null;
 }
 
-// line summary for map preview
+/// Single-line summary for the map preview, e.g. `Mon, Mar 31 · 9:15 AM – 10:15 AM`
 String formatNextAvailableSlotLine(DateTime start, int durationMinutes) {
   final end = start.add(Duration(minutes: durationMinutes));
   const dow = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
   const mon = [
-    'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-    'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+    'Jan',
+    'Feb',
+    'Mar',
+    'Apr',
+    'May',
+    'Jun',
+    'Jul',
+    'Aug',
+    'Sep',
+    'Oct',
+    'Nov',
+    'Dec',
   ];
-  final head = '${dow[start.weekday - 1]}, ${mon[start.month - 1]} ${start.day}';
+  final head =
+      '${dow[start.weekday - 1]}, ${mon[start.month - 1]} ${start.day}';
   final sh = start.hour * 60 + start.minute;
   final eh = end.hour * 60 + end.minute;
   if (_dateOnlyLocal(start) == _dateOnlyLocal(end)) {

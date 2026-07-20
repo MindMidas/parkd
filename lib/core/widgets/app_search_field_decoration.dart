@@ -4,14 +4,12 @@ import '../theme/app_colors.dart';
 import '../theme/app_spacing.dart';
 import '../theme/app_typography.dart';
 
-// Shared outline + borders for AppSearchField and AppMapSearchField
+// Shared 12px outline + borders for AppSearchField and AppMapSearchField (not barrel-exported)
 abstract final class AppSearchFieldDecoration {
   static const BorderRadius radius = BorderRadius.all(Radius.circular(12));
 
-  static BorderSide get idleBorderSide => BorderSide(
-        color: AppColors.iconGrey.withValues(alpha: 0.22),
-        width: 1,
-      );
+  static BorderSide get idleBorderSide =>
+      BorderSide(color: AppColors.iconGrey.withValues(alpha: 0.22), width: 1);
 
   static InputDecoration outline({
     required String hintText,
@@ -21,15 +19,8 @@ abstract final class AppSearchFieldDecoration {
     return InputDecoration(
       hintText: hintText,
       hintStyle: AppTypography.bodyMuted,
-      prefixIcon: const Icon(
-        Icons.search,
-        color: AppColors.iconGrey,
-        size: 20,
-      ),
-      prefixIconConstraints: const BoxConstraints(
-        minWidth: 40,
-        minHeight: 32,
-      ),
+      prefixIcon: const Icon(Icons.search, color: AppColors.iconGrey, size: 20),
+      prefixIconConstraints: const BoxConstraints(minWidth: 40, minHeight: 32),
       suffixIcon: suffixIcon,
       suffixIconConstraints: suffixIconConstraints,
       filled: true,

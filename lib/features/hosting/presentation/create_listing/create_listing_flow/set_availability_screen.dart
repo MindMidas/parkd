@@ -3,9 +3,10 @@ import '../../../../../core/theme/app_colors.dart';
 import '../../../../../core/theme/app_spacing.dart';
 import '../../../../../core/utils/availability_overlap.dart';
 import '../../../../../core/utils/time_step_minutes.dart';
+import '../../../../../core/utils/weekday_ui_to_db.dart';
 import '../../../../../core/widgets/widgets.dart';
 import '../../../../map/presentation/home_map_screen.dart';
-import '../../../../../app/main_tab.dart';
+import '../../../../map/presentation/main_tab.dart';
 import '../../manage_listings/edit/confirmation_success_screen.dart';
 import '../create_listing_draft.dart';
 import 'set_pricing_screen.dart';
@@ -13,7 +14,7 @@ import 'terms_and_conditions_screen.dart';
 
 enum _AvailabilityType { specific, weekly }
 
-// availability step - pick weekly vs specific dates then slot editor
+// Big availability step — pick weekly vs specific dates then slot editor
 class SetAvailabilityScreen extends StatefulWidget {
   const SetAvailabilityScreen({
     super.key,
@@ -34,14 +35,14 @@ class SetAvailabilityScreen extends StatefulWidget {
 }
 
 class _SetAvailabilityScreenState extends State<SetAvailabilityScreen> {
-  // Until true, only the type picker is shown
+  /// Until true, only the type picker is shown
   bool _typeChosen = false;
 
   DateTime _currentMonth = DateTime(DateTime.now().year, DateTime.now().month);
   final Set<DateTime> _selectedDates = {};
   _AvailabilityType _availabilityType = _AvailabilityType.specific;
 
-  // Specific slots, each has its own optional price
+  // Specific slots — each has its own optional price
   final List<CreateListingSpecificSlot> _slots = [];
 
   // Weekly schedule: each row has its own optional daily + required hourly (on confirm)
@@ -54,7 +55,7 @@ class _SetAvailabilityScreenState extends State<SetAvailabilityScreen> {
     DateTime.now().day,
   );
 
-  // Mins from midnight, 5min steps (see TimeStepMinutes)
+  /// Minutes from midnight, 5-minute steps (see [TimeStepMinutes])
   int _startMinutes = 9 * 60 + 15;
   int _endMinutes = 15 * 60;
 
@@ -103,7 +104,7 @@ class _SetAvailabilityScreenState extends State<SetAvailabilityScreen> {
 
     for (final dayIndex in indices) {
       final day = kWeekdayLabels[dayIndex];
-      final dow = dayIndex;
+      final dow = weekdayUiMonFirstToPostgres(dayIndex);
 
       for (final s in _weeklySlots) {
         if (s.day != day) continue;
@@ -125,11 +126,11 @@ class _SetAvailabilityScreenState extends State<SetAvailabilityScreen> {
       for (final t in pendingSameAdd) {
         if (t.dayPg != dow) continue;
         if (AvailabilityOverlap.intervalsOverlapHalfOpenMinutes(
-              parsed.startMin,
-              parsed.endMin,
-              t.startMin,
-              t.endMin,
-            )) {
+          parsed.startMin,
+          parsed.endMin,
+          t.startMin,
+          t.endMin,
+        )) {
           setState(() {
             _slotOverlapError = AvailabilityOverlap.userMessageWeekly;
           });
@@ -169,7 +170,9 @@ class _SetAvailabilityScreenState extends State<SetAvailabilityScreen> {
     return DateTime(d.year, d.month, d.day, h, m);
   }
 
-  ({DateTime start, DateTime end}) _specificSlotBounds(CreateListingSpecificSlot s) {
+  ({DateTime start, DateTime end}) _specificSlotBounds(
+    CreateListingSpecificSlot s,
+  ) {
     final a = TimeStepMinutes.tryParseMinutesFromAmPm(s.startTime);
     final b = TimeStepMinutes.tryParseMinutesFromAmPm(s.endTime);
     if (a == null || b == null) {
@@ -199,11 +202,11 @@ class _SetAvailabilityScreenState extends State<SetAvailabilityScreen> {
     for (final s in _slots) {
       final e = _specificSlotBounds(s);
       if (AvailabilityOverlap.dateTimeRangesOverlap(
-            startDt,
-            endDt,
-            e.start,
-            e.end,
-          )) {
+        startDt,
+        endDt,
+        e.start,
+        e.end,
+      )) {
         setState(() {
           _slotOverlapError = AvailabilityOverlap.userMessageSpecific;
         });
@@ -252,7 +255,8 @@ class _SetAvailabilityScreenState extends State<SetAvailabilityScreen> {
     _selectedDates.clear();
   }
 
-  // From the form: back returns to the type picker and clears draft. From the picker: back leaves this screen
+  /// From the form: back returns to the type picker and clears draft. From the
+  /// picker: back leaves this screen (e.g. to annotate)
   void _handleBack() {
     if (_typeChosen) {
       setState(() {
@@ -279,10 +283,10 @@ class _SetAvailabilityScreenState extends State<SetAvailabilityScreen> {
       'Nov',
       'Dec',
     ];
-    return '${months[date.month - 1]} ${date.day}, ${date.year} · $time';
+    return '${months[date.month - 1]} ${date.day}, ${date.year} • $time';
   }
 
-  // open pricing screen for a specific slot
+  // Open pricing screen for a specific slot
   Future<void> _openPricingForSlot(int index) async {
     final s = _slots[index];
     final result = await Navigator.push<({double hourly, double? daily})>(
@@ -336,7 +340,7 @@ class _SetAvailabilityScreenState extends State<SetAvailabilityScreen> {
     for (final s in _weeklySlots) {
       final i = kWeekdayLabels.indexOf(s.day);
       if (i < 0) continue;
-      final d = i;
+      final d = weekdayUiMonFirstToPostgres(i);
       final p = AvailabilityOverlap.tryParseAmPmTimeRange(s.timeRange);
       if (p == null) continue;
       triples.add((dayPg: d, startMin: p.startMin, endMin: p.endMin));
@@ -596,8 +600,7 @@ class _SetAvailabilityScreenState extends State<SetAvailabilityScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final useStepBar =
-        widget.currentStep != null && widget.totalSteps != null;
+    final useStepBar = widget.currentStep != null && widget.totalSteps != null;
 
     return PopScope(
       canPop: !_typeChosen,

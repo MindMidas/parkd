@@ -3,13 +3,9 @@ import 'package:flutter/material.dart';
 import '../theme/app_spacing.dart';
 import '../theme/app_typography.dart';
 
-// Muted caption-style para (footnotes, disclaimers)
+// Muted caption-style paragraph (footnotes, disclaimers)
 class AppInfoText extends StatelessWidget {
-  const AppInfoText(
-    this.text, {
-    super.key,
-    this.textAlign = TextAlign.left,
-  });
+  const AppInfoText(this.text, {super.key, this.textAlign = TextAlign.left});
 
   final String text;
   final TextAlign textAlign;

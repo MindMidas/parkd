@@ -6,7 +6,7 @@ import 'payment_methods_repository.dart';
 
 class SupabasePaymentMethodsRepository implements PaymentMethodsRepository {
   SupabasePaymentMethodsRepository(SupabaseClient client)
-      : _remote = PaymentMethodsRemote(client);
+    : _remote = PaymentMethodsRemote(client);
 
   final PaymentMethodsRemote _remote;
 
@@ -51,13 +51,12 @@ class SupabasePaymentMethodsRepository implements PaymentMethodsRepository {
     String? last4,
     int? expMonth,
     int? expYear,
-  }) =>
-      _remote.updateDisplayFields(
-        userId: userId,
-        id: id,
-        brand: brand,
-        last4: last4,
-        expMonth: expMonth,
-        expYear: expYear,
-      );
+  }) => _remote.updateDisplayFields(
+    userId: userId,
+    id: id,
+    brand: brand,
+    last4: last4,
+    expMonth: expMonth,
+    expYear: expYear,
+  );
 }
