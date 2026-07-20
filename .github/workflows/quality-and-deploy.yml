@@ -93,13 +93,6 @@ jobs:
   quality:
     name: Flutter quality gates
     runs-on: ubuntu-latest
-    env:
-      SUPABASE_URL: ${{ vars.SUPABASE_URL || 'https://placeholder.supabase.co' }}
-      SUPABASE_ANON_KEY: ${{ vars.SUPABASE_ANON_KEY || 'public-anon-placeholder' }}
-      MAPBOX_ACCESS_TOKEN: ${{ vars.MAPBOX_ACCESS_TOKEN || '' }}
-      STRIPE_PUBLISHABLE_KEY: ${{ vars.STRIPE_PUBLISHABLE_KEY || '' }}
-      TURNSTILE_SITE_KEY: ${{ vars.TURNSTILE_SITE_KEY || '' }}
-      PASSWORD_RESET_REDIRECT_URL: ${{ vars.PASSWORD_RESET_REDIRECT_URL || '' }}
     steps:
       - name: Check out repository
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
@@ -129,38 +122,10 @@ jobs:
       - name: Enforce global coverage ratchet
         run: dart run .github/scripts/check_coverage.dart coverage/lcov.info 13.0 90.0
 
-      - name: Require Stripe test mode
-        shell: bash
-        run: |
-          if [[ -n "$STRIPE_PUBLISHABLE_KEY" && "$STRIPE_PUBLISHABLE_KEY" != pk_test_* ]]; then
-            echo "STRIPE_PUBLISHABLE_KEY must be empty or start with pk_test_."
-            exit 1
-          fi
-
-      - name: Require production demo configuration
-        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-        shell: bash
-        run: |
-          if [[ "$SUPABASE_URL" == "https://placeholder.supabase.co" ]]; then
-            echo "Set the SUPABASE_URL repository variable before deploying."
-            exit 1
-          fi
-          for name in SUPABASE_ANON_KEY STRIPE_PUBLISHABLE_KEY TURNSTILE_SITE_KEY PASSWORD_RESET_REDIRECT_URL; do
-            if [[ -z "${!name}" || "${!name}" == "public-anon-placeholder" ]]; then
-              echo "Set the $name repository variable before deploying."
-              exit 1
-            fi
-          done
-
-      - name: Build Flutter web release
+      - name: Build offline Flutter showcase
         run: >-
           flutter build web --release
-          --dart-define=SUPABASE_URL="$SUPABASE_URL"
-          --dart-define=SUPABASE_ANON_KEY="$SUPABASE_ANON_KEY"
-          --dart-define=MAPBOX_ACCESS_TOKEN="$MAPBOX_ACCESS_TOKEN"
-          --dart-define=STRIPE_PUBLISHABLE_KEY="$STRIPE_PUBLISHABLE_KEY"
-          --dart-define=TURNSTILE_SITE_KEY="$TURNSTILE_SITE_KEY"
-          --dart-define=PASSWORD_RESET_REDIRECT_URL="$PASSWORD_RESET_REDIRECT_URL"
+          --dart-define=PARKD_SHOWCASE=true
           --dart-define=PARKD_DEMO=true
 
       - name: Upload deployable web artifact
@@ -173,7 +138,7 @@ jobs:
 
   deploy:
     name: Deploy production demo to Vercel
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main'
     needs: [secret-scan, edge-functions, database-security, quality]
     runs-on: ubuntu-latest
     environment:

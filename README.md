@@ -1,74 +1,91 @@
-# Parkd
+<p align="center">
+  <img src="lib/core/assets/logo.png" alt="Parkd" width="170">
+</p>
 
-Parkd is a Flutter parking marketplace demo for discovering spaces, publishing
-listings, reserving time slots, messaging hosts, and completing Stripe test
-payments. The same codebase targets iOS, Android, and a Vercel-hosted web demo.
-Generated desktop runners remain unsupported development scaffolding.
+<p align="center">
+  <strong>Find a spot. Park easy.</strong><br>
+  A parking marketplace built with Flutter
+</p>
 
-> **Portfolio demo:** Parkd accepts test data and Stripe test cards only. Never
-> enter real personal, parking-access, or payment information. Demo accounts and
-> their content are designed to expire after 24 hours.
+<p align="center">
+  <img src="https://img.shields.io/badge/Parking%20Search-334155?style=for-the-badge&labelColor=eaf2ff" alt="Parking search">
+  <img src="https://img.shields.io/badge/Reservations-334155?style=for-the-badge&labelColor=eaf2ff" alt="Reservations">
+  <img src="https://img.shields.io/badge/Host%20Tools-334155?style=for-the-badge&labelColor=eaf2ff" alt="Host tools">
+  <img src="https://img.shields.io/badge/Messaging-334155?style=for-the-badge&labelColor=eaf2ff" alt="Messaging">
+</p>
 
-## Highlights
+<p align="center">
+  <a href="https://flutter.dev/"><img src="https://img.shields.io/badge/Flutter-02569B?style=for-the-badge&logo=flutter&logoColor=white" alt="Flutter"></a>
+  <a href="https://dart.dev/"><img src="https://img.shields.io/badge/Dart-0175C2?style=for-the-badge&logo=dart&logoColor=white" alt="Dart"></a>
+  <a href="https://riverpod.dev/"><img src="https://img.shields.io/badge/Riverpod-0553B1?style=for-the-badge" alt="Riverpod"></a>
+  <a href="https://supabase.com/"><img src="https://img.shields.io/badge/Supabase-3FCF8E?style=for-the-badge&logo=supabase&logoColor=white" alt="Supabase"></a>
+  <a href="https://www.postgresql.org/"><img src="https://img.shields.io/badge/PostgreSQL-4169E1?style=for-the-badge&logo=postgresql&logoColor=white" alt="PostgreSQL"></a>
+  <a href="https://stripe.com/"><img src="https://img.shields.io/badge/Stripe-635BFF?style=for-the-badge&logo=stripe&logoColor=white" alt="Stripe"></a>
+  <a href="https://www.mapbox.com/"><img src="https://img.shields.io/badge/Mapbox-000000?style=for-the-badge&logo=mapbox&logoColor=white" alt="Mapbox"></a>
+  <a href="https://vercel.com/"><img src="https://img.shields.io/badge/Vercel-000000?style=for-the-badge&logo=vercel&logoColor=white" alt="Vercel"></a>
+</p>
 
-- Approximate public map pins; exact locations are visible only to the host and
-  drivers with a confirmed or completed reservation.
-- Server-authoritative availability, pricing, service fees, reservation holds,
-  and payment records.
-- Stripe Payment Sheet on mobile and Stripe-hosted test Checkout on web.
-- Signature-verified, idempotent Stripe webhooks as the payment source of truth.
-- Supabase authentication, MFA, password recovery, row-level security, Storage,
-  account deletion, reporting, blocking, and demo-data retention.
-- Rate-limited Edge Functions for checkout, card setup, account deletion, and
-  Nominatim/Photon geocoding.
-- Responsive shared components with explicit loading, empty, error, offline,
-  and retry states for critical flows.
-- Flutter unit/widget tests, Supabase pgTAP security tests, Deno Edge Function
-  tests, an integration smoke test, and release-web CI.
+## Overview
 
-## Architecture
+Parkd is a mobile parking marketplace where drivers can find and reserve nearby
+parking, and hosts can list unused spaces. It started as a university project
+and grew into a larger full-stack Flutter app with payments, messaging, account
+security, and a tested Supabase backend.
 
-- `lib/` — Flutter app, feature repositories, Riverpod providers, and UI
-- `test/` — unit, repository/provider, routing, and widget tests
-- `integration_test/` — device-level launch/navigation smoke test
-- `supabase/migrations/` — ordered schema, RLS, checkout, moderation, and
-  retention migrations
-- `supabase/tests/` — database security and cross-user access tests
-- `supabase/functions/` — Stripe, deletion, rate-limit, and geocoding handlers
-- `.github/workflows/` — secret scan, quality gates, and Vercel deployment
-- `docs/` — security, privacy, deployment, and store-readiness notes
+The public website runs in **Showcase Mode**. It uses sample data in the browser,
+does not need an account, and cannot make a real payment. The full connected app
+is still included in the repository.
 
-## Local setup
+## Features
 
-Install Flutter `3.41.5`, Dart `3.11.x`, Deno `2.4.5`, the Supabase CLI, and a
-local PostgreSQL/Docker runtime supported by Supabase.
+- Search sample parking spots and view privacy-safe approximate pins.
+- Walk through a local reservation and simulated checkout.
+- View upcoming reservations and a sample host conversation.
+- Check hosting earnings, bookings, listing views, and ratings.
+- Connected implementation for Supabase Auth, PostgreSQL RLS, Storage, realtime
+  messaging, Stripe test checkout, and Mapbox.
+- Unit, widget, integration, Edge Function, and database security tests.
 
-```sh
+## Quick Start
+
+Install [Flutter 3.41.5](https://docs.flutter.dev/get-started/install), then run:
+
+```bash
 flutter pub get
+flutter run -d chrome --dart-define=PARKD_SHOWCASE=true
+```
+
+Showcase Mode is completely local. No environment variables or API keys are
+needed.
+
+## Connected App
+
+To work on the real backend-connected mobile app:
+
+```bash
 cp dart_defines.example.json dart_defines.local.json
 flutter run --dart-define-from-file=dart_defines.local.json
 ```
 
-`dart_defines.local.json` is gitignored. Flutter configuration is compiled into
-the client and therefore must contain public values only:
+Fill `dart_defines.local.json` with public client configuration only:
 
-- Supabase project URL and anonymous/publishable key
-- App-restricted Mapbox public token for native iOS/Android builds; web uses a
-  privacy-safe listing fallback and does not require Mapbox
-- Stripe key beginning with `pk_test_`
-- Cloudflare Turnstile public site key
+- Supabase URL and publishable/anonymous key
+- Mapbox public token
+- Stripe **test** publishable key
+- Turnstile public site key
 - Password-reset callback URL
 
-Service-role, Stripe secret, webhook, rate-limit hash, and provider contact
-values belong only in Supabase Edge Function secrets. Parkd does not bundle or
-load a `.env` file.
+Do not place service-role keys, Stripe secret keys, webhook secrets, or other
+private credentials in the Flutter app. Backend setup is covered in
+[`docs/deployment_readiness.md`](docs/deployment_readiness.md).
 
-## Quality gates
+## Tests
 
-```sh
+```bash
 dart format --output=none --set-exit-if-changed lib test integration_test
 flutter analyze
 flutter test test --coverage
+
 cd supabase/functions
 deno fmt --check
 deno lint
@@ -76,43 +93,38 @@ deno task check
 deno task test
 ```
 
-Run database/RLS tests against a disposable local Supabase stack:
+Database security tests use a local Supabase stack:
 
-```sh
-supabase db reset
+```bash
+supabase start
 supabase test db
 ```
 
-Run the integration smoke test on an attached simulator/device:
+## Project Map
 
-```sh
-flutter test -d DEVICE_ID integration_test/app_smoke_test.dart
-```
+| Path | Purpose |
+|---|---|
+| `lib/` | Flutter features, providers, repositories, and shared UI |
+| `lib/showcase/` | Offline public portfolio experience |
+| `test/` | Unit, repository, routing, and widget tests |
+| `integration_test/` | App launch and navigation smoke tests |
+| `supabase/migrations/` | Database schema, RLS, payments, and moderation |
+| `supabase/functions/` | Stripe, geocoding, deletion, and rate-limited APIs |
+| `docs/` | Deployment, privacy, security, and store-readiness notes |
 
 ## Deployment
 
-The portfolio web build targets Vercel Hobby. GitHub Actions tests one release
-artifact and deploys that exact artifact after all quality gates pass. Vercel is
-preferred over GitHub Pages here because Parkd needs reliable SPA route rewrites,
-security headers, and authentication/payment callback routes.
+The portfolio build is deployed to Vercel from GitHub Actions. It compiles with
+`PARKD_SHOWCASE=true`, so no backend or payment keys are included in the site.
+Only the Vercel deployment credentials are required.
 
-See [deployment readiness](docs/deployment_readiness.md). Publishing still requires
-the repository owner to supply external credentials, apply the migrations,
-deploy Edge Functions, configure the Stripe webhook, and verify the live demo.
+After adding those credentials, open **Actions → Quality and Vercel deployment
+→ Run workflow** in GitHub.
 
-## Mobile stores
+## License
 
-The code contains production bundle identifiers, privacy metadata, hardened
-release configuration, and account/data deletion. Actual App Store and Google
-Play submission still requires owned developer accounts, signing certificates,
-provisioning, stable legal/support URLs, completed privacy questionnaires,
-screenshots, device QA, and reviewer access. The portfolio demo must not be
-presented as a production parking or payment service without a separate legal,
-operational, and security review.
+Copyright © 2026 MindMidas. All rights reserved.
 
-## Security
-
-Do not report vulnerabilities through public demo content. Use the private
-security contact configured by the repository owner. Technical controls and
-remaining production limitations are documented in
-[the security review](docs/security_review.md).
+This repository is public for portfolio and educational review. Permission is
+not granted to copy, redistribute, publish, sell, or submit this project as your
+own work. See [`LICENSE`](LICENSE) for details.

@@ -15,6 +15,15 @@ class AppDemoFrame extends StatelessWidget {
   Widget build(BuildContext context) {
     if (!AppEnvironment.isPortfolioDemo) return child;
 
+    final message = AppEnvironment.isShowcase
+        ? 'Portfolio showcase · Sample data only · No account or payment needed'
+        : 'Portfolio demo · Test data resets after 24 hours · '
+              'Never enter real personal or payment information';
+    final semanticMessage = AppEnvironment.isShowcase
+        ? 'Portfolio showcase. Sample data only. No account or payment is needed.'
+        : 'Portfolio demonstration. Test data resets after 24 hours. '
+              'Do not enter real personal or payment information.';
+
     return Column(
       children: [
         Material(
@@ -24,9 +33,7 @@ class AppDemoFrame extends StatelessWidget {
             child: Semantics(
               container: true,
               liveRegion: true,
-              label:
-                  'Portfolio demonstration. Test data resets after 24 hours. '
-                  'Do not enter real personal or payment information.',
+              label: semanticMessage,
               child: Padding(
                 padding: const EdgeInsets.symmetric(
                   horizontal: AppSpacing.md,
@@ -43,8 +50,7 @@ class AppDemoFrame extends StatelessWidget {
                     const SizedBox(width: AppSpacing.xs),
                     Flexible(
                       child: Text(
-                        'Portfolio demo · Test data resets after 24 hours · '
-                        'Never enter real personal or payment information',
+                        message,
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
                         textAlign: TextAlign.center,

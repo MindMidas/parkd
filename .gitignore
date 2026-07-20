@@ -63,6 +63,7 @@ app.*.map.json
 # Local environment secrets
 .env
 dart_defines.local.json
+.vercel/
 
 # Supabase CLI local cache (not source)
 supabase/.temp/

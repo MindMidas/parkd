@@ -9,9 +9,24 @@ import 'app/main_shell_tab_provider.dart';
 import 'core/config/app_environment.dart';
 import 'core/map/mapbox_runtime.dart';
 import 'core/security/supabase_auth_storage.dart';
+import 'showcase/showcase_app.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  final sharedPreferences = await SharedPreferences.getInstance();
+
+  if (AppEnvironment.isShowcase) {
+    runApp(
+      ProviderScope(
+        overrides: [
+          sharedPreferencesProvider.overrideWithValue(sharedPreferences),
+        ],
+        child: const ParkdShowcaseApp(),
+      ),
+    );
+    return;
+  }
 
   initializeNativeMapbox(
     tokenProvider: () => AppEnvironment.requiredValue(
@@ -51,8 +66,6 @@ Future<void> main() async {
     Stripe.urlScheme = 'parkd-demo';
     await Stripe.instance.applySettings();
   }
-
-  final sharedPreferences = await SharedPreferences.getInstance();
 
   runApp(
     ProviderScope(

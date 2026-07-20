@@ -16,6 +16,15 @@ enum AppEnvironmentKey {
 /// All builds provide public runtime configuration through `--dart-define` or
 /// `--dart-define-from-file`. Secret values must never be compiled into Flutter.
 abstract final class AppEnvironment {
+  /// Runs the public portfolio build without starting external SDKs.
+  ///
+  /// Showcase mode uses local sample data and never contacts Supabase, Stripe,
+  /// Mapbox, Turnstile, or another backend service.
+  static const bool isShowcase = bool.fromEnvironment(
+    'PARKD_SHOWCASE',
+    defaultValue: false,
+  );
+
   /// Portfolio builds are deliberately non-commercial and test-data-only.
   /// Set `--dart-define=PARKD_DEMO=false` only after a separate production
   /// security and legal review.

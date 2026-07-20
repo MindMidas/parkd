@@ -2,7 +2,7 @@
     "id": "/",
     "name": "Parkd portfolio demo",
     "short_name": "Parkd",
-    "description": "Find, list, and reserve parking spaces with a safe Stripe test-mode checkout.",
+    "description": "Find, list, and reserve parking spaces in an offline portfolio showcase.",
     "lang": "en-CA",
     "start_url": "/",
     "scope": "/",

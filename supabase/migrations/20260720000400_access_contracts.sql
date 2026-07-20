@@ -262,7 +262,7 @@ begin
   else
     raise exception using errcode = '22023', message = 'UNKNOWN_RATE_LIMITED_TABLE';
   end if;
-  v_subject := encode(digest(v_user_id::text, 'sha256'), 'hex');
+  v_subject := encode(extensions.digest(v_user_id::text, 'sha256'), 'hex');
   v_window := to_timestamp(floor(extract(epoch from now()) / v_window_seconds) * v_window_seconds);
   insert into public.demo_rate_limits(bucket, subject_hash, window_started_at, hit_count)
     values (v_bucket, v_subject, v_window, 1)
