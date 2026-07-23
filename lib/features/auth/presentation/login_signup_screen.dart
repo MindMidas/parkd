@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart' show kIsWeb, kReleaseMode;
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_svg/flutter_svg.dart';
@@ -8,16 +9,17 @@ import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 
 import '../../../core/theme/app_colors.dart';
+import '../../../core/captcha/turnstile_challenge.dart';
+import '../../../core/config/app_environment.dart';
 import '../../../core/theme/app_spacing.dart';
 import '../../../core/theme/app_typography.dart';
 import '../../../core/utils/auth_error_messages.dart';
 import '../../../core/utils/password_policy.dart';
-import '../../../core/messaging/app_messenger.dart';
 import '../../../core/utils/phone_e164.dart';
-import '../../../core/validation/form_validators.dart';
 import '../../../core/widgets/widgets.dart';
 import '../../auth/providers/auth_providers.dart';
 
+// One big auth screen: login, signup, email OTP, MFA setup + login TOTP challenge
 class LoginSignupScreen extends ConsumerStatefulWidget {
   const LoginSignupScreen({super.key});
 
@@ -48,14 +50,14 @@ class _LoginSignupScreenState extends ConsumerState<LoginSignupScreen> {
   final _loginEmailFocus = FocusNode(debugLabel: 'loginEmail');
   Timer? _loginEmailValidateDebounce;
 
-  // true after idle debounce or blur so we show format errors
+  /// True after idle debounce or blur so we show format errors (not while mid-typing)
   bool _loginEmailFormatChecked = false;
   final _signUpEmailController = TextEditingController();
   final _signUpEmailFieldKey = GlobalKey<FormFieldState<String>>();
   final _signUpEmailFocus = FocusNode(debugLabel: 'signupEmail');
   Timer? _signUpEmailValidateDebounce;
 
-  // true after idle debounce or blur so signup email format errors show
+  /// True after idle debounce or blur so signup email format errors show (not while mid-typing)
   bool _signUpEmailFormatChecked = false;
   final _loginPasswordController = TextEditingController();
   final _signUpPasswordController = TextEditingController();
@@ -71,7 +73,7 @@ class _LoginSignupScreenState extends ConsumerState<LoginSignupScreen> {
   String? _pendingEmail;
   DateTime? _birthDate;
 
-  // latest E.164-style value from AppIntlPhoneField ('+countrynational')
+  /// Latest E.164-style value from [AppIntlPhoneField] (`+[country][national]`)
   String _signupPhoneE164 = '';
 
   bool _mfaEnrollLoading = false;
@@ -88,11 +90,6 @@ class _LoginSignupScreenState extends ConsumerState<LoginSignupScreen> {
 
   AutovalidateMode _signUpAutovalidateMode = AutovalidateMode.disabled;
   AutovalidateMode _loginAutovalidateMode = AutovalidateMode.disabled;
-
-  Timer? _usernameAvailabilityDebounce;
-  bool _usernameAvailabilityChecking = false;
-  bool? _usernameAvailabilityOk;
-  bool _usernameAvailabilityFailed = false;
 
   int _emailOtpResendRemaining = 0;
   Timer? _signupOtpResendCooldownTimer;
@@ -226,8 +223,9 @@ class _LoginSignupScreenState extends ConsumerState<LoginSignupScreen> {
 
   void _ensureSignupOtpResendCooldownTicker() {
     if (_signupOtpResendCooldownTimer != null) return;
-    _signupOtpResendCooldownTimer =
-        Timer.periodic(const Duration(seconds: 1), (t) {
+    _signupOtpResendCooldownTimer = Timer.periodic(const Duration(seconds: 1), (
+      t,
+    ) {
       if (!mounted) {
         t.cancel();
         return;
@@ -252,7 +250,6 @@ class _LoginSignupScreenState extends ConsumerState<LoginSignupScreen> {
   @override
   void dispose() {
     _signupOtpResendCooldownTimer?.cancel();
-    _usernameAvailabilityDebounce?.cancel();
     _loginEmailValidateDebounce?.cancel();
     _signUpEmailValidateDebounce?.cancel();
     _signUpEmailFocus.removeListener(_signUpEmailFocusListener);
@@ -317,8 +314,7 @@ class _LoginSignupScreenState extends ConsumerState<LoginSignupScreen> {
       _mfaSecret = null;
     });
     try {
-      final r =
-          await ref.read(authRepositoryProvider).mfaEnrollTotp();
+      final r = await ref.read(authRepositoryProvider).mfaEnrollTotp();
       if (!mounted) {
         return;
       }
@@ -416,8 +412,7 @@ class _LoginSignupScreenState extends ConsumerState<LoginSignupScreen> {
       _loginMfaFactorError = null;
     });
     try {
-      final factors =
-          await ref.read(authRepositoryProvider).mfaListFactors();
+      final factors = await ref.read(authRepositoryProvider).mfaListFactors();
       if (!mounted) {
         return;
       }
@@ -459,7 +454,10 @@ class _LoginSignupScreenState extends ConsumerState<LoginSignupScreen> {
     }
     final factorId = _loginMfaFactorId;
     if (factorId == null || factorId.isEmpty) {
-      AppMessenger.showError(context, 'Could not load your security key. Try again.');
+      AppMessenger.showError(
+        context,
+        'Could not load your security key. Try again.',
+      );
       return;
     }
 
@@ -553,35 +551,11 @@ class _LoginSignupScreenState extends ConsumerState<LoginSignupScreen> {
     final email = (_isSignUp ? _signUpEmailController : _loginEmailController)
         .text
         .trim();
-    final password = (_isSignUp
-            ? _signUpPasswordController
-            : _loginPasswordController)
-        .text
-        .trim();
+    final password =
+        (_isSignUp ? _signUpPasswordController : _loginPasswordController).text
+            .trim();
 
     final authRepository = ref.read(authRepositoryProvider);
-
-    if (_isSignUp) {
-      try {
-        final taken = !(await authRepository.isUsernameAvailable(username));
-        if (!mounted) {
-          return;
-        }
-        if (taken) {
-          AppMessenger.showError(
-            context,
-            'That username is already taken. Try another.',
-          );
-          return;
-        }
-      } on Exception catch (e) {
-        if (!mounted) {
-          return;
-        }
-        AppMessenger.showError(context, userFacingAuthMessage(e));
-        return;
-      }
-    }
 
     setState(() {
       _isSubmitting = true;
@@ -589,27 +563,35 @@ class _LoginSignupScreenState extends ConsumerState<LoginSignupScreen> {
 
     try {
       if (_isSignUp) {
-        final phoneE164 =
-            normalizePhoneToE164(_signupPhoneE164) ?? _signupPhoneE164;
-        final phoneDigits = phoneE164.replaceAll(RegExp(r'\D'), '');
-        if (phoneDigits.length < 10) {
+        String? captchaToken;
+        final turnstileSiteKey = AppEnvironment.optional(
+          AppEnvironmentKey.turnstileSiteKey,
+        );
+        if (kIsWeb) {
+          if ((turnstileSiteKey == null || turnstileSiteKey.isEmpty) &&
+              kReleaseMode) {
+            throw StateError(
+              'Public sign-up is unavailable because bot protection is not configured.',
+            );
+          }
+          if (turnstileSiteKey != null && turnstileSiteKey.isNotEmpty) {
+            captchaToken = await requestTurnstileToken(turnstileSiteKey);
+            if (captchaToken == null) {
+              throw StateError('Bot verification could not be completed.');
+            }
+          }
+        }
+        final hasPhone = _signupPhoneController.text.trim().isNotEmpty;
+        final phoneE164 = hasPhone
+            ? normalizePhoneToE164(_signupPhoneE164)
+            : null;
+        if (hasPhone && phoneE164 == null) {
           if (!mounted) {
             return;
           }
           AppMessenger.showError(
             context,
             'Enter a valid phone number for the selected country.',
-          );
-          return;
-        }
-        final phoneFree = await authRepository.isPhoneAvailable(phoneE164);
-        if (!mounted) {
-          return;
-        }
-        if (!phoneFree) {
-          AppMessenger.showError(
-            context,
-            'That phone number is already registered.',
           );
           return;
         }
@@ -620,6 +602,7 @@ class _LoginSignupScreenState extends ConsumerState<LoginSignupScreen> {
           username: username,
           phoneE164: phoneE164,
           birthDate: _birthDate,
+          captchaToken: captchaToken,
         );
 
         if (!mounted) {
@@ -666,8 +649,7 @@ class _LoginSignupScreenState extends ConsumerState<LoginSignupScreen> {
   }
 
   Future<void> _resendConfirmation() async {
-    final pendingEmail =
-        _pendingEmail ?? _signUpEmailController.text.trim();
+    final pendingEmail = _pendingEmail ?? _signUpEmailController.text.trim();
     if (pendingEmail.isEmpty ||
         _emailOtpResendRemaining > 0 ||
         _emailOtpResendBusy) {
@@ -703,7 +685,7 @@ class _LoginSignupScreenState extends ConsumerState<LoginSignupScreen> {
     context.push('/auth/forgot-password');
   }
 
-  // Clears all sign-up field values and related UI state (call before setState or inside it)
+  /// Clears all sign-up field values and related UI state (call before [setState] or inside it)
   void _clearSignUpFormFields() {
     _firstNameController.clear();
     _lastNameController.clear();
@@ -716,9 +698,6 @@ class _LoginSignupScreenState extends ConsumerState<LoginSignupScreen> {
     _birthDate = null;
     _birthDateDisplayController.clear();
     _acceptedTerms = false;
-    _usernameAvailabilityChecking = false;
-    _usernameAvailabilityOk = null;
-    _usernameAvailabilityFailed = false;
     _signupOtpController.clear();
     _signUpAutovalidateMode = AutovalidateMode.disabled;
   }
@@ -729,7 +708,6 @@ class _LoginSignupScreenState extends ConsumerState<LoginSignupScreen> {
   }
 
   void _switchToSignUp() {
-    _usernameAvailabilityDebounce?.cancel();
     _resetLoginEmailFieldValidation();
     _resetSignUpEmailFieldValidation();
     _cancelSignupOtpResendCooldown();
@@ -749,10 +727,10 @@ class _LoginSignupScreenState extends ConsumerState<LoginSignupScreen> {
   }
 
   Future<void> _switchToLogin() async {
-    _usernameAvailabilityDebounce?.cancel();
     _resetLoginEmailFieldValidation();
     _resetSignUpEmailFieldValidation();
-    final signOutMidFlow = _awaitingEmailConfirmation ||
+    final signOutMidFlow =
+        _awaitingEmailConfirmation ||
         _awaitingMfaEnrollment ||
         ref.read(needsMfaChallengeProvider);
     if (signOutMidFlow) {
@@ -780,47 +758,7 @@ class _LoginSignupScreenState extends ConsumerState<LoginSignupScreen> {
   }
 
   void _onUsernameChanged(String _) {
-    _usernameAvailabilityDebounce?.cancel();
-    setState(() {
-      _usernameAvailabilityOk = null;
-      _usernameAvailabilityChecking = false;
-      _usernameAvailabilityFailed = false;
-    });
-
-    final u = _usernameController.text.trim().toLowerCase();
-    if (!FormValidators.usernameFormatIsValid(u)) {
-      return;
-    }
-
-    _usernameAvailabilityDebounce = Timer(const Duration(milliseconds: 450), () async {
-      if (!mounted) {
-        return;
-      }
-      setState(() {
-        _usernameAvailabilityChecking = true;
-      });
-      try {
-        final available =
-            await ref.read(authRepositoryProvider).isUsernameAvailable(u);
-        if (!mounted) {
-          return;
-        }
-        setState(() {
-          _usernameAvailabilityChecking = false;
-          _usernameAvailabilityOk = available;
-          _usernameAvailabilityFailed = false;
-        });
-      } on Exception catch (_) {
-        if (!mounted) {
-          return;
-        }
-        setState(() {
-          _usernameAvailabilityChecking = false;
-          _usernameAvailabilityOk = null;
-          _usernameAvailabilityFailed = true;
-        });
-      }
-    });
+    setState(() {});
   }
 
   RequirementRowState _rowStateForRule({
@@ -838,19 +776,13 @@ class _LoginSignupScreenState extends ConsumerState<LoginSignupScreen> {
     return e.isNotEmpty && FormValidators.email(e) == null;
   }
 
-  // Format valid and server confirmed handle is free
+  /// Availability is enforced server-side without exposing an enumeration API.
   bool _isSignUpUsernameFullyOk() {
     final u = _usernameController.text.trim().toLowerCase();
-    if (!FormValidators.usernameFormatIsValid(u)) {
-      return false;
-    }
-    if (_usernameAvailabilityFailed || _usernameAvailabilityChecking) {
-      return false;
-    }
-    return _usernameAvailabilityOk == true;
+    return FormValidators.usernameFormatIsValid(u);
   }
 
-  // Requirement rows: only while incomplete and user is engaged (focus / typed / after Register)
+  /// Requirement rows: only while incomplete and user is engaged (focus / typed / after Register)
   bool _showUsernameRequirementList() {
     if (_isSignUpUsernameFullyOk()) {
       return false;
@@ -883,58 +815,6 @@ class _LoginSignupScreenState extends ConsumerState<LoginSignupScreen> {
       return false;
     }
     return FormValidators.matchPassword(_signUpPasswordController)(c) == null;
-  }
-
-  Widget _usernameAvailabilityRow(BuildContext context) {
-    final u = _usernameController.text.trim().toLowerCase();
-    final formatOk = FormValidators.usernameFormatIsValid(u);
-
-    if (!formatOk) {
-      return const AppRequirementCheckRow(
-        label: 'Availability',
-        state: RequirementRowState.neutral,
-      );
-    }
-
-    if (_usernameAvailabilityFailed) {
-      return const AppRequirementCheckRow(
-        label: 'Could not verify availability.',
-        state: RequirementRowState.neutral,
-      );
-    }
-
-    if (_usernameAvailabilityChecking) {
-      return AppRequirementCheckRow(
-        label: 'Availability',
-        state: RequirementRowState.neutral,
-        leading: SizedBox(
-          width: 16,
-          height: 16,
-          child: CircularProgressIndicator(
-            strokeWidth: 2,
-            color: AppColors.primaryBlue,
-          ),
-        ),
-      );
-    }
-
-    if (_usernameAvailabilityOk == true) {
-      return const AppRequirementCheckRow(
-        label: 'Username is available',
-        state: RequirementRowState.met,
-      );
-    }
-    if (_usernameAvailabilityOk == false) {
-      return const AppRequirementCheckRow(
-        label: 'That username is already taken',
-        state: RequirementRowState.unmet,
-      );
-    }
-
-    return const AppRequirementCheckRow(
-      label: 'Availability',
-      state: RequirementRowState.neutral,
-    );
   }
 
   Future<void> _verifySignupOtp() async {
@@ -994,69 +874,82 @@ class _LoginSignupScreenState extends ConsumerState<LoginSignupScreen> {
   Widget _buildLoginLayout(BuildContext context) {
     final imageHeight = MediaQuery.of(context).size.height / 3;
 
-    return SingleChildScrollView(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          AppLoginHeroImage(height: imageHeight),
-          Padding(
-            padding: const EdgeInsets.all(AppSpacing.lg),
+    return Column(
+      children: [
+        Expanded(
+          child: SingleChildScrollView(
+            physics: const BouncingScrollPhysics(
+              parent: AlwaysScrollableScrollPhysics(),
+            ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                Text(
-                  'Welcome!',
-                  style: AppTypography.headline,
-                ),
-                const SizedBox(height: AppSpacing.lg),
-                AppTextField(
-                  formFieldKey: _loginEmailFieldKey,
-                  focusNode: _loginEmailFocus,
-                  controller: _loginEmailController,
-                  label: 'Email',
-                  hint: 'you@example.com',
-                  keyboardType: TextInputType.emailAddress,
-                  validator: _loginEmailValidator,
-                  showValidCheckmark: _loginEmailOk,
-                  enabled: !_isSubmitting,
-                  onChanged: _onLoginEmailChanged,
-                ),
-                const SizedBox(height: AppSpacing.md),
-                AppTextField(
-                  controller: _loginPasswordController,
-                  label: 'Password',
-                  hint: 'Enter your password',
-                  obscureText: true,
-                  showPasswordToggle: true,
-                  validator: FormValidators.loginPassword,
-                  enabled: !_isSubmitting,
-                ),
-                const SizedBox(height: AppSpacing.sm),
-                Align(
-                  alignment: Alignment.centerLeft,
-                  child: AppCompactPrimaryTextButton(
-                    label: 'Forgot password?',
-                    enabled: !_isSubmitting,
-                    onPressed: _openForgotPassword,
+                AppLoginHeroImage(height: imageHeight),
+                Padding(
+                  padding: const EdgeInsets.all(AppSpacing.lg),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Text(
+                        'Welcome back',
+                        style: AppTypography.hubTitle.copyWith(
+                          color: AppColors.black,
+                        ),
+                      ),
+                      const SizedBox(height: AppSpacing.lg),
+                      AppTextField(
+                        formFieldKey: _loginEmailFieldKey,
+                        focusNode: _loginEmailFocus,
+                        controller: _loginEmailController,
+                        label: 'Email',
+                        hint: 'you@example.com',
+                        keyboardType: TextInputType.emailAddress,
+                        validator: _loginEmailValidator,
+                        showValidCheckmark: _loginEmailOk,
+                        enabled: !_isSubmitting,
+                        onChanged: _onLoginEmailChanged,
+                      ),
+                      const SizedBox(height: AppSpacing.md),
+                      AppTextField(
+                        controller: _loginPasswordController,
+                        label: 'Password',
+                        hint: 'Enter your password',
+                        obscureText: true,
+                        showPasswordToggle: true,
+                        validator: FormValidators.loginPassword,
+                        enabled: !_isSubmitting,
+                      ),
+                      const SizedBox(height: AppSpacing.sm),
+                      Align(
+                        alignment: Alignment.centerLeft,
+                        child: AppCompactPrimaryTextButton(
+                          label: 'Forgot password?',
+                          enabled: !_isSubmitting,
+                          onPressed: _openForgotPassword,
+                        ),
+                      ),
+                      const SizedBox(height: AppSpacing.md),
+                      AppMutedLinkRow(
+                        leadingText: 'New User? ',
+                        linkText: 'Sign Up',
+                        enabled: !_isSubmitting,
+                        onLinkPressed: _switchToSignUp,
+                      ),
+                    ],
                   ),
-                ),
-                const SizedBox(height: AppSpacing.md),
-                AppPrimaryButton(
-                  onPressed: _isSubmitting ? null : _submit,
-                  label: 'Login',
-                ),
-                const SizedBox(height: AppSpacing.md),
-                AppMutedLinkRow(
-                  leadingText: 'New User? ',
-                  linkText: 'Sign Up',
-                  enabled: !_isSubmitting,
-                  onLinkPressed: _switchToSignUp,
                 ),
               ],
             ),
           ),
-        ],
-      ),
+        ),
+        AppStickyFooter(
+          child: AppPrimaryButton(
+            onPressed: _isSubmitting ? null : _submit,
+            label: 'Login',
+            loading: _isSubmitting,
+          ),
+        ),
+      ],
     );
   }
 
@@ -1069,57 +962,75 @@ class _LoginSignupScreenState extends ConsumerState<LoginSignupScreen> {
         child: Form(
           key: _otpFormKey,
           autovalidateMode: AutovalidateMode.onUserInteraction,
-          child: AppFormScrollBody(
-            topPadding: AppSpacing.lg,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-              Text(
-                'Check your email',
-                style: AppTypography.headline,
-              ),
-              const SizedBox(height: AppSpacing.sm),
-              AppFormHelperText('We sent a verification code to\n$email'),
-              const SizedBox(height: AppSpacing.xl),
-              AppTextField(
-                controller: _signupOtpController,
-                label: 'Verification code',
-                hint: '6-10 digits from email',
-                keyboardType: TextInputType.number,
-                inputFormatters: [
-                  FilteringTextInputFormatter.digitsOnly,
-                  LengthLimitingTextInputFormatter(10),
-                ],
-                validator: FormValidators.signupEmailOtp,
-                enabled: !_isSubmitting,
-              ),
-              const SizedBox(height: AppSpacing.lg),
-              AppPrimaryButton(
-                onPressed: _isSubmitting ? null : _verifySignupOtp,
-                label: 'Verify & continue',
-              ),
-              const SizedBox(height: AppSpacing.md),
-              AppSecondaryButton(
-                fullWidth: true,
-                applyTitleCase: false,
-                label: _emailOtpResendRemaining > 0
-                    ? 'Send again in ${_emailOtpResendRemaining}s'
-                    : 'Resend code',
-                loading: _emailOtpResendBusy,
-                onPressed: (_emailOtpResendRemaining > 0 || _emailOtpResendBusy)
-                    ? null
-                    : _resendConfirmation,
-              ),
-              const SizedBox(height: AppSpacing.md),
-              Center(
-                child: AppCompactPrimaryTextButton(
-                  label: 'Back to login',
-                  enabled: !_isSubmitting,
-                  onPressed: _isSubmitting ? null : () => _switchToLogin(),
+          child: Column(
+            children: [
+              Expanded(
+                child: AppFormScrollBody(
+                  topPadding: AppSpacing.lg,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Text(
+                        'Check your email',
+                        style: AppTypography.hubTitle.copyWith(
+                          color: AppColors.black,
+                        ),
+                      ),
+                      const SizedBox(height: AppSpacing.sm),
+                      AppFormHelperText('Enter the code we sent to $email'),
+                      const SizedBox(height: AppSpacing.xl),
+                      AppTextField(
+                        controller: _signupOtpController,
+                        label: 'Verification code',
+                        hint: '6-10 digits from email',
+                        keyboardType: TextInputType.number,
+                        inputFormatters: [
+                          FilteringTextInputFormatter.digitsOnly,
+                          LengthLimitingTextInputFormatter(10),
+                        ],
+                        validator: FormValidators.signupEmailOtp,
+                        enabled: !_isSubmitting,
+                      ),
+                      const SizedBox(height: AppSpacing.md),
+                      Center(
+                        child: AppCompactPrimaryTextButton(
+                          label: 'Back to login',
+                          enabled: !_isSubmitting,
+                          onPressed:
+                              _isSubmitting ? null : () => _switchToLogin(),
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ),
-              ],
-            ),
+              AppStickyFooter(
+                child: Column(
+                  children: [
+                    AppPrimaryButton(
+                      onPressed: _isSubmitting ? null : _verifySignupOtp,
+                      label: 'Verify & continue',
+                      loading: _isSubmitting,
+                    ),
+                    const SizedBox(height: AppSpacing.sm),
+                    AppCompactPrimaryTextButton(
+                      label: _emailOtpResendRemaining > 0
+                          ? 'Send again in ${_emailOtpResendRemaining}s'
+                          : 'Resend code',
+                      enabled: !(_emailOtpResendRemaining > 0 ||
+                          _emailOtpResendBusy ||
+                          _isSubmitting),
+                      onPressed:
+                          (_emailOtpResendRemaining > 0 ||
+                              _emailOtpResendBusy ||
+                              _isSubmitting)
+                          ? null
+                          : _resendConfirmation,
+                    ),
+                  ],
+                ),
+              ),
+            ],
           ),
         ),
       ),
@@ -1128,6 +1039,8 @@ class _LoginSignupScreenState extends ConsumerState<LoginSignupScreen> {
 
   Widget _buildMfaEnrollmentLayout(BuildContext context) {
     final svg = _svgXmlFromQrDataUri(_mfaQrDataUri);
+    final showVerify =
+        !_mfaEnrollLoading && _mfaEnrollError == null && _mfaQrDataUri != null;
     return SafeArea(
       bottom: false,
       child: ColoredBox(
@@ -1135,96 +1048,106 @@ class _LoginSignupScreenState extends ConsumerState<LoginSignupScreen> {
         child: Form(
           key: _mfaEnrollFormKey,
           autovalidateMode: AutovalidateMode.onUserInteraction,
-          child: AppFormScrollBody(
-            topPadding: AppSpacing.lg,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Text(
-                  'Two-step verification',
-                  style: AppTypography.headline,
-                ),
-                const SizedBox(height: AppSpacing.sm),
-                const AppFormHelperText(
-                  'Add an authenticator app (Google Authenticator, Authy, 1Password, etc.). Scan the QR code or enter the secret manually, then enter the 6-digit code.',
-                ),
-                const SizedBox(height: AppSpacing.lg),
-                if (_mfaEnrollLoading)
-                  const Center(
-                    child: Padding(
-                      padding: EdgeInsets.symmetric(vertical: AppSpacing.xl),
-                      child: CircularProgressIndicator(),
-                    ),
-                  )
-                else if (_mfaEnrollError != null) ...[
-                  Text(
-                    _mfaEnrollError!,
-                    style: AppTypography.bodySecondary,
-                  ),
-                  const SizedBox(height: AppSpacing.md),
-                  AppPrimaryButton(
-                    onPressed: _isSubmitting ? null : _loadMfaEnrollmentData,
-                    label: 'Try again',
-                  ),
-                ] else ...[
-                  if (svg != null)
-                    Center(
-                      child: AppDisplayOutlineCard(
-                        child: SizedBox(
-                          width: 220,
-                          height: 220,
-                          child: SvgPicture.string(svg, fit: BoxFit.contain),
+          child: Column(
+            children: [
+              Expanded(
+                child: AppFormScrollBody(
+                  topPadding: AppSpacing.lg,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Text(
+                        'Two-step verification',
+                        style: AppTypography.hubTitle.copyWith(
+                          color: AppColors.black,
                         ),
                       ),
-                    ),
-                  if (_mfaSecret != null && _mfaSecret!.isNotEmpty) ...[
-                    const SizedBox(height: AppSpacing.md),
-                    SelectableText(
-                      'Secret: ${_mfaSecret!}',
-                      style: AppTypography.monoCaption,
-                    ),
-                  ],
-                  const SizedBox(height: AppSpacing.xl),
-                  AppTextField(
-                    controller: _mfaOtpController,
-                    label: 'Authenticator code',
-                    hint: '6-digit code',
-                    keyboardType: TextInputType.number,
-                    inputFormatters: [
-                      FilteringTextInputFormatter.digitsOnly,
-                      LengthLimitingTextInputFormatter(6),
+                      const SizedBox(height: AppSpacing.sm),
+                      const AppFormHelperText(
+                        'Scan the QR with your authenticator app, then enter the 6-digit code.',
+                      ),
+                      const SizedBox(height: AppSpacing.lg),
+                      if (_mfaEnrollLoading)
+                        const AppPageStatus.loading()
+                      else if (_mfaEnrollError != null) ...[
+                        Text(
+                          _mfaEnrollError!,
+                          style: AppTypography.bodySecondary,
+                        ),
+                        const SizedBox(height: AppSpacing.md),
+                        AppPrimaryButton(
+                          onPressed:
+                              _isSubmitting ? null : _loadMfaEnrollmentData,
+                          label: 'Try again',
+                        ),
+                      ] else ...[
+                        if (svg != null)
+                          Center(
+                            child: AppDisplayOutlineCard(
+                              child: SizedBox(
+                                width: 220,
+                                height: 220,
+                                child: SvgPicture.string(
+                                  svg,
+                                  fit: BoxFit.contain,
+                                ),
+                              ),
+                            ),
+                          ),
+                        if (_mfaSecret != null && _mfaSecret!.isNotEmpty) ...[
+                          const SizedBox(height: AppSpacing.md),
+                          SelectableText(
+                            'Secret: ${_mfaSecret!}',
+                            style: AppTypography.monoCaption,
+                          ),
+                        ],
+                        const SizedBox(height: AppSpacing.xl),
+                        AppTextField(
+                          controller: _mfaOtpController,
+                          label: 'Authenticator code',
+                          hint: '6-digit code',
+                          keyboardType: TextInputType.number,
+                          inputFormatters: [
+                            FilteringTextInputFormatter.digitsOnly,
+                            LengthLimitingTextInputFormatter(6),
+                          ],
+                          validator: FormValidators.totpCode,
+                          enabled: !_isSubmitting,
+                        ),
+                      ],
+                      const SizedBox(height: AppSpacing.md),
+                      Center(
+                        child: AppCompactPrimaryTextButton(
+                          label: 'Skip for now',
+                          enabled: !_isSubmitting && !_mfaEnrollLoading,
+                          onPressed: _isSubmitting || _mfaEnrollLoading
+                              ? null
+                              : () => _skipMfaEnrollment(),
+                        ),
+                      ),
+                      const SizedBox(height: AppSpacing.sm),
+                      Center(
+                        child: AppCompactPrimaryTextButton(
+                          label: 'Back to login',
+                          enabled: !_isSubmitting && !_mfaEnrollLoading,
+                          onPressed: _isSubmitting || _mfaEnrollLoading
+                              ? null
+                              : () => _switchToLogin(),
+                        ),
+                      ),
                     ],
-                    validator: FormValidators.totpCode,
-                    enabled: !_isSubmitting,
                   ),
-                  const SizedBox(height: AppSpacing.lg),
-                  AppPrimaryButton(
+                ),
+              ),
+              if (showVerify)
+                AppStickyFooter(
+                  child: AppPrimaryButton(
                     onPressed: _isSubmitting ? null : _verifyMfaEnrollment,
                     label: 'Verify & continue',
-                  ),
-                ],
-                const SizedBox(height: AppSpacing.md),
-                Center(
-                  child: AppCompactPrimaryTextButton(
-                    label: 'Skip for now',
-                    enabled: !_isSubmitting && !_mfaEnrollLoading,
-                    onPressed: _isSubmitting || _mfaEnrollLoading
-                        ? null
-                        : () => _skipMfaEnrollment(),
+                    loading: _isSubmitting,
                   ),
                 ),
-                const SizedBox(height: AppSpacing.sm),
-                Center(
-                  child: AppCompactPrimaryTextButton(
-                    label: 'Back to login',
-                    enabled: !_isSubmitting && !_mfaEnrollLoading,
-                    onPressed: _isSubmitting || _mfaEnrollLoading
-                        ? null
-                        : () => _switchToLogin(),
-                  ),
-                ),
-              ],
-            ),
+            ],
           ),
         ),
       ),
@@ -1233,6 +1156,8 @@ class _LoginSignupScreenState extends ConsumerState<LoginSignupScreen> {
 
   Widget _buildLoginMfaLayout(BuildContext context) {
     final email = ref.watch(currentSessionProvider)?.user.email ?? '';
+    final showContinue =
+        !_loginMfaFactorLoading && _loginMfaFactorError == null;
     return SafeArea(
       bottom: false,
       child: ColoredBox(
@@ -1240,77 +1165,83 @@ class _LoginSignupScreenState extends ConsumerState<LoginSignupScreen> {
         child: Form(
           key: _mfaLoginFormKey,
           autovalidateMode: AutovalidateMode.onUserInteraction,
-          child: AppFormScrollBody(
-            topPadding: AppSpacing.lg,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Text(
-                  'Two-step verification',
-                  style: AppTypography.headline,
-                ),
-                const SizedBox(height: AppSpacing.sm),
-                AppFormHelperText(
-                  email.isNotEmpty
-                      ? 'Enter the code from your authenticator app for\n$email'
-                      : 'Enter the code from your authenticator app.',
-                ),
-                const SizedBox(height: AppSpacing.xl),
-                if (_loginMfaFactorLoading)
-                  const Center(
-                    child: Padding(
-                      padding: EdgeInsets.symmetric(vertical: AppSpacing.lg),
-                      child: CircularProgressIndicator(),
-                    ),
-                  )
-                else if (_loginMfaFactorError != null) ...[
-                  Text(
-                    _loginMfaFactorError!,
-                    style: AppTypography.bodySecondary,
-                  ),
-                  const SizedBox(height: AppSpacing.md),
-                  AppPrimaryButton(
-                    onPressed: _isSubmitting
-                        ? null
-                        : () {
-                            setState(() {
-                              _loginMfaFactorError = null;
-                              _loginMfaFactorId = null;
-                            });
-                            _ensureLoginMfaFactorLoaded();
-                          },
-                    label: 'Try again',
-                  ),
-                ]
-                else ...[
-                  AppTextField(
-                    controller: _mfaOtpController,
-                    label: 'Authenticator code',
-                    hint: '6-digit code',
-                    keyboardType: TextInputType.number,
-                    inputFormatters: [
-                      FilteringTextInputFormatter.digitsOnly,
-                      LengthLimitingTextInputFormatter(6),
+          child: Column(
+            children: [
+              Expanded(
+                child: AppFormScrollBody(
+                  topPadding: AppSpacing.lg,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Text(
+                        'Two-step verification',
+                        style: AppTypography.hubTitle.copyWith(
+                          color: AppColors.black,
+                        ),
+                      ),
+                      const SizedBox(height: AppSpacing.sm),
+                      AppFormHelperText(
+                        email.isNotEmpty
+                            ? 'Enter the code from your authenticator app for\n$email'
+                            : 'Enter the code from your authenticator app.',
+                      ),
+                      const SizedBox(height: AppSpacing.xl),
+                      if (_loginMfaFactorLoading)
+                        const AppPageStatus.loading()
+                      else if (_loginMfaFactorError != null) ...[
+                        Text(
+                          _loginMfaFactorError!,
+                          style: AppTypography.bodySecondary,
+                        ),
+                        const SizedBox(height: AppSpacing.md),
+                        AppPrimaryButton(
+                          onPressed: _isSubmitting
+                              ? null
+                              : () {
+                                  setState(() {
+                                    _loginMfaFactorError = null;
+                                    _loginMfaFactorId = null;
+                                  });
+                                  _ensureLoginMfaFactorLoaded();
+                                },
+                          label: 'Try again',
+                        ),
+                      ] else ...[
+                        AppTextField(
+                          controller: _mfaOtpController,
+                          label: 'Authenticator code',
+                          hint: '6-digit code',
+                          keyboardType: TextInputType.number,
+                          inputFormatters: [
+                            FilteringTextInputFormatter.digitsOnly,
+                            LengthLimitingTextInputFormatter(6),
+                          ],
+                          validator: FormValidators.totpCode,
+                          enabled: !_isSubmitting,
+                        ),
+                      ],
+                      const SizedBox(height: AppSpacing.md),
+                      Center(
+                        child: AppCompactPrimaryTextButton(
+                          label: 'Sign out',
+                          enabled: !_isSubmitting,
+                          onPressed:
+                              _isSubmitting ? null : _signOutFromLoginMfa,
+                        ),
+                      ),
                     ],
-                    validator: FormValidators.totpCode,
-                    enabled: !_isSubmitting,
                   ),
-                  const SizedBox(height: AppSpacing.lg),
-                  AppPrimaryButton(
+                ),
+              ),
+              if (showContinue)
+                AppStickyFooter(
+                  child: AppPrimaryButton(
                     onPressed: _isSubmitting ? null : _verifyLoginMfa,
                     label: 'Continue',
-                  ),
-                ],
-                const SizedBox(height: AppSpacing.md),
-                Center(
-                  child: AppCompactPrimaryTextButton(
-                    label: 'Sign out',
-                    enabled: !_isSubmitting,
-                    onPressed: _isSubmitting ? null : _signOutFromLoginMfa,
+                    loading: _isSubmitting,
                   ),
                 ),
-              ],
-            ),
+            ],
           ),
         ),
       ),
@@ -1322,197 +1253,215 @@ class _LoginSignupScreenState extends ConsumerState<LoginSignupScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-            const AppFormHelperText('Create an account to get started'),
-            const SizedBox(height: AppSpacing.lg),
-            AppTextField(
-              controller: _firstNameController,
-              label: 'First name',
-              hint: 'Alex',
-              textCapitalization: TextCapitalization.words,
-              inputFormatters: [LengthLimitingTextInputFormatter(60)],
-              validator: FormValidators.firstName,
-              enabled: !_isSubmitting,
-            ),
-            const SizedBox(height: AppSpacing.md),
-            AppTextField(
-              controller: _lastNameController,
-              label: 'Last name(s)',
-              hint: 'Smith-Jones',
-              textCapitalization: TextCapitalization.words,
-              inputFormatters: [LengthLimitingTextInputFormatter(80)],
-              validator: FormValidators.familyName,
-              enabled: !_isSubmitting,
-            ),
-            const SizedBox(height: AppSpacing.md),
-            AppTextField(
-              focusNode: _signUpUsernameFocus,
-              controller: _usernameController,
-              label: 'Username',
-              hint: 'alex_doe',
-              autocorrect: false,
-              textCapitalization: TextCapitalization.none,
-              inputFormatters: [
-                FilteringTextInputFormatter.allow(RegExp(r'[a-zA-Z0-9_]')),
-                LengthLimitingTextInputFormatter(20),
-              ],
-              validator: FormValidators.username,
-              collapseValidationMessage: true,
-              showValidCheckmark: _isSignUpUsernameFullyOk(),
-              enabled: !_isSubmitting,
-              onChanged: _onUsernameChanged,
-            ),
-            if (_showUsernameRequirementList())
-              Padding(
-                padding: const EdgeInsets.only(left: 4, top: 2),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    ...FormValidators.usernameRequirements(_usernameController.text).map(
-                      (r) => AppRequirementCheckRow(
-                        label: r.label,
-                        state: _rowStateForRule(
-                          met: r.met,
-                          neutralWhen: _usernameController.text.trim().isEmpty &&
-                              !_signUpLiveValidation,
-                        ),
-                      ),
-                    ),
-                    _usernameAvailabilityRow(context),
-                  ],
-                ),
-              ),
-            const SizedBox(height: AppSpacing.md),
-            AppTextField(
-              formFieldKey: _signUpEmailFieldKey,
-              focusNode: _signUpEmailFocus,
-              controller: _signUpEmailController,
-              label: 'Email address',
-              hint: 'you@example.com',
-              keyboardType: TextInputType.emailAddress,
-              validator: _signUpEmailValidator,
-              showValidCheckmark: _isSignUpEmailOk(),
-              enabled: !_isSubmitting,
-              onChanged: _onSignUpEmailChanged,
-            ),
-            const SizedBox(height: AppSpacing.md),
-            AppIntlPhoneField(
-              controller: _signupPhoneController,
-              enabled: !_isSubmitting,
-              initialCountryCode: 'CA',
-              onPhoneChanged: (phone) {
-                setState(() {
-                  _signupPhoneE164 = phone.completeNumber;
-                });
-              },
-            ),
-            const SizedBox(height: AppSpacing.md),
-            AppTextField(
-              readOnly: true,
-              onTap: _isSubmitting ? null : _pickBirthDate,
-              controller: _birthDateDisplayController,
-              label: 'Date of birth (optional)',
-              hint: 'Select date',
-              suffixIcon: Icon(
-                Icons.calendar_today_outlined,
-                size: 20,
-                color: AppColors.iconGrey,
-              ),
-              enabled: !_isSubmitting,
-            ),
-            const SizedBox(height: AppSpacing.md),
-            AppTextField(
-              focusNode: _signUpPasswordFocus,
-              controller: _signUpPasswordController,
-              label: 'Password',
-              hint: 'Create a password',
-              obscureText: true,
-              showPasswordToggle: true,
-              validator: FormValidators.signupPassword,
-              collapseValidationMessage: true,
-              showValidCheckmark: _isSignUpPasswordPolicyOk(),
-              enabled: !_isSubmitting,
-              onChanged: (_) {
-                setState(() {});
-                if (_signUpAutovalidateMode != AutovalidateMode.disabled &&
-                    _confirmPasswordController.text.isNotEmpty) {
-                  _confirmPasswordFieldKey.currentState?.validate();
-                }
-              },
-            ),
-            if (_showPasswordRequirementList())
-              Padding(
-                padding: const EdgeInsets.only(left: 4, top: 2),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    ...signupPasswordRequirements(_signUpPasswordController.text).map(
-                      (r) => AppRequirementCheckRow(
-                        label: r.label,
-                        state: _rowStateForRule(
-                          met: r.met,
-                          neutralWhen: _signUpPasswordController.text.isEmpty &&
-                              !_signUpLiveValidation,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            const SizedBox(height: AppSpacing.md),
-            AppTextField(
-              formFieldKey: _confirmPasswordFieldKey,
-              controller: _confirmPasswordController,
-              label: 'Confirm password',
-              hint: 'Re-enter your password',
-              obscureText: true,
-              showPasswordToggle: true,
-              validator: FormValidators.matchPassword(_signUpPasswordController),
-              collapseValidationMessage: true,
-              showValidCheckmark: _isSignUpConfirmPasswordOk(),
-              enabled: !_isSubmitting,
-              onChanged: (_) {
-                setState(() {});
-                if (_signUpAutovalidateMode != AutovalidateMode.disabled) {
-                  _confirmPasswordFieldKey.currentState?.validate();
-                }
-              },
-            ),
-            const SizedBox(height: AppSpacing.lg),
-            AppCheckboxRichTextRow(
-              value: _acceptedTerms,
-              onChanged: _isSubmitting
-                  ? null
-                  : (value) {
-                      setState(() {
-                        _acceptedTerms = value ?? false;
-                      });
-                    },
-              labelSpan: TextSpan(
-                style: AppTypography.caption,
+          const AppFormHelperText('Fill in your details to join Parkd'),
+          const SizedBox(height: AppSpacing.lg),
+          AppTextField(
+            controller: _firstNameController,
+            label: 'First name',
+            hint: 'Alex',
+            textCapitalization: TextCapitalization.words,
+            inputFormatters: [LengthLimitingTextInputFormatter(60)],
+            validator: FormValidators.firstName,
+            enabled: !_isSubmitting,
+          ),
+          const SizedBox(height: AppSpacing.md),
+          AppTextField(
+            controller: _lastNameController,
+            label: 'Last name(s)',
+            hint: 'Smith-Jones',
+            textCapitalization: TextCapitalization.words,
+            inputFormatters: [LengthLimitingTextInputFormatter(80)],
+            validator: FormValidators.familyName,
+            enabled: !_isSubmitting,
+          ),
+          const SizedBox(height: AppSpacing.md),
+          AppTextField(
+            focusNode: _signUpUsernameFocus,
+            controller: _usernameController,
+            label: 'Username',
+            hint: 'alex_doe',
+            autocorrect: false,
+            textCapitalization: TextCapitalization.none,
+            inputFormatters: [
+              FilteringTextInputFormatter.allow(RegExp(r'[a-zA-Z0-9_]')),
+              LengthLimitingTextInputFormatter(20),
+            ],
+            validator: FormValidators.username,
+            collapseValidationMessage: true,
+            showValidCheckmark: _isSignUpUsernameFullyOk(),
+            enabled: !_isSubmitting,
+            onChanged: _onUsernameChanged,
+          ),
+          if (_showUsernameRequirementList())
+            Padding(
+              padding: const EdgeInsets.only(left: 4, top: 2),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const TextSpan(
-                    text: "I've read and agree with the ",
+                  ...FormValidators.usernameRequirements(
+                    _usernameController.text,
+                  ).map(
+                    (r) => AppRequirementCheckRow(
+                      label: r.label,
+                      state: _rowStateForRule(
+                        met: r.met,
+                        neutralWhen:
+                            _usernameController.text.trim().isEmpty &&
+                            !_signUpLiveValidation,
+                      ),
+                    ),
                   ),
-                  TextSpan(
-                    text: 'Terms and Conditions',
-                    style: AppTypography.captionLink,
-                  ),
-                  const TextSpan(text: ' and the '),
-                  TextSpan(
-                    text: 'Privacy Policy',
-                    style: AppTypography.captionLink,
-                  ),
-                  const TextSpan(text: '.'),
                 ],
               ),
             ),
-            const SizedBox(height: AppSpacing.lg),
-            AppPrimaryButton(
-              onPressed: _isSubmitting ? null : _submit,
-              label: 'Sign Up',
+          const SizedBox(height: AppSpacing.md),
+          AppTextField(
+            formFieldKey: _signUpEmailFieldKey,
+            focusNode: _signUpEmailFocus,
+            controller: _signUpEmailController,
+            label: 'Email address',
+            hint: 'you@example.com',
+            keyboardType: TextInputType.emailAddress,
+            validator: _signUpEmailValidator,
+            showValidCheckmark: _isSignUpEmailOk(),
+            enabled: !_isSubmitting,
+            onChanged: _onSignUpEmailChanged,
+          ),
+          const SizedBox(height: AppSpacing.md),
+          AppIntlPhoneField(
+            controller: _signupPhoneController,
+            enabled: !_isSubmitting,
+            initialCountryCode: 'CA',
+            phoneRequired: false,
+            labelText: 'Phone number (optional)',
+            onPhoneChanged: (phone) {
+              setState(() {
+                _signupPhoneE164 = phone.completeNumber;
+              });
+            },
+          ),
+          const SizedBox(height: AppSpacing.md),
+          AppTextField(
+            readOnly: true,
+            onTap: _isSubmitting ? null : _pickBirthDate,
+            controller: _birthDateDisplayController,
+            label: 'Date of birth (optional)',
+            hint: 'Select date',
+            suffixIcon: Icon(
+              Icons.calendar_today_outlined,
+              size: 20,
+              color: AppColors.iconGrey,
             ),
-          ],
-        ),
+            enabled: !_isSubmitting,
+          ),
+          const SizedBox(height: AppSpacing.md),
+          AppTextField(
+            focusNode: _signUpPasswordFocus,
+            controller: _signUpPasswordController,
+            label: 'Password',
+            hint: 'Create a password',
+            obscureText: true,
+            showPasswordToggle: true,
+            validator: FormValidators.signupPassword,
+            collapseValidationMessage: true,
+            showValidCheckmark: _isSignUpPasswordPolicyOk(),
+            enabled: !_isSubmitting,
+            onChanged: (_) {
+              setState(() {});
+              if (_signUpAutovalidateMode != AutovalidateMode.disabled &&
+                  _confirmPasswordController.text.isNotEmpty) {
+                _confirmPasswordFieldKey.currentState?.validate();
+              }
+            },
+          ),
+          if (_showPasswordRequirementList())
+            Padding(
+              padding: const EdgeInsets.only(left: 4, top: 2),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  ...signupPasswordRequirements(
+                    _signUpPasswordController.text,
+                  ).map(
+                    (r) => AppRequirementCheckRow(
+                      label: r.label,
+                      state: _rowStateForRule(
+                        met: r.met,
+                        neutralWhen:
+                            _signUpPasswordController.text.isEmpty &&
+                            !_signUpLiveValidation,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          const SizedBox(height: AppSpacing.md),
+          AppTextField(
+            formFieldKey: _confirmPasswordFieldKey,
+            controller: _confirmPasswordController,
+            label: 'Confirm password',
+            hint: 'Re-enter your password',
+            obscureText: true,
+            showPasswordToggle: true,
+            validator: FormValidators.matchPassword(_signUpPasswordController),
+            collapseValidationMessage: true,
+            showValidCheckmark: _isSignUpConfirmPasswordOk(),
+            enabled: !_isSubmitting,
+            onChanged: (_) {
+              setState(() {});
+              if (_signUpAutovalidateMode != AutovalidateMode.disabled) {
+                _confirmPasswordFieldKey.currentState?.validate();
+              }
+            },
+          ),
+          const SizedBox(height: AppSpacing.lg),
+          AppCheckboxRichTextRow(
+            value: _acceptedTerms,
+            onChanged: _isSubmitting
+                ? null
+                : (value) {
+                    setState(() {
+                      _acceptedTerms = value ?? false;
+                    });
+                  },
+            labelSpan: TextSpan(
+              style: AppTypography.caption,
+              children: [
+                const TextSpan(text: "I've read and agree with the "),
+                TextSpan(
+                  text: 'Terms and Conditions',
+                  style: AppTypography.captionLink,
+                ),
+                const TextSpan(text: ' and the '),
+                TextSpan(
+                  text: 'Privacy Policy',
+                  style: AppTypography.captionLink,
+                ),
+                const TextSpan(text: '.'),
+              ],
+            ),
+          ),
+          Align(
+            alignment: Alignment.centerLeft,
+            child: Wrap(
+              spacing: AppSpacing.md,
+              children: [
+                AppCompactPrimaryTextButton(
+                  label: 'Read terms',
+                  enabled: !_isSubmitting,
+                  onPressed: () => context.push('/legal/terms'),
+                ),
+                AppCompactPrimaryTextButton(
+                  label: 'Read privacy',
+                  enabled: !_isSubmitting,
+                  onPressed: () => context.push('/legal/privacy'),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
     );
   }
 
@@ -1566,7 +1515,18 @@ class _LoginSignupScreenState extends ConsumerState<LoginSignupScreen> {
         body: Form(
           key: _signUpFormKey,
           autovalidateMode: _signUpAutovalidateMode,
-          child: _buildSignUpLayout(context),
+          child: Column(
+            children: [
+              Expanded(child: _buildSignUpLayout(context)),
+              AppStickyFooter(
+                child: AppPrimaryButton(
+                  onPressed: _isSubmitting ? null : _submit,
+                  label: 'Sign Up',
+                  loading: _isSubmitting,
+                ),
+              ),
+            ],
+          ),
         ),
       );
     }

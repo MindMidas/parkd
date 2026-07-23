@@ -3,7 +3,7 @@ import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-import 'main_tab.dart';
+import '../features/map/presentation/main_tab.dart';
 
 const _mainShellTabStorageKey = 'main_shell_tab_index';
 
@@ -29,5 +29,6 @@ class MainShellTabNotifier extends Notifier<int> {
   }
 }
 
-final mainShellTabIndexProvider =
-    NotifierProvider<MainShellTabNotifier, int>(MainShellTabNotifier.new);
+final mainShellTabIndexProvider = NotifierProvider<MainShellTabNotifier, int>(
+  MainShellTabNotifier.new,
+);

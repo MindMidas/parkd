@@ -9,14 +9,17 @@ import '../../../core/models/listing_photo.dart';
 import '../../../core/models/profile.dart';
 import '../../../core/models/slot_pricing_summary.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../../core/theme/app_radius.dart';
 import '../../../core/theme/app_spacing.dart';
 import '../../../core/theme/app_typography.dart';
 import '../../../core/utils/profile_avatar_image_provider.dart';
 import '../../../core/widgets/widgets.dart';
 import '../../auth/providers/auth_providers.dart';
-import '../../listings/data/listings_repository.dart';
+import '../../moderation/presentation/moderation_actions.dart';
+import '../../profile/data/listings_repository.dart';
 import '../../profile/data/profile_repository.dart';
 import '../../profile/providers/profile_providers.dart';
+import '../providers/map_providers.dart';
 import 'reservation_screen.dart';
 
 ListingsRepository _listingsRepo(WidgetRef ref) =>
@@ -40,7 +43,9 @@ String _formatWeeklyRange(String start, String end) {
 }
 
 Set<int> _weekdaysFromWeekly(List<AvailabilityWeekly> weekly) {
-  return weekly.map((w) => AvailabilityWeekly.toDartWeekday(w.dayOfWeek)).toSet();
+  return weekly
+      .map((w) => w.dayOfWeek == 0 ? DateTime.sunday : w.dayOfWeek)
+      .toSet();
 }
 
 String _hostHandleFromName(String displayName) {
@@ -59,16 +64,13 @@ String _hostHandle(Profile? profile, String displayName) {
   List<AvailabilityWeekly> weekly,
   List<AvailabilitySpecific> specific,
   List<BookingTimeWindow> bookings,
-}) _heatmapSchedule(
+})
+_heatmapSchedule(
   List<AvailabilityWeekly> apiWeekly,
   List<AvailabilitySpecific> apiSpecific,
   List<BookingTimeWindow> apiBookings,
 ) {
-  return (
-    weekly: apiWeekly,
-    specific: apiSpecific,
-    bookings: apiBookings,
-  );
+  return (weekly: apiWeekly, specific: apiSpecific, bookings: apiBookings);
 }
 
 bool _noPublishedAvailability(
@@ -78,14 +80,18 @@ bool _noPublishedAvailability(
     List<AvailabilityWeekly> weekly,
     List<AvailabilitySpecific> specific,
     List<BookingTimeWindow> bookings,
-  }) data,
+  })
+  data,
 ) {
   return data.weekly.isEmpty && data.specific.isEmpty;
 }
 
-
+/// Pops with result `'full'` when the user drags the sheet handle up so the map can
+/// push [ListingDetailFromMapScreen] as a separate route
 const String kListingDetailSheetResultFull = 'full';
 
+/// Fixed ~70% height; only the top handle expands to full detail — body scrolls independently
+// Map listing detail sheet — drag handle + embedded detail body over the map
 class ListingDetailFromMapSheet extends StatefulWidget {
   const ListingDetailFromMapSheet({super.key, required this.listing});
 
@@ -105,6 +111,7 @@ class _ListingDetailFromMapSheetState extends State<ListingDetailFromMapSheet> {
     _handlePointer = null;
     _handleDragAccum = 0;
 
+    // Ignore tiny jitter; pointer events avoid competing with scroll gesture arena
     if (d < -36) {
       Navigator.of(context).pop(kListingDetailSheetResultFull);
       return;
@@ -126,6 +133,8 @@ class _ListingDetailFromMapSheetState extends State<ListingDetailFromMapSheet> {
         fit: StackFit.expand,
         clipBehavior: Clip.none,
         children: [
+          // Map / dimmed area: must sit in this overlay so Flutter wins over the map
+          // platform view for hit-testing (barrier alone is unreliable)
           Positioned.fill(
             child: GestureDetector(
               behavior: HitTestBehavior.opaque,
@@ -139,7 +148,7 @@ class _ListingDetailFromMapSheetState extends State<ListingDetailFromMapSheet> {
               width: double.infinity,
               child: ClipRRect(
                 borderRadius: const BorderRadius.vertical(
-                  top: Radius.circular(16),
+                  top: Radius.circular(AppRadius.sheet),
                 ),
                 child: Material(
                   color: AppColors.surface,
@@ -167,11 +176,7 @@ class _ListingDetailFromMapSheetState extends State<ListingDetailFromMapSheet> {
                             _handleDragAccum = 0;
                           }
                         },
-                        child: const SizedBox(
-                          height: 52,
-                          width: double.infinity,
-                          child: AppBottomSheetGrabber(),
-                        ),
+                        child: const AppBottomSheetGrabber(),
                       ),
                       Expanded(
                         child: ListingDetailFromMapScreen(
@@ -191,6 +196,7 @@ class _ListingDetailFromMapSheetState extends State<ListingDetailFromMapSheet> {
   }
 }
 
+// Full-screen version when you drag the handle up — same scroll body + footer as the sheet
 class ListingDetailFromMapScreen extends ConsumerStatefulWidget {
   const ListingDetailFromMapScreen({
     super.key,
@@ -220,6 +226,32 @@ class _ListingDetailFromMapScreenState
   bool _loading = true;
   bool _loadFailed = false;
 
+  Future<void> _onSafetyAction(String action) async {
+    final listing = widget.listing;
+    if (action == 'report') {
+      await showParkdReportDialog(
+        context: context,
+        ref: ref,
+        targetType: 'listing',
+        targetId: listing.id,
+        targetLabel: 'listing',
+      );
+      return;
+    }
+    if (action == 'block') {
+      final hostName = _data?.profile?.displayName ?? 'this host';
+      final blocked = await confirmAndBlockParkdUser(
+        context: context,
+        ref: ref,
+        userId: listing.hostId,
+        displayName: hostName,
+      );
+      if (!blocked || !mounted) return;
+      ref.invalidate(mapPublishedListingsProvider);
+      Navigator.of(context).pop();
+    }
+  }
+
   @override
   void initState() {
     super.initState();
@@ -235,8 +267,16 @@ class _ListingDetailFromMapScreenState
     try {
       final results = await Future.wait([
         listings.getListingPhotos(id),
-        listings.getAvailabilityWeekly(id),
-        listings.getAvailabilitySpecific(id),
+        widget.listing.isApproximateLocation
+            ? Future<List<AvailabilityWeekly>>.value(
+                widget.listing.publicWeeklyAvailability,
+              )
+            : listings.getAvailabilityWeekly(id),
+        widget.listing.isApproximateLocation
+            ? Future<List<AvailabilitySpecific>>.value(
+                widget.listing.publicSpecificAvailability,
+              )
+            : listings.getAvailabilitySpecific(id),
         listings.getBookingBlocksOverlapping(
           id,
           rangeStart: rangeStart,
@@ -297,42 +337,78 @@ class _ListingDetailFromMapScreenState
           handle: _hostHandle(profile, displayName),
           avatarImageProvider: profileAvatarImageProvider(profile),
         ),
-        const SizedBox(height: AppSpacing.md),
+        const SizedBox(height: AppSpacing.sm),
         AppListingPhotoFrame(
-          borderRadius: 12,
+          heroTag: 'listing-photo-${listing.id}',
+          borderRadius: AppRadius.md,
+          overlay: null,
           child: _heroPhoto(
             listing: listing,
             photos: data?.photos,
             loading: false,
           ),
         ),
-        const SizedBox(height: AppSpacing.md),
+        const SizedBox(height: AppSpacing.lg),
+        Text('Location', style: AppTypography.overline),
+        const SizedBox(height: AppSpacing.sm),
         AppStreetAddressCard(
-          title: 'Parking location',
-          streetLine: listing.addressLine,
-          localityLine: listing.localityLine.isNotEmpty
-              ? listing.localityLine
+          streetLine: listing.revealsExactStreetAddress
+              ? listing.addressLine
+              : (listing.townCountryLine.isNotEmpty
+                    ? listing.townCountryLine
+                    : listing.approximateAreaHeadline),
+          localityLine: listing.revealsExactStreetAddress &&
+                  listing.townCountryLine.isNotEmpty
+              ? listing.townCountryLine
               : null,
           spotLine: listing.spotLabel,
           usePrimaryColorForSecondaryLines: true,
+          footer: !listing.revealsExactStreetAddress
+              ? Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    AppApproximateLocationMap(
+                      latitude: listing.latitude,
+                      longitude: listing.longitude,
+                      showApproximateHalo: listing.isApproximateLocation,
+                    ),
+                    const SizedBox(height: AppSpacing.xs),
+                    Text(
+                      listing.isApproximateLocation
+                          ? 'Exact location will be provided after booking.'
+                          : 'Exact street address will be provided after booking.',
+                      style: AppTypography.caption,
+                    ),
+                  ],
+                )
+              : null,
         ),
-        const SizedBox(height: AppSpacing.md),
-        AppDisplayTitledOutlineCard(
-          title: 'Availability heatmap',
-          child: AppListingAvailabilityHeatmap(
-            loading: false,
-            listing: listing,
-            weekly: heatmapSchedule.weekly,
-            specific: heatmapSchedule.specific,
-            bookings: heatmapSchedule.bookings,
-          ),
-        ),
-        const SizedBox(height: AppSpacing.md),
-        AppDisplayTitledOutlineCard(
-          title: 'Hours & pricing',
-          child: _AvailabilitySection(
-            weekly: data?.weekly ?? const [],
-            specific: data?.specific ?? const [],
+        const SizedBox(height: AppSpacing.lg),
+        Text('Availability', style: AppTypography.overline),
+        const SizedBox(height: AppSpacing.sm),
+        AppDisplayOutlineCard(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Text('Heatmap', style: AppTypography.captionStrong),
+              const SizedBox(height: AppSpacing.sm),
+              AppListingAvailabilityHeatmap(
+                loading: false,
+                listing: listing,
+                weekly: heatmapSchedule.weekly,
+                specific: heatmapSchedule.specific,
+                bookings: heatmapSchedule.bookings,
+              ),
+              const SizedBox(height: AppSpacing.md),
+              const AppDividerWide(),
+              const SizedBox(height: AppSpacing.md),
+              Text('Hours & pricing', style: AppTypography.captionStrong),
+              const SizedBox(height: AppSpacing.sm),
+              _AvailabilitySection(
+                weekly: data?.weekly ?? const [],
+                specific: data?.specific ?? const [],
+              ),
+            ],
           ),
         ),
         const SizedBox(height: AppSpacing.sm),
@@ -342,23 +418,12 @@ class _ListingDetailFromMapScreenState
 
   Widget _buildLoadingOrErrorBody() {
     if (_loadFailed) {
-      return Center(
-        child: Padding(
-          padding: const EdgeInsets.all(AppSpacing.xl),
-          child: Text(
-            'Could not load this listing. Check your connection and try again.',
-            textAlign: TextAlign.center,
-            style: AppTypography.bodyMuted,
-          ),
-        ),
+      return const AppPageStatus.error(
+        title: 'Could not load this listing.',
+        message: 'Check your connection and try again.',
       );
     }
-    return const Center(
-      child: Padding(
-        padding: EdgeInsets.all(AppSpacing.xl),
-        child: CircularProgressIndicator(),
-      ),
-    );
+    return const AppPageStatus.loading();
   }
 
   Widget _reserveButton(
@@ -376,23 +441,24 @@ class _ListingDetailFromMapScreenState
     return AppPrimaryButton(
       label: 'Make a reservation',
       icon: Icons.chevron_right_rounded,
-      onPressed: isOwnListing ||
-              data == null ||
-              _noPublishedAvailability(data)
+      onPressed: isOwnListing || data == null || _noPublishedAvailability(data)
           ? null
           : () {
               final w = data.weekly;
               final weekdays = _weekdaysFromWeekly(w);
               final minH = SlotPricingSummary.minHourly(w, data.specific);
-              final minD = SlotPricingSummary.minDailyWhereSet(w, data.specific);
+              final minD = SlotPricingSummary.minDailyWhereSet(
+                w,
+                data.specific,
+              );
               final hr = minH ?? 0;
               final heat = _heatmapSchedule(
                 data.weekly,
                 data.specific,
                 data.bookings,
               );
-              Navigator.of(context).push(
-                MaterialPageRoute<void>(
+              Navigator.of(context).push<void>(
+                AppPageRoute<void>(
                   builder: (_) => ReservationScreen(
                     listing: listing,
                     weekly: heat.weekly,
@@ -402,7 +468,9 @@ class _ListingDetailFromMapScreenState
                     hourlyRate: hr,
                     dailyRate: minD ?? hr * 8,
                     streetAddress: listing.addressLine,
-                    localityLine: listing.localityLine,
+                    localityLine: listing.townCountryLine.isNotEmpty
+                        ? listing.townCountryLine
+                        : listing.localityLine,
                     spotLabel: listing.spotLabel,
                     latitude: listing.latitude,
                     longitude: listing.longitude,
@@ -419,14 +487,6 @@ class _ListingDetailFromMapScreenState
     final listing = widget.listing;
     final data = _data;
 
-    // Match ReservationScreen footer
-    const reserveBarPadding = EdgeInsets.fromLTRB(
-      AppSpacing.lg,
-      0,
-      AppSpacing.lg,
-      AppSpacing.lg,
-    );
-
     final ready = !_loading && data != null && !_loadFailed;
     final sessionUserId = ref.watch(currentSessionProvider)?.user.id;
     final isOwnListing =
@@ -440,26 +500,15 @@ class _ListingDetailFromMapScreenState
             child: ready
                 ? AppDetailScrollBody(
                     bottomScrollPadding: AppSpacing.md,
-                    child: _buildListingDetailBody(
-                      context,
-                      listing,
-                      data,
-                    ),
+                    child: _buildListingDetailBody(context, listing, data),
                   )
                 : _buildLoadingOrErrorBody(),
           ),
-          Padding(
-            padding: reserveBarPadding,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                _reserveButton(
-                  listing,
-                  ready ? data : null,
-                  isOwnListing: isOwnListing,
-                ),
-              ],
+          AppStickyFooter(
+            child: _reserveButton(
+              listing,
+              ready ? data : null,
+              isOwnListing: isOwnListing,
             ),
           ),
         ],
@@ -468,33 +517,46 @@ class _ListingDetailFromMapScreenState
 
     return Scaffold(
       backgroundColor: AppColors.surface,
-      appBar: AppTopBar(title: listing.addressLine, showBack: true),
+      appBar: AppTopBar(
+        title: listing.addressLine,
+        showBack: true,
+        actions: isOwnListing
+            ? null
+            : [
+                AppOverflowMenuButton(
+                  tooltip: 'Safety options',
+                  onSelected: _onSafetyAction,
+                  items: const [
+                    AppOverflowMenuItem(
+                      value: 'report',
+                      label: 'Report listing',
+                      icon: Icons.flag_outlined,
+                    ),
+                    AppOverflowMenuItem(
+                      value: 'block',
+                      label: 'Block host',
+                      icon: Icons.block_rounded,
+                      destructive: true,
+                    ),
+                  ],
+                ),
+              ],
+      ),
       body: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Expanded(
             child: ready
                 ? AppDetailScrollBody(
-                    child: _buildListingDetailBody(
-                      context,
-                      listing,
-                      data,
-                    ),
+                    child: _buildListingDetailBody(context, listing, data),
                   )
                 : _buildLoadingOrErrorBody(),
           ),
-          Padding(
-            padding: reserveBarPadding,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                _reserveButton(
-                  listing,
-                  ready ? data : null,
-                  isOwnListing: isOwnListing,
-                ),
-              ],
+          AppStickyFooter(
+            child: _reserveButton(
+              listing,
+              ready ? data : null,
+              isOwnListing: isOwnListing,
             ),
           ),
         ],
@@ -512,7 +574,7 @@ class _ListingDetailFromMapScreenState
     );
   }
 
-  // uses Supabase photos when loaded
+  /// Uses Supabase [photos] when loaded; until then [Listing.heroPhotoUrl] from the map query embed
   Widget _heroPhoto({
     required Listing listing,
     required List<ListingPhoto>? photos,
@@ -527,10 +589,9 @@ class _ListingDetailFromMapScreenState
     final fromRow = heroRow?.photoUrl.trim() ?? '';
     final fromMapPin = listing.heroPhotoUrl?.trim() ?? '';
     final url = fromRow.isNotEmpty ? fromRow : fromMapPin;
-    final markerFraction =
-        heroRow?.markerX != null && heroRow?.markerY != null
-            ? Offset(heroRow!.markerX!, heroRow.markerY!)
-            : null;
+    final markerFraction = heroRow?.markerX != null && heroRow?.markerY != null
+        ? Offset(heroRow!.markerX!, heroRow.markerY!)
+        : null;
 
     if (url.isEmpty) {
       if (loading) {
@@ -615,7 +676,7 @@ class _AvailabilitySection extends StatelessWidget {
     if (dateSlots.isEmpty && weekSlots.isEmpty) {
       return Text(
         'No schedule on file for this spot yet.',
-        style: AppTypography.bodyMuted,
+        style: AppTypography.caption,
       );
     }
 

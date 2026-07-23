@@ -6,11 +6,12 @@ import '../models/search_result.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_spacing.dart';
 import '../theme/app_typography.dart';
+import 'app_buttons.dart';
 import 'app_divider.dart';
 import 'app_map_search_card.dart';
 import 'app_map_search_field.dart';
 
-// floating card search + results, searchFn swaps geocoding vs other sources
+// Floating card search + results; searchFn swaps geocoding vs other sources
 class AppMapAddressSearchPanel extends StatefulWidget {
   const AppMapAddressSearchPanel({
     super.key,
@@ -24,7 +25,7 @@ class AppMapAddressSearchPanel extends StatefulWidget {
 
   final TextEditingController? controller;
 
-  // addresses only (not app's listing search)
+  // Addresses only (not your app’s listing search)
   final Future<List<SearchResult>> Function(String query) searchFn;
 
   final ValueChanged<SearchResult> onResultSelected;
@@ -41,13 +42,17 @@ class _AppMapAddressSearchPanelState extends State<AppMapAddressSearchPanel> {
   late TextEditingController _controller;
   Timer? _debounce;
 
-  // freeze field text after pick so we don't re-search same string
+  // Freeze field text after pick so we don’t re-search the same string
   String? _committedSearchLabel;
   List<SearchResult> _searchResults = [];
   bool _isSearching = false;
   bool _showResults = false;
+  bool _searchFailed = false;
+  int _searchGeneration = 0;
+  String _lastQuery = '';
 
   static const _debounceMs = 500;
+  static const _searchTimeout = Duration(seconds: 12);
 
   @override
   void initState() {
@@ -66,6 +71,7 @@ class _AppMapAddressSearchPanelState extends State<AppMapAddressSearchPanel> {
 
   void _onSearchChanged(String query) {
     _debounce?.cancel();
+    final generation = ++_searchGeneration;
     final q = query.trim();
     if (q.isEmpty) {
       _committedSearchLabel = null;
@@ -73,6 +79,7 @@ class _AppMapAddressSearchPanelState extends State<AppMapAddressSearchPanel> {
         _searchResults = [];
         _showResults = false;
         _isSearching = false;
+        _searchFailed = false;
       });
       return;
     }
@@ -82,34 +89,52 @@ class _AppMapAddressSearchPanelState extends State<AppMapAddressSearchPanel> {
           _searchResults = [];
           _showResults = false;
           _isSearching = false;
+          _searchFailed = false;
         });
         return;
       }
       _committedSearchLabel = null;
     }
-    setState(() => _isSearching = true);
+    setState(() {
+      _isSearching = true;
+      _searchFailed = false;
+      _lastQuery = q;
+    });
     _debounce = Timer(const Duration(milliseconds: _debounceMs), () {
-      _runSearch(q);
+      _runSearch(q, generation);
     });
   }
 
-  Future<void> _runSearch(String query) async {
+  Future<void> _runSearch(String query, int generation) async {
     try {
-      final results = await widget.searchFn(query);
-      if (!mounted) return;
+      final results = await widget.searchFn(query).timeout(_searchTimeout);
+      if (!mounted || generation != _searchGeneration) return;
       setState(() {
         _searchResults = results;
         _showResults = results.isNotEmpty;
         _isSearching = false;
+        _searchFailed = false;
       });
     } catch (_) {
-      if (!mounted) return;
+      if (!mounted || generation != _searchGeneration) return;
       setState(() {
         _searchResults = [];
         _showResults = false;
         _isSearching = false;
+        _searchFailed = true;
       });
     }
+  }
+
+  void _retrySearch() {
+    final query = _lastQuery.trim();
+    if (query.isEmpty) return;
+    final generation = ++_searchGeneration;
+    setState(() {
+      _isSearching = true;
+      _searchFailed = false;
+    });
+    _runSearch(query, generation);
   }
 
   void _onResultTapped(SearchResult result) {
@@ -120,6 +145,7 @@ class _AppMapAddressSearchPanelState extends State<AppMapAddressSearchPanel> {
       _showResults = false;
       _searchResults = [];
       _isSearching = false;
+      _searchFailed = false;
     });
     _controller.value = TextEditingValue(
       text: result.displayName,
@@ -131,55 +157,58 @@ class _AppMapAddressSearchPanelState extends State<AppMapAddressSearchPanel> {
 
   @override
   Widget build(BuildContext context) {
-    final maxResultsHeight = (MediaQuery.sizeOf(context).height * 0.42)
-        .clamp(220.0, 400.0);
+    final maxResultsHeight = (MediaQuery.sizeOf(context).height * 0.42).clamp(
+      220.0,
+      400.0,
+    );
 
     return Column(
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        DecoratedBox(
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(12),
-            boxShadow: [
-              BoxShadow(
-                color: AppColors.shadowFloating,
-                blurRadius: 10,
-                offset: const Offset(0, 3),
-              ),
-            ],
-          ),
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(0, 4, 0, 4),
-            child: AppMapSearchField(
-              controller: _controller,
-              hintText: widget.hintText,
-              onChanged: _onSearchChanged,
-              showFilterButton: widget.showFilterButton,
-              onFilterTap: widget.onFilterTap,
-            ),
-          ),
+        AppMapSearchField(
+          controller: _controller,
+          hintText: widget.hintText,
+          onChanged: _onSearchChanged,
+          showFilterButton: widget.showFilterButton,
+          onFilterTap: widget.onFilterTap,
+          isLoading: _isSearching,
         ),
-        if (_isSearching) ...[
-          const SizedBox(height: 4),
+        if (_searchFailed && !_isSearching) ...[
+          const SizedBox(height: AppSpacing.xs),
           AppMapSearchCard(
-            child: const Padding(
-              padding: EdgeInsets.symmetric(vertical: AppSpacing.xs),
-              child: Center(
-                child: SizedBox(
-                  width: 24,
-                  height: 24,
-                  child: CircularProgressIndicator(
-                    strokeWidth: 2,
-                    color: AppColors.primaryBlue,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(
+                horizontal: AppSpacing.sm,
+                vertical: AppSpacing.xs,
+              ),
+              child: Row(
+                children: [
+                  const Icon(
+                    Icons.cloud_off_outlined,
+                    size: 20,
+                    color: AppColors.error,
                   ),
-                ),
+                  const SizedBox(width: AppSpacing.xs),
+                  Expanded(
+                    child: Text(
+                      'Address search is unavailable.',
+                      style: AppTypography.caption,
+                    ),
+                  ),
+                  AppPrimaryButton(
+                    label: 'Retry',
+                    fullWidth: false,
+                    compact: true,
+                    onPressed: _retrySearch,
+                  ),
+                ],
               ),
             ),
           ),
         ],
         if (_showResults && _searchResults.isNotEmpty && !_isSearching) ...[
-          const SizedBox(height: 4),
+          const SizedBox(height: AppSpacing.xs),
           AppMapSearchCard(
             child: ConstrainedBox(
               constraints: BoxConstraints(maxHeight: maxResultsHeight),
@@ -199,7 +228,7 @@ class _AppMapAddressSearchPanelState extends State<AppMapAddressSearchPanel> {
                       child: Padding(
                         padding: const EdgeInsets.symmetric(
                           horizontal: AppSpacing.sm,
-                          vertical: 6,
+                          vertical: AppSpacing.sm,
                         ),
                         child: Row(
                           crossAxisAlignment: CrossAxisAlignment.start,
@@ -209,7 +238,7 @@ class _AppMapAddressSearchPanelState extends State<AppMapAddressSearchPanel> {
                               child: Icon(
                                 Icons.location_on_outlined,
                                 color: AppColors.primaryBlue,
-                                size: 18,
+                                size: 20,
                               ),
                             ),
                             const SizedBox(width: AppSpacing.xs),
@@ -223,10 +252,10 @@ class _AppMapAddressSearchPanelState extends State<AppMapAddressSearchPanel> {
                                       title,
                                       style: AppTypography.bodySecondary
                                           .copyWith(
-                                        fontWeight: FontWeight.w600,
-                                        color: AppColors.textPrimary,
-                                        height: 1.2,
-                                      ),
+                                            fontWeight: FontWeight.w500,
+                                            color: AppColors.textPrimary,
+                                            height: 1.25,
+                                          ),
                                     ),
                                   if (subtitle.isNotEmpty) ...[
                                     const SizedBox(height: 2),
@@ -244,10 +273,10 @@ class _AppMapAddressSearchPanelState extends State<AppMapAddressSearchPanel> {
                                       result.displayName,
                                       style: AppTypography.bodySecondary
                                           .copyWith(
-                                        fontWeight: FontWeight.w600,
-                                        color: AppColors.textPrimary,
-                                        height: 1.2,
-                                      ),
+                                            fontWeight: FontWeight.w500,
+                                            color: AppColors.textPrimary,
+                                            height: 1.25,
+                                          ),
                                     ),
                                 ],
                               ),

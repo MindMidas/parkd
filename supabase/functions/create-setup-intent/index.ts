@@ -1,66 +1,41 @@
-import "jsr:@supabase/functions-js/edge-runtime.d.ts";
-import { createClient } from "jsr:@supabase/supabase-js@2";
-import Stripe from "npm:stripe@17.4.0";
+import "jsr:@supabase/functions-js@2/edge-runtime.d.ts";
 
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers":
-    "authorization, x-client-info, apikey, content-type",
-};
+import { adminClient, runtimeConfig, stripeClient } from "../_shared/runtime.ts";
+import { authenticateRateLimited } from "../_shared/rate_limit.ts";
+import { getOrCreateStripeCustomer } from "../_shared/stripe_customer.ts";
+import { createSetupIntentHandler } from "./handler.ts";
 
-Deno.serve(async (req: Request) => {
-  if (req.method === "OPTIONS") {
-    return new Response("ok", { headers: corsHeaders });
-  }
+const config = runtimeConfig();
+const admin = adminClient(config);
+const stripe = stripeClient(config.stripeSecretKey);
 
-  try {
-    const authHeader = req.headers.get("Authorization");
-    if (!authHeader) {
-      return json({ error: "Missing authorization" }, 401);
-    }
-
-    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-    const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
-    const stripeSecret = Deno.env.get("STRIPE_SECRET_KEY");
-    if (!stripeSecret) {
-      return json({ error: "STRIPE_SECRET_KEY not configured on project" }, 500);
-    }
-
-    const userClient = createClient(supabaseUrl, supabaseAnonKey, {
-      global: { headers: { Authorization: authHeader } },
-    });
-    const {
-      data: { user },
-      error: userErr,
-    } = await userClient.auth.getUser();
-    if (userErr || !user) {
-      return json({ error: "Unauthorized" }, 401);
-    }
-
-    const stripe = new Stripe(stripeSecret);
-
-    const si = await stripe.setupIntents.create({
-      payment_method_types: ["card"],
-      usage: "off_session",
-      metadata: {
-        supabase_user_id: user.id,
+const handler = createSetupIntentHandler({
+  authenticate: (req) =>
+    authenticateRateLimited(req, config, admin, "setup_intent", {
+      userLimit: 5,
+      ipLimit: 15,
+      windowSeconds: 60,
+    }),
+  getOrCreateCustomer: (userId) => getOrCreateStripeCustomer(stripe, admin, userId),
+  async createSetupIntent(input) {
+    const intent = await stripe.setupIntents.create(
+      {
+        customer: input.customerId,
+        payment_method_types: ["card"],
+        usage: "off_session",
+        metadata: {
+          supabase_user_id: input.userId,
+          application: "parkd",
+        },
       },
-    });
-
-    if (!si.client_secret) {
-      return json({ error: "Missing setup intent client secret" }, 500);
-    }
-
-    return json({ client_secret: si.client_secret }, 200);
-  } catch (e) {
-    console.error(e);
-    return json({ error: (e as Error).message ?? "Server error" }, 500);
-  }
+      { idempotencyKey: input.idempotencyKey },
+    );
+    return {
+      id: intent.id,
+      clientSecret: intent.client_secret,
+      livemode: intent.livemode,
+    };
+  },
 });
 
-function json(body: Record<string, unknown>, status: number) {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: { ...corsHeaders, "Content-Type": "application/json" },
-  });
-}
+Deno.serve(handler);

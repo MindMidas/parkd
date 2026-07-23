@@ -15,7 +15,7 @@ import 'app_time_picker_sheet.dart';
 
 // Titled cards for listing edit flows (availability, price, slots)
 
-// shows current availability + Edit
+// Shows current availability + Edit
 class AppListingEditAvailabilityCard extends StatelessWidget {
   const AppListingEditAvailabilityCard({
     super.key,
@@ -58,13 +58,13 @@ class AppListingEditAvailabilityCard extends StatelessWidget {
   }
 }
 
-// delete listing CTA + warning
+// Delete listing CTA
 class AppListingDeleteCard extends StatelessWidget {
   const AppListingDeleteCard({
     super.key,
     required this.onDelete,
     this.title = 'Delete listing',
-    this.hint = 'This action is irreversible',
+    this.hint = 'Removes this listing and its bookings history for drivers.',
   });
 
   final VoidCallback onDelete;
@@ -78,12 +78,9 @@ class AppListingDeleteCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Text(
-            hint,
-            style: AppTypography.caption,
-          ),
+          Text(hint, style: AppTypography.caption),
           const SizedBox(height: AppSpacing.md),
-          AppSecondaryButton(
+          AppPrimaryButton(
             label: 'Delete',
             icon: Icons.delete_outline_rounded,
             onPressed: onDelete,
@@ -95,7 +92,7 @@ class AppListingDeleteCard extends StatelessWidget {
   }
 }
 
-// hourly/daily price steppers + optional daily rate
+// Hourly/daily price steppers + optional daily rate
 class AppListingModifyPriceCard extends StatelessWidget {
   const AppListingModifyPriceCard({
     super.key,
@@ -104,7 +101,7 @@ class AppListingModifyPriceCard extends StatelessWidget {
     required this.onHourlyChanged,
     required this.onDailyChanged,
     this.title = 'Choose how much drivers pay',
-    // first daily value when they tap "Add daily rate"
+    // First daily value when they tap "Add daily rate"
     this.dailySeedWhenAdding = 30,
   });
 
@@ -146,13 +143,12 @@ class AppListingModifyPriceCard extends StatelessWidget {
                       style: AppTypography.bodyStrong,
                     ),
                   ),
-                  TextButton(
+                  AppSecondaryButton(
+                    label: 'Add daily rate',
+                    fullWidth: false,
+                    compact: true,
                     onPressed: () =>
                         onDailyChanged(dailySeedWhenAdding.clamp(1, 9999)),
-                    child: Text(
-                      'Add daily rate',
-                      style: AppTypography.textAction,
-                    ),
                   ),
                 ],
               ),
@@ -173,18 +169,85 @@ class AppListingModifyPriceCard extends StatelessWidget {
                 ),
                 Align(
                   alignment: Alignment.centerRight,
-                  child: TextButton(
+                  child: AppSecondaryButton(
+                    label: 'Remove daily rate',
+                    fullWidth: false,
+                    compact: true,
                     onPressed: () => onDailyChanged(null),
-                    child: Text(
-                      'Remove daily rate',
-                      style: AppTypography.textAction,
-                    ),
                   ),
                 ),
               ],
             ),
           const SizedBox(height: AppSpacing.sm),
           AppInfoText(_pricingFootnote),
+        ],
+      ),
+    );
+  }
+}
+
+// Summary lines for scheduled slots + Edit
+class AppListingScheduledSlotsCard extends StatelessWidget {
+  const AppListingScheduledSlotsCard({
+    super.key,
+    required this.slots,
+    required this.onEdit,
+    this.title = 'Scheduled time slots',
+  });
+
+  final List<String> slots;
+  final VoidCallback onEdit;
+  final String title;
+
+  @override
+  Widget build(BuildContext context) {
+    return AppDisplayTitledOutlineCard(
+      title: title,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          if (slots.isEmpty)
+            Text(
+              'No scheduled slots',
+              style: AppTypography.caption,
+              textAlign: TextAlign.center,
+            )
+          else
+            ...slots.asMap().entries.map((entry) {
+              final index = entry.key;
+              final slot = entry.value;
+              final parts = slot.split(RegExp(r'\s{2,}'));
+              final left = parts.first.trim();
+              final right = parts.length > 1 ? parts.last.trim() : '';
+              return Padding(
+                padding: EdgeInsets.only(
+                  bottom: index == slots.length - 1 ? 0 : AppSpacing.sm,
+                ),
+                child: AppDisplayOutlineCard(
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: Text(left, style: AppTypography.bodyStrong),
+                      ),
+                      if (right.isNotEmpty)
+                        Expanded(
+                          child: Text(
+                            right,
+                            style: AppTypography.body,
+                            textAlign: TextAlign.right,
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+              );
+            }),
+          const SizedBox(height: AppSpacing.md),
+          AppPrimaryButton(
+            label: 'Edit',
+            icon: Icons.edit_outlined,
+            onPressed: onEdit,
+          ),
         ],
       ),
     );
@@ -262,7 +325,7 @@ class AppListingSpecificDatesInputCard extends StatelessWidget {
   }
 }
 
-// weekly days + start/end times + Add slot; onAddSlot gets AM/PM strings from internal state
+// Weekly days + start/end times + Add slot; onAddSlot gets AM/PM strings from internal state
 class AppListingWeeklyScheduleInputCard extends StatefulWidget {
   const AppListingWeeklyScheduleInputCard({
     super.key,
@@ -280,7 +343,7 @@ class AppListingWeeklyScheduleInputCard extends StatefulWidget {
   final Set<int> selectedDayIndices;
   final ValueChanged<Set<int>> onDaysChanged;
 
-  // add slot gets AM/PM strings from the internal time pickers
+  // Add slot gets AM/PM strings from the internal time pickers
   final void Function(String startTimeLabel, String endTimeLabel) onAddSlot;
 
   final bool addEnabled;
@@ -288,7 +351,7 @@ class AppListingWeeklyScheduleInputCard extends StatefulWidget {
   final String startLabel;
   final String endLabel;
 
-  // null -> 9:15 and 3:00 PM def
+  // null -> 9:15 and 3:00 PM defaults
   final int? initialStartMinutes;
   final int? initialEndMinutes;
 
@@ -374,9 +437,9 @@ class _AppListingWeeklyScheduleInputCardState
             icon: Icons.add_rounded,
             onPressed: widget.addEnabled
                 ? () => widget.onAddSlot(
-                      TimeStepMinutes.formatAmPm(_startMinutes),
-                      TimeStepMinutes.formatAmPm(_endMinutes),
-                    )
+                    TimeStepMinutes.formatAmPm(_startMinutes),
+                    TimeStepMinutes.formatAmPm(_endMinutes),
+                  )
                 : null,
           ),
         ],
@@ -397,15 +460,17 @@ class AppListingWeeklyScheduledSlotsCard extends StatelessWidget {
     this.emptyLabel = 'No scheduled slots',
   });
 
-  final List<({String day, String timeRange, double priceHour, double? priceDay})>
-      slots;
+  final List<
+    ({String day, String timeRange, double priceHour, double? priceDay})
+  >
+  slots;
   final ValueChanged<int> onRemove;
   final ValueChanged<int>? onTapSlot;
   final Widget Function(int index)? trailingBuilder;
   final String title;
   final String emptyLabel;
 
-  // approx 3 one-line rows then scroll inside card
+  // ~3 one-line rows then scroll inside the card
   static const double _scrollViewportMaxHeight = 220;
   static const int _maxSlotsBeforeScroll = 3;
 
@@ -483,7 +548,8 @@ class AppListingSpecificDateSlotsCard extends StatelessWidget {
     this.emptyLabel = 'No scheduled slots',
   });
 
-  final List<({String from, String to, double priceHour, double? priceDay})> slots;
+  final List<({String from, String to, double priceHour, double? priceDay})>
+  slots;
   final ValueChanged<int> onRemove;
   final ValueChanged<int>? onTapSlot;
   final Widget Function(int index)? trailingBuilder;
@@ -554,4 +620,3 @@ class AppListingSpecificDateSlotsCard extends StatelessWidget {
     );
   }
 }
-

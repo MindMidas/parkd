@@ -3,7 +3,9 @@ import 'package:flutter/material.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_typography.dart';
 
-// snackbar helper when context is messy (dialogs, routes, and so on)
+/// Central place for brief user feedback (snackbars). Use from any [BuildContext]
+/// under a [ScaffoldMessenger], or pass [ScaffoldMessengerState] when the route
+/// context is gone (e.g. after closing a dialog)
 class AppMessenger {
   AppMessenger._();
 
@@ -31,13 +33,11 @@ class AppMessenger {
     messenger.clearSnackBars();
     messenger.showSnackBar(
       SnackBar(
-        content: Text(
-          message,
-          style: AppTypography.snackBarContent,
-        ),
+        content: Text(message, style: AppTypography.snackBarContent),
         behavior: SnackBarBehavior.floating,
-        backgroundColor:
-            kind == _Kind.error ? AppColors.error : AppColors.success,
+        backgroundColor: kind == _Kind.error
+            ? AppColors.error
+            : AppColors.success,
       ),
     );
   }

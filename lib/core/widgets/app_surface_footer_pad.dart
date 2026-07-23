@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
 
-import '../theme/app_colors.dart';
 import '../theme/app_spacing.dart';
+import 'app_sticky_footer.dart';
 
-// Sticky bottom strip with surface fill so actions sit above scrolling content
+/// Thin wrapper → [AppStickyFooter] (solid sticky CTA strip).
+@Deprecated('Use AppStickyFooter directly')
 class AppSurfaceFooterPad extends StatelessWidget {
   const AppSurfaceFooterPad({
     super.key,
@@ -21,12 +22,6 @@ class AppSurfaceFooterPad extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ColoredBox(
-      color: AppColors.surface,
-      child: Padding(
-        padding: padding,
-        child: child,
-      ),
-    );
+    return AppStickyFooter(padding: padding, child: child);
   }
 }

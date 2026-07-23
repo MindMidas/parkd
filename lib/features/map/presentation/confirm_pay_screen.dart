@@ -5,7 +5,7 @@ import 'package:flutter_stripe/flutter_stripe.dart';
 
 import '../../../core/models/reservation_checkout_args.dart';
 import '../../../core/theme/app_spacing.dart';
-import '../../../core/utils/scroll_view_bottom_inset.dart';
+import '../../../core/theme/app_typography.dart';
 import '../../../core/widgets/widgets.dart';
 import '../../profile/presentation/settings/select_payment_method_screen.dart';
 import '../../profile/providers/payment_method_provider.dart';
@@ -48,10 +48,7 @@ class ConfirmPayScreen extends ConsumerWidget {
 
     return Scaffold(
       backgroundColor: AppColors.surface,
-      appBar: const AppTopBar(
-        title: 'Review & Confirm',
-        showBack: true,
-      ),
+      appBar: const AppTopBar(title: 'Review', showBack: true),
       body: SafeArea(
         bottom: false,
         child: Column(
@@ -66,8 +63,9 @@ class ConfirmPayScreen extends ConsumerWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     const SizedBox(height: AppSpacing.md),
+                    Text('Location', style: AppTypography.overline),
+                    const SizedBox(height: AppSpacing.sm),
                     AppStreetAddressCard(
-                      title: 'Parking location',
                       streetLine: streetAddress,
                       localityLine: localityLine.isNotEmpty
                           ? localityLine
@@ -75,9 +73,10 @@ class ConfirmPayScreen extends ConsumerWidget {
                       spotLine: spotLabel,
                       usePrimaryColorForSecondaryLines: true,
                     ),
-                    const SizedBox(height: AppSpacing.md),
-                    AppDisplayTitledOutlineCard(
-                      title: 'Reservation duration',
+                    const SizedBox(height: AppSpacing.lg),
+                    Text('Duration', style: AppTypography.overline),
+                    const SizedBox(height: AppSpacing.sm),
+                    AppDisplayOutlineCard(
                       child: AppDetailDurationTimingBlock.fromDateTimes(
                         start: startDateTime,
                         end: endDateTime,
@@ -85,70 +84,105 @@ class ConfirmPayScreen extends ConsumerWidget {
                         animate: false,
                       ),
                     ),
-                    const SizedBox(height: AppSpacing.md),
+                    const SizedBox(height: AppSpacing.lg),
                     AppCheckoutPriceBreakdownCard(
                       subtotal: subtotal,
                       serviceFee: serviceFee,
                       total: total,
                     ),
-                    const SizedBox(height: AppSpacing.md),
-                    Consumer(
-                      builder: (context, ref, _) {
-                        final method = ref.watch(selectedPaymentMethodProvider);
-                        return AppCheckoutPaymentMethodField(
-                          brand: method?.brand ?? 'Add a card',
-                          lastFour: method?.last4 ?? '—',
-                          onChangePressed: () {
-                            Navigator.of(context).push<void>(
-                              MaterialPageRoute<void>(
-                                builder: (_) =>
-                                    const SelectPaymentMethodScreen(),
+                    const SizedBox(height: AppSpacing.lg),
+                    if (kIsWeb)
+                      AppDisplayTitledOutlineCard(
+                        title: 'Payment method',
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Icon(Icons.lock_outline_rounded),
+                            const SizedBox(width: AppSpacing.sm),
+                            Expanded(
+                              child: Text(
+                                'Enter a Stripe test card on the secure hosted checkout page. '
+                                'Parkd never receives or stores the card number.',
+                                style: AppTypography.bodyMuted,
                               ),
-                            );
-                          },
-                        );
-                      },
-                    ),
+                            ),
+                          ],
+                        ),
+                      )
+                    else
+                      Consumer(
+                        builder: (context, ref, _) {
+                          final method = ref.watch(
+                            selectedPaymentMethodProvider,
+                          );
+                          final stripePk = Stripe.publishableKey.trim();
+                          final warnLegacy =
+                              stripePk.isNotEmpty &&
+                              method != null &&
+                              (method.stripePaymentMethodId == null ||
+                                  method.stripePaymentMethodId!.trim().isEmpty);
+                          return Column(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: [
+                              AppCheckoutPaymentMethodField(
+                                brand: method?.brand ?? 'Add a card',
+                                lastFour: method?.last4 ?? '—',
+                                onChangePressed: () {
+                                  Navigator.of(context).push<void>(
+                                    AppPageRoute<void>(
+                                      builder: (_) =>
+                                          const SelectPaymentMethodScreen(),
+                                    ),
+                                  );
+                                },
+                              ),
+                              if (warnLegacy) ...[
+                                const SizedBox(height: AppSpacing.sm),
+                                Text(
+                                  'This saved card is not linked to Stripe. '
+                                  'Remove it in Account → Payment methods and add '
+                                  'a card again so checkout can charge it.',
+                                  style: AppTypography.caption,
+                                ),
+                              ],
+                            ],
+                          );
+                        },
+                      ),
                     SizedBox(height: AppSpacing.lg + bottomInset),
                   ],
                 ),
               ),
             ),
-            Padding(
-              padding: EdgeInsets.fromLTRB(
-                AppSpacing.lg,
-                0,
-                AppSpacing.lg,
-                AppSpacing.lg + bottomInset,
-              ),
+            AppStickyFooter(
               child: Consumer(
                 builder: (context, ref, _) {
-                  final methodsAsync =
-                      ref.watch(paymentMethodsForCurrentUserProvider);
-                  final effectivePmId =
-                      ref.watch(effectiveSelectedPaymentMethodIdProvider);
+                  final methodsAsync = ref.watch(
+                    paymentMethodsForCurrentUserProvider,
+                  );
+                  final effectivePmId = ref.watch(
+                    effectiveSelectedPaymentMethodIdProvider,
+                  );
                   final method = ref.watch(selectedPaymentMethodProvider);
                   final stripePk = Stripe.publishableKey.trim();
-                  final needsStripePm =
-                      !kIsWeb && stripePk.isNotEmpty;
-                  final stripeLinked =
-                      (method?.stripePaymentMethodId ?? '').trim().isNotEmpty;
+                  final needsStripePm = !kIsWeb && stripePk.isNotEmpty;
+                  final stripeLinked = (method?.stripePaymentMethodId ?? '')
+                      .trim()
+                      .isNotEmpty;
                   final methodsReady = methodsAsync.hasValue;
-                  final canProceed = !needsStripePm ||
-                      (methodsReady &&
-                          effectivePmId != null &&
-                          stripeLinked);
+                  final canProceed =
+                      !needsStripePm ||
+                      (methodsReady && effectivePmId != null && stripeLinked);
 
                   return AppPrimaryButton(
-                    label: 'Looks good',
-                    icon: Icons.thumb_up_rounded,
+                    label: 'Continue',
                     onPressed: canProceed
                         ? () {
                             final paymentMethodId = ref.read(
                               effectiveSelectedPaymentMethodIdProvider,
                             );
                             Navigator.of(context).push<void>(
-                              MaterialPageRoute<void>(
+                              AppPageRoute<void>(
                                 builder: (_) => ReservationCheckoutTermsScreen(
                                   checkout: ReservationCheckoutArgs(
                                     listingId: listingId,

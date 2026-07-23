@@ -4,7 +4,7 @@ import '../theme/app_colors.dart';
 import '../theme/app_spacing.dart';
 import '../theme/app_typography.dart';
 
-// Tappable "Start time" style row
+// Tappable "Start time" style row (label + value + chevron)
 class AppTimePickerRow extends StatelessWidget {
   const AppTimePickerRow({
     super.key,
@@ -27,19 +27,13 @@ class AppTimePickerRow extends StatelessWidget {
         children: [
           SizedBox(
             width: labelWidth,
-            child: Text(
-              label,
-              style: AppTypography.bodyStrong,
-            ),
+            child: Text(label, style: AppTypography.bodyStrong),
           ),
           const SizedBox(width: AppSpacing.md),
           const Spacer(),
           Text(value, style: AppTypography.body),
           const SizedBox(width: AppSpacing.xs),
-          const Icon(
-            Icons.keyboard_arrow_down,
-            color: AppColors.primaryBlue,
-          ),
+          const Icon(Icons.keyboard_arrow_down, color: AppColors.primaryBlue),
         ],
       ),
     );

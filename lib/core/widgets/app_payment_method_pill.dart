@@ -1,4 +1,4 @@
-// tappable pill
+// Tappable pill: brand + last4 + chevron or check when selected
 import 'package:flutter/material.dart';
 
 import '../theme/app_colors.dart';
@@ -36,14 +36,8 @@ class AppPaymentMethodPill extends StatelessWidget {
         child: Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Text(
-              brand,
-              style: AppTypography.paymentBrandItalic,
-            ),
-            Text(
-              ' •••• $lastFour',
-              style: AppTypography.paymentPanBlue,
-            ),
+            Text(brand, style: AppTypography.paymentBrandItalic),
+            Text(' •••• $lastFour', style: AppTypography.paymentPanBlue),
             const SizedBox(width: 4),
             Icon(
               selected ? Icons.check_circle_rounded : Icons.chevron_right,

@@ -8,12 +8,11 @@ import '../../../core/models/listing.dart';
 import '../../../core/utils/reservation_pricing.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_spacing.dart';
-import '../../../core/utils/display_formatting.dart';
 import '../../../core/utils/time_step_minutes.dart';
 import '../../../core/widgets/widgets.dart';
 import 'confirm_pay_screen.dart';
 
-// pick times on the heatmap then move toward checkout
+// Pick times on the heatmap then move toward checkout
 class ReservationScreen extends StatefulWidget {
   const ReservationScreen({
     super.key,
@@ -68,7 +67,7 @@ class _ReservationScreenState extends State<ReservationScreen> {
       day.month == _today.month &&
       day.day == _today.day;
 
-  // slot start on dayOnly must be strictly after "now" to be bookable
+  /// Slot start on [dayOnly] must be strictly after "now" to be bookable
   bool _minuteSlotStillBookable(DateTime dayOnly, int minutesFromMidnight) {
     final slotStart = DateTime(
       dayOnly.year,
@@ -100,8 +99,7 @@ class _ReservationScreenState extends State<ReservationScreen> {
       }
       return {};
     }
-    final start =
-        _rangeStart!.isBefore(_rangeEnd!) ? _rangeStart! : _rangeEnd!;
+    final start = _rangeStart!.isBefore(_rangeEnd!) ? _rangeStart! : _rangeEnd!;
     final end = _rangeStart!.isAfter(_rangeEnd!) ? _rangeStart! : _rangeEnd!;
     final set = <DateTime>{};
     var d = DateTime(start.year, start.month, start.day);
@@ -166,8 +164,7 @@ class _ReservationScreenState extends State<ReservationScreen> {
     }
     if (out.isNotEmpty) return _filterPastMinutesForDay(dayOnly, out);
 
-    if (host.isEmpty &&
-        widget.availableWeekdays.contains(dayOnly.weekday)) {
+    if (host.isEmpty && widget.availableWeekdays.contains(dayOnly.weekday)) {
       final full = List.generate(
         (TimeStepMinutes.maxMinutes ~/ TimeStepMinutes.step) + 1,
         (i) => i * TimeStepMinutes.step,
@@ -248,8 +245,12 @@ class _ReservationScreenState extends State<ReservationScreen> {
   static bool _sameCalendarDay(DateTime a, DateTime b) =>
       a.year == b.year && a.month == b.month && a.day == b.day;
 
-  // Latest day '<= desiredEnd' (no gaps through unavailable / booked days)
-  DateTime _lastContiguousSelectableEnd(DateTime rangeStart, DateTime desiredEnd) {
+  /// Latest day `<= desiredEnd` such that every calendar day from [rangeStart]
+  /// through that day is selectable (no gaps through unavailable / booked days)
+  DateTime _lastContiguousSelectableEnd(
+    DateTime rangeStart,
+    DateTime desiredEnd,
+  ) {
     var lo = rangeStart;
     var hi = desiredEnd;
     if (lo.isAfter(hi)) {
@@ -271,11 +272,7 @@ class _ReservationScreenState extends State<ReservationScreen> {
 
   bool _everyCalendarDayInRangeIsSelectable() {
     if (_rangeStart == null || _rangeEnd == null) return false;
-    var lo = DateTime(
-      _rangeStart!.year,
-      _rangeStart!.month,
-      _rangeStart!.day,
-    );
+    var lo = DateTime(_rangeStart!.year, _rangeStart!.month, _rangeStart!.day);
     var hi = DateTime(_rangeEnd!.year, _rangeEnd!.month, _rangeEnd!.day);
     if (lo.isAfter(hi)) {
       final t = lo;
@@ -299,8 +296,7 @@ class _ReservationScreenState extends State<ReservationScreen> {
       late DateTime ne;
 
       final had = _rangeStart != null && _rangeEnd != null;
-      final collapsed =
-          had && _sameCalendarDay(_rangeStart!, _rangeEnd!);
+      final collapsed = had && _sameCalendarDay(_rangeStart!, _rangeEnd!);
 
       if (!had) {
         ns = ne = tap;
@@ -359,7 +355,7 @@ class _ReservationScreenState extends State<ReservationScreen> {
     _reconcileStartEndAfterClamp();
   }
 
-  // After clamping to host grid, ensure end is after start when start/end share a calendar day
+  /// After clamping to host grid, ensure end is after start when start/end share a calendar day
   void _reconcileStartEndAfterClamp() {
     if (_rangeStart == null || _rangeEnd == null) return;
     if (!_sameCalendarDay(_rangeStart!, _rangeEnd!)) return;
@@ -420,7 +416,7 @@ class _ReservationScreenState extends State<ReservationScreen> {
     final serviceFee = ReservationPricing.serviceFeeForSubtotal(subtotal);
 
     Navigator.of(context).push(
-      MaterialPageRoute<void>(
+      AppPageRoute<void>(
         builder: (_) => ConfirmPayScreen(
           listingId: widget.listing.id,
           streetAddress: widget.streetAddress,
@@ -442,10 +438,7 @@ class _ReservationScreenState extends State<ReservationScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.surface,
-      appBar: const AppTopBar(
-        title: 'Choose parking duration',
-        showBack: true,
-      ),
+      appBar: const AppTopBar(title: 'Choose parking duration', showBack: true),
       body: SafeArea(
         bottom: false,
         child: Column(
@@ -461,7 +454,7 @@ class _ReservationScreenState extends State<ReservationScreen> {
                   children: [
                     const SizedBox(height: AppSpacing.md),
                     AppDisplayTitledOutlineCard(
-                      title: 'Availability heatmap',
+                      title: 'Availability',
                       child: AppListingAvailabilityHeatmap(
                         loading: widget.heatmapLoading,
                         listing: widget.listing,
@@ -472,7 +465,7 @@ class _ReservationScreenState extends State<ReservationScreen> {
                     ),
                     const SizedBox(height: AppSpacing.lg),
                     AppListingSpecificDatesInputCard(
-                      title: 'Specific dates',
+                      title: 'Dates & times',
                       calendar: AppMonthCalendar(
                         currentMonth: _currentMonth,
                         selectedDates: _selectedDatesForCalendar,
@@ -523,13 +516,7 @@ class _ReservationScreenState extends State<ReservationScreen> {
                 ),
               ),
             ),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(
-                AppSpacing.lg,
-                0,
-                AppSpacing.lg,
-                AppSpacing.lg,
-              ),
+            AppStickyFooter(
               child: AppPrimaryButton(
                 label: 'Confirm',
                 icon: Icons.check_rounded,

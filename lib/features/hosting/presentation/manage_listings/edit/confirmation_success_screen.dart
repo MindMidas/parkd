@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import '../../../../../core/widgets/widgets.dart';
 import '../../../../../core/theme/app_colors.dart';
 
-// checkmark outcome, tweak title/message and how many pops on close
+// Generic checkmark outcome — tweak title/message and how many pops on close
 class ConfirmationSuccessScreen extends StatelessWidget {
   const ConfirmationSuccessScreen({
     super.key,

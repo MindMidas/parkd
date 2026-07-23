@@ -1,10 +1,14 @@
 import 'package:flutter/material.dart';
 
-// central palette
+// Central palette — prefer AppColors in UI (avoid Material Colors.* in feature code)
 class AppColors {
   AppColors._();
 
   static const primaryBlue = Color(0xFF006FFD);
+  /// Darker primary for selected map pills / pressed emphasis.
+  static const primaryBlueDark = Color(0xFF0050C7);
+  /// Muted primary for disabled filled buttons (readable, not muddy grey).
+  static const primaryBlueMuted = Color(0xFF9BBFFA);
   static const heatmapBooked = Color(0xFFC4665F);
   static const heatmapHostClosed = Color(0xFFD7D8DB);
   static const heatmapFrameStroke = Color(0xFFD4D4D4);
@@ -20,13 +24,16 @@ class AppColors {
   static const textPrimary = black;
   static const textSecondary = iconGrey;
 
+  // Cards, scaffolds, fields — classic white
   static const surface = Color(0xFFFFFFFF);
 
+  // Text/icons on primaryBlue / error fills (same hex as surface in light theme)
   static const onPrimary = Color(0xFFFFFFFF);
   static const onError = Color(0xFFFFFFFF);
 
   static const transparent = Color(0x00000000);
 
+  // Black + alpha shadows / scrims (replaces black.withValues in UI code)
   static const shadowWisp = Color(0x0A000000);
   static const shadowLow = Color(0x14000000);
   static const shadowMedium = Color(0x1F000000);

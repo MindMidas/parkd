@@ -1,4 +1,5 @@
-// Mirrors public.listing_photos
+/// Mirrors public.listing_photos
+/// Schema: supabase/schema.sql
 class ListingPhoto {
   const ListingPhoto({
     required this.id,
@@ -36,12 +37,12 @@ class ListingPhoto {
   }
 
   Map<String, dynamic> toJson() => {
-        'id': id,
-        'listing_id': listingId,
-        'photo_url': photoUrl,
-        'sort_order': sortOrder,
-        if (markerX != null) 'marker_x': markerX,
-        if (markerY != null) 'marker_y': markerY,
-        'created_at': createdAt?.toIso8601String(),
-      };
+    'id': id,
+    'listing_id': listingId,
+    'photo_url': photoUrl,
+    'sort_order': sortOrder,
+    if (markerX != null) 'marker_x': markerX,
+    if (markerY != null) 'marker_y': markerY,
+    'created_at': createdAt?.toIso8601String(),
+  };
 }

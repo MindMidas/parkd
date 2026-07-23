@@ -89,13 +89,13 @@ BEGIN
     BEGIN
         BLOCK "040904e4"
         BEGIN
-            VALUE "CompanyName", "ca.uoguelph.cis4030" "\0"
-            VALUE "FileDescription", "parkd" "\0"
+            VALUE "CompanyName", "Parkd" "\0"
+            VALUE "FileDescription", "Parkd" "\0"
             VALUE "FileVersion", VERSION_AS_STRING "\0"
             VALUE "InternalName", "parkd" "\0"
-            VALUE "LegalCopyright", "Copyright (C) 2026 ca.uoguelph.cis4030. All rights reserved." "\0"
+            VALUE "LegalCopyright", "Copyright (C) 2026 Parkd. All rights reserved." "\0"
             VALUE "OriginalFilename", "parkd.exe" "\0"
-            VALUE "ProductName", "parkd" "\0"
+            VALUE "ProductName", "Parkd" "\0"
             VALUE "ProductVersion", VERSION_AS_STRING "\0"
         END
     END

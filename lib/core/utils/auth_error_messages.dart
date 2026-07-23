@@ -1,6 +1,6 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
 
-// maps Supabase/GoTrue errors to UI copy
+/// Maps Supabase / GoTrue errors to short UI copy
 String userFacingAuthMessage(Object error) {
   if (error is AuthWeakPasswordException) {
     if (error.reasons.isNotEmpty) {
@@ -12,15 +12,16 @@ String userFacingAuthMessage(Object error) {
   if (error is AuthException) {
     final code = error.code;
     if (code == 'email_exists' || code == 'user_already_exists') {
-      return 'This email is already registered. Try logging in or use forgot password.';
+      return 'Could not create an account with those details.';
     }
     if (code == 'email_not_confirmed') {
       return 'Email not confirmed. Check your inbox for the signup code, confirm it, then log in.';
     }
     if (code == 'phone_exists') {
-      return 'This phone number is already registered with another account.';
+      return 'Could not create or update the account with those details.';
     }
-    if (code == 'over_request_rate_limit' || code == 'over_email_send_rate_limit') {
+    if (code == 'over_request_rate_limit' ||
+        code == 'over_email_send_rate_limit') {
       return 'Too many email requests. Wait a few minutes and try again.';
     }
     if (code == 'otp_expired' || code == 'otp_disabled') {
@@ -59,11 +60,9 @@ String userFacingAuthMessage(Object error) {
       return 'That code is invalid or expired. Request a new code.';
     }
     if (lower.contains('already registered')) {
-      if (lower.contains('phone')) {
-        return 'This phone number is already registered.';
-      }
-      return 'This email is already registered. Try logging in or use forgot password.';
+      return 'Could not create or update the account with those details.';
     }
+    // MFA / factor APIs often say "already exists" — do not treat as email sign-up
     if (lower.contains('already exists')) {
       if (lower.contains('phone') || lower.contains('phone number')) {
         return 'This phone number is already registered.';
@@ -79,11 +78,11 @@ String userFacingAuthMessage(Object error) {
     }
     if (lower.contains('database error saving new user') ||
         lower.contains('saving new user')) {
-      return 'Could not finish sign-up. That username may already be taken—try another.';
+      return 'Could not finish sign-up with those details.';
     }
     if (lower.contains('profiles_phone_unique') ||
         (lower.contains('duplicate key') && lower.contains('phone'))) {
-      return 'That phone number is already registered.';
+      return 'Could not create or update the account with those details.';
     }
 
     return error.message;

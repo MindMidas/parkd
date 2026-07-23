@@ -1,4 +1,4 @@
-// mirrors public.payment_status
+/// Mirrors public.payment_status in supabase/schema.sql
 enum PaymentRecordStatus {
   pending,
   succeeded,

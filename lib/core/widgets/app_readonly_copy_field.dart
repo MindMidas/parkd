@@ -4,7 +4,7 @@ import '../theme/app_spacing.dart';
 import '../theme/app_typography.dart';
 import 'app_buttons.dart';
 
-// look like a text field but read-only with copy
+// Looks like a text field but read-only; Copy button on the right, value ellipsizes
 class AppReadonlyCopyField extends StatelessWidget {
   const AppReadonlyCopyField({
     super.key,
@@ -16,9 +16,15 @@ class AppReadonlyCopyField extends StatelessWidget {
   });
 
   final String label;
+
+  // Copied string; UI shows displayText ?? value
   final String value;
+
   final VoidCallback onCopy;
+
+  // Optional shorter display; onCopy still uses value unless you change it there
   final String? displayText;
+
   final String copyLabel;
 
   String get _shown => displayText ?? value;

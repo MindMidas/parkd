@@ -3,19 +3,17 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
-import 'package:url_launcher/url_launcher.dart';
 
 import '../../../../core/models/listing.dart';
+import '../../../../core/assets/parkd_assets.dart';
 import '../../../../core/models/payment_record_status.dart';
 import '../../../../core/models/reservation_row.dart';
 import '../../../../core/models/reservation_status.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_spacing.dart';
-import '../../../../core/messaging/app_messenger.dart';
 import '../../../../core/theme/app_typography.dart';
-import '../../../../core/utils/display_formatting.dart';
+import '../../../../core/utils/directions_launcher.dart';
 import '../../../../core/utils/profile_avatar_image_provider.dart';
-import '../../../../core/utils/scroll_view_bottom_inset.dart';
 import '../../../../core/widgets/widgets.dart';
 import '../../../auth/providers/auth_providers.dart';
 import '../../../profile/providers/profile_providers.dart';
@@ -28,6 +26,7 @@ String _handleFromDisplayName(String displayName) {
   return '@${t.toLowerCase().replaceAll(' ', '')}';
 }
 
+/// Driver view of a trip they booked
 class ReservationDetailsScreen extends ConsumerStatefulWidget {
   const ReservationDetailsScreen({
     super.key,
@@ -43,7 +42,8 @@ class ReservationDetailsScreen extends ConsumerStatefulWidget {
       _ReservationDetailsScreenState();
 }
 
-class _ReservationDetailsScreenState extends ConsumerState<ReservationDetailsScreen> {
+class _ReservationDetailsScreenState
+    extends ConsumerState<ReservationDetailsScreen> {
   Timer? _ticker;
   DateTime _now = DateTime.now();
 
@@ -61,7 +61,7 @@ class _ReservationDetailsScreenState extends ConsumerState<ReservationDetailsScr
   }
 
   String get _streetLine => listing?.addressLine ?? 'Parking spot';
-  String get _localityLine => listing?.localityLine ?? '';
+  String get _localityLine => listing?.townCountryLine ?? '';
   String? get _spotLabel => listing?.spotLabel;
 
   Duration get _totalTime => r.endTime.difference(r.startTime);
@@ -72,18 +72,13 @@ class _ReservationDetailsScreenState extends ConsumerState<ReservationDetailsScr
   }
 
   String get _fullAddress => [
-        _streetLine,
-        if (_localityLine.isNotEmpty) _localityLine,
-        if (_spotLabel != null && _spotLabel!.isNotEmpty) _spotLabel!,
-      ].join(', ');
+    _streetLine,
+    if (_localityLine.isNotEmpty) _localityLine,
+    if (_spotLabel != null && _spotLabel!.isNotEmpty) _spotLabel!,
+  ].join(', ');
 
   Future<void> _openDirections(BuildContext context) async {
-    final destination = Uri.encodeComponent(_fullAddress);
-    final url = Uri.parse('https://maps.apple.com/?daddr=$destination&dirflg=d');
-    if (await canLaunchUrl(url)) {
-      await launchUrl(url, mode: LaunchMode.externalApplication);
-      return;
-    }
+    if (await launchDrivingDirections(_fullAddress)) return;
     if (!context.mounted) return;
     AppMessenger.showError(context, 'Could not open directions.');
   }
@@ -113,11 +108,8 @@ class _ReservationDetailsScreenState extends ConsumerState<ReservationDetailsScr
     if (hostProfile.isLoading) {
       return Scaffold(
         backgroundColor: AppColors.surface,
-        appBar: const AppTopBar(
-          title: 'Reservation details',
-          showBack: true,
-        ),
-        body: const Center(child: CircularProgressIndicator()),
+        appBar: const AppTopBar(title: 'Reservation details', showBack: true),
+        body: const AppPageStatus.loading(),
       );
     }
 
@@ -137,24 +129,16 @@ class _ReservationDetailsScreenState extends ConsumerState<ReservationDetailsScr
     final toStr =
         '${df.format(r.endTime.toLocal())}$sep${tf.format(r.endTime.toLocal())}';
 
-    final bottomInset = scrollViewBottomInset(context);
-
     return Scaffold(
       backgroundColor: AppColors.surface,
-      appBar: const AppTopBar(
-        title: 'Reservation details',
-        showBack: true,
-      ),
+      appBar: const AppTopBar(title: 'Reservation details', showBack: true),
       body: SafeArea(
         bottom: false,
         child: SingleChildScrollView(
           physics: const BouncingScrollPhysics(
             parent: AlwaysScrollableScrollPhysics(),
           ),
-          padding: EdgeInsets.only(
-            top: AppSpacing.md,
-            bottom: AppSpacing.lg + bottomInset,
-          ),
+          padding: const EdgeInsets.only(top: AppSpacing.md),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
@@ -167,7 +151,7 @@ class _ReservationDetailsScreenState extends ConsumerState<ReservationDetailsScr
                   AppSpacing.lg,
                   AppSpacing.md,
                   AppSpacing.lg,
-                  0,
+                  AppSpacing.lg,
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -183,40 +167,36 @@ class _ReservationDetailsScreenState extends ConsumerState<ReservationDetailsScr
                         final uid = ref.read(currentSessionProvider)?.user.id;
                         if (uid == null) return;
                         Navigator.of(context).push<void>(
-                          MaterialPageRoute<void>(
+                          AppPageRoute<void>(
                             builder: (_) => TripConversationScreen(
                               reservationId: r.id,
+                              peerUserId: r.hostId,
                               peerDisplayName: hostName,
                             ),
                           ),
                         );
                       },
                     ),
-                    const SizedBox(height: AppSpacing.md),
+                    const SizedBox(height: AppSpacing.lg),
+                    Text('Location', style: AppTypography.overline),
+                    const SizedBox(height: AppSpacing.sm),
                     AppStreetAddressCard(
-                      title: 'Parking location',
                       streetLine: _streetLine,
-                      localityLine:
-                          _localityLine.isNotEmpty ? _localityLine : null,
+                      localityLine: _localityLine.isNotEmpty
+                          ? _localityLine
+                          : null,
                       spotLine: _spotLabel,
                       usePrimaryColorForSecondaryLines: true,
-                      footer: AppPrimaryButton(
-                        label: 'Get directions',
-                        icon: Icons.explore_outlined,
-                        onPressed: () => _openDirections(context),
-                      ),
                     ),
-                    const SizedBox(height: AppSpacing.md),
+                    const SizedBox(height: AppSpacing.lg),
                     AppDisplayTitledOutlineCard(
-                      title: 'Reservation duration',
+                      title: 'Duration',
                       child: _liveCountdown
                           ? AppDetailDurationTimingBlock(
                               fromValue: fromStr,
                               toValue: toStr,
-                              totalTimeLabel:
-                                  formatDurationCompact(_totalTime),
-                              timeLeftLabel:
-                                  formatDurationCompact(_timeLeft),
+                              totalTimeLabel: formatDurationCompact(_totalTime),
+                              timeLeftLabel: formatDurationCompact(_timeLeft),
                               animatedKey: ValueKey<String>(
                                 formatDurationCompact(_timeLeft),
                               ),
@@ -224,13 +204,12 @@ class _ReservationDetailsScreenState extends ConsumerState<ReservationDetailsScr
                           : AppDetailDurationTimingBlock(
                               fromValue: fromStr,
                               toValue: toStr,
-                              totalTimeLabel:
-                                  formatDurationCompact(_totalTime),
+                              totalTimeLabel: formatDurationCompact(_totalTime),
                               timeLeftLabel: null,
                               animate: false,
                             ),
                     ),
-                    const SizedBox(height: AppSpacing.md),
+                    const SizedBox(height: AppSpacing.lg),
                     payAsync.when(
                       data: (pay) {
                         final totalDue = r.totalPrice + r.serviceFee;
@@ -287,8 +266,7 @@ class _ReservationDetailsScreenState extends ConsumerState<ReservationDetailsScr
                           ),
                         ),
                       ),
-                      error: (error, stackTrace) =>
-                          AppDisplayTitledOutlineCard(
+                      error: (error, stackTrace) => AppDisplayTitledOutlineCard(
                         title: 'Cost',
                         child: AppDetailAmountRow(
                           label: 'Payment',
@@ -298,7 +276,7 @@ class _ReservationDetailsScreenState extends ConsumerState<ReservationDetailsScr
                         ),
                       ),
                     ),
-                    const SizedBox(height: AppSpacing.md),
+                    const SizedBox(height: AppSpacing.lg),
                     AppReferenceIdCopyField(referenceId: r.id),
                   ],
                 ),
@@ -307,10 +285,18 @@ class _ReservationDetailsScreenState extends ConsumerState<ReservationDetailsScr
           ),
         ),
       ),
+      bottomNavigationBar: AppStickyFooter(
+        child: AppPrimaryButton(
+          label: 'Get directions',
+          icon: Icons.explore_outlined,
+          onPressed: () => _openDirections(context),
+        ),
+      ),
     );
   }
 }
 
+/// Full-width 4:3 frame; loads [listingPhotosProvider] for spot marker when [listingId] is set
 class _ReservationParkingHeroFrame extends ConsumerWidget {
   const _ReservationParkingHeroFrame({
     this.listingId,
@@ -339,15 +325,10 @@ class _ReservationParkingHeroFrame extends ConsumerWidget {
         final fromPhoto = first?.photoUrl.trim() ?? '';
         final url = fromPhoto.isNotEmpty ? fromPhoto : fallbackImageUrl.trim();
         Offset? marker;
-        if (first != null &&
-            first.markerX != null &&
-            first.markerY != null) {
+        if (first != null && first.markerX != null && first.markerY != null) {
           marker = Offset(first.markerX!, first.markerY!);
         }
-        return _ReservationHeroContent(
-          imageUrl: url,
-          markerFraction: marker,
-        );
+        return _ReservationHeroContent(imageUrl: url, markerFraction: marker);
       },
       loading: () => _ReservationHeroContent(
         imageUrl: fallbackImageUrl,
@@ -375,13 +356,19 @@ class _ReservationHeroContent extends StatelessWidget {
     final url = imageUrl.trim();
     final Widget photo;
     if (url.isEmpty) {
-      photo = ColoredBox(
-        color: AppColors.secondaryBlue.withValues(alpha: 0.35),
-        child: Center(
-          child: Icon(
-            Icons.local_parking_rounded,
-            size: 56,
-            color: AppColors.primaryBlue.withValues(alpha: 0.35),
+      photo = Image.asset(
+        ParkdAssets.reservationParkingSpotPng,
+        fit: BoxFit.cover,
+        width: double.infinity,
+        height: double.infinity,
+        errorBuilder: (_, _, _) => ColoredBox(
+          color: AppColors.secondaryBlue.withValues(alpha: 0.35),
+          child: Center(
+            child: Icon(
+              Icons.local_parking_rounded,
+              size: 56,
+              color: AppColors.primaryBlue.withValues(alpha: 0.35),
+            ),
           ),
         ),
       );
@@ -429,7 +416,7 @@ class _ReservationHeroContent extends StatelessWidget {
       onTap: url.isNotEmpty
           ? () {
               Navigator.of(context).push<void>(
-                MaterialPageRoute<void>(
+                AppPageRoute<void>(
                   builder: (_) => AppNetworkImageFullscreenScreen(
                     imageUrl: url,
                     markerFraction: markerFraction,

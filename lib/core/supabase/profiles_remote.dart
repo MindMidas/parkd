@@ -5,46 +5,23 @@ import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:image_picker/image_picker.dart' show XFile;
 import 'package:supabase_flutter/supabase_flutter.dart';
 
-import '../cloudinary/cloudinary_uploader.dart';
 import '../models/profile.dart';
+import '../security/image_upload_policy.dart';
 
-// public.profiles, avatar via cloudinary if configured else storage avatars bucket
+/// `profiles` rows with avatars stored in policy-protected Supabase Storage.
 class ProfilesRemote {
-  ProfilesRemote(
-    this._client, {
-    CloudinaryUploader? cloudinary,
-  }) : _cloudinary = cloudinary;
+  ProfilesRemote(this._client);
 
   final SupabaseClient _client;
-  final CloudinaryUploader? _cloudinary;
 
   static const _avatarsBucket = 'avatars';
 
-  // whether phoneE164 is not already stored on a profile
-  Future<bool> isPhoneAvailable(String phoneE164) async {
-    final p = phoneE164.trim();
-    if (p.isEmpty) return false;
-    final row =
-        await _client.from('profiles').select('id').eq('phone', p).maybeSingle();
-    return row == null;
-  }
-
-  // whether username is free ('profiles.username', case-insensitive in app)
-  Future<bool> isUsernameAvailable(String username) async {
-    final u = username.trim().toLowerCase();
-    if (u.isEmpty) return false;
-    final row = await _client
-        .from('profiles')
-        .select('id')
-        .eq('username', u)
-        .maybeSingle();
-    return row == null;
-  }
-
-  // returns null if no row exists for userId
+  /// Returns null if no row exists for [userId]
   Future<Profile?> fetchById(String userId) async {
+    final currentUserId = _client.auth.currentUser?.id;
+    final table = currentUserId == userId ? 'profiles' : 'public_profiles';
     final data = await _client
-        .from('profiles')
+        .from(table)
         .select()
         .eq('id', userId)
         .maybeSingle();
@@ -58,8 +35,6 @@ class ProfilesRemote {
     String? phoneE164,
     DateTime? birthDate,
     String? username,
-    // when set, keeps [profiles.email] aligned (after save without a pending email change)
-    String? email,
   }) async {
     final row = <String, dynamic>{
       'full_name': fullName.trim(),
@@ -70,9 +45,6 @@ class ProfilesRemote {
     };
     if (username != null) {
       row['username'] = username.trim().toLowerCase();
-    }
-    if (email != null && email.trim().isNotEmpty) {
-      row['email'] = email.trim();
     }
     await _client.from('profiles').update(row).eq('id', userId);
   }
@@ -85,16 +57,11 @@ class ProfilesRemote {
     required File file,
     required String contentType,
   }) async {
-    final path = '$userId/avatar${_avatarExtension(contentType)}';
-    await _client.storage.from(_avatarsBucket).upload(
-          path,
-          file,
-          fileOptions: FileOptions(upsert: true, contentType: contentType),
-        );
-    final publicUrl = _client.storage.from(_avatarsBucket).getPublicUrl(path);
-    await _client
-        .from('profiles')
-        .update({'avatar_url': publicUrl}).eq('id', userId);
+    await uploadAvatarFromBytes(
+      userId: userId,
+      bytes: await file.readAsBytes(),
+      contentType: contentType,
+    );
   }
 
   Future<void> uploadAvatarFromBytes({
@@ -102,32 +69,29 @@ class ProfilesRemote {
     required Uint8List bytes,
     required String contentType,
   }) async {
-    final cloudinary = _cloudinary;
-    if (cloudinary != null) {
-      final url = await cloudinary.uploadImage(
-        bytes: bytes,
-        contentType: contentType,
-        folder: 'parkd/avatars',
-        publicId: userId.replaceAll(RegExp(r'[^a-zA-Z0-9_-]'), '_'),
-      );
-      await _client
-          .from('profiles')
-          .update({'avatar_url': url}).eq('id', userId);
-      return;
-    }
-    final path = '$userId/avatar${_avatarExtension(contentType)}';
-    await _client.storage.from(_avatarsBucket).uploadBinary(
+    final validated = ImageUploadPolicy.validate(
+      bytes,
+      maxBytes: ImageUploadPolicy.maxAvatarBytes,
+    );
+    final path = '$userId/avatar${_avatarExtension(validated.contentType)}';
+    await _client.storage
+        .from(_avatarsBucket)
+        .uploadBinary(
           path,
           bytes,
-          fileOptions: FileOptions(upsert: true, contentType: contentType),
+          fileOptions: FileOptions(
+            upsert: true,
+            contentType: validated.contentType,
+          ),
         );
     final publicUrl = _client.storage.from(_avatarsBucket).getPublicUrl(path);
     await _client
         .from('profiles')
-        .update({'avatar_url': publicUrl}).eq('id', userId);
+        .update({'avatar_url': publicUrl})
+        .eq('id', userId);
   }
 
-  // infers 'image/jpeg' / 'image/png' from localFilePath (picker path or name)
+  /// Infers `image/jpeg` / `image/png` from [localFilePath] (picker path or name)
   static String inferImageContentType(String localFilePath) {
     final lower = localFilePath.toLowerCase();
     if (lower.endsWith('.png')) return 'image/png';

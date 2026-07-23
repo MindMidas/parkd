@@ -2,13 +2,13 @@ import '../../../core/models/chat_message_row.dart';
 import '../../../core/models/conversation_row.dart';
 import '../../../core/models/host_listing_booking_thread.dart';
 
-// thread per reservation
+/// Thread per reservation
 abstract class MessagingRepository {
   Future<ConversationRow> ensureThread(String reservationId);
 
   Future<List<ConversationRow>> inboxForUser(String userId);
 
-  // host hub: bookings at listingId where you are hostId, with optional chat + preview
+  /// Host hub: bookings at [listingId] where you are [hostId], with optional chat + preview
   Future<List<HostListingBookingThread>> listHostListingThreads({
     required String hostId,
     required String listingId,
@@ -16,6 +16,8 @@ abstract class MessagingRepository {
   });
 
   Future<List<ChatMessageRow>> messages(String conversationId);
+
+  Stream<List<ChatMessageRow>> watchMessages(String conversationId);
 
   Future<ChatMessageRow> send({
     required String conversationId,

@@ -8,6 +8,7 @@ import '../models/listing.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_spacing.dart';
 import '../theme/app_typography.dart';
+import 'app_segment_control.dart';
 
 enum _HeatmapRange { day, week, month }
 
@@ -19,7 +20,7 @@ Color _heatmapSlotFill(AvailabilitySlotState s) {
   };
 }
 
-// 24h strip per row, 5min data rolled up to hours
+// 24h strip per row; 5-min data rolled up to hours
 class AppListingAvailabilityHeatmap extends StatefulWidget {
   const AppListingAvailabilityHeatmap({
     super.key,
@@ -43,9 +44,7 @@ class AppListingAvailabilityHeatmap extends StatefulWidget {
 
 class _AppListingAvailabilityHeatmapState
     extends State<AppListingAvailabilityHeatmap> {
-  static const _dowMedium = [
-    'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun',
-  ];
+  static const _dowMedium = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
   _HeatmapRange _range = _HeatmapRange.day;
   late DateTime _anchor = DateTime(
@@ -110,8 +109,18 @@ class _AppListingAvailabilityHeatmapState
 
   String get _navTitle {
     const mon = [
-      'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec',
     ];
     const dow = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
     switch (_range) {
@@ -169,51 +178,21 @@ class _AppListingAvailabilityHeatmapState
     if (!_hasSchedule) {
       return Text(
         'No schedule on file yet. Check availability and pricing below.',
-        style: AppTypography.bodyMuted,
+        style: AppTypography.caption,
       );
     }
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        DecoratedBox(
-          decoration: BoxDecoration(
-            color: AppColors.secondaryGrey.withValues(alpha: 0.22),
-            borderRadius: BorderRadius.circular(10),
-          ),
-          child: Padding(
-            padding: const EdgeInsets.all(3),
-            child: SegmentedButton<_HeatmapRange>(
-              showSelectedIcon: false,
-              segments: const [
-                ButtonSegment(value: _HeatmapRange.day, label: Text('Day')),
-                ButtonSegment(value: _HeatmapRange.week, label: Text('Week')),
-                ButtonSegment(value: _HeatmapRange.month, label: Text('Month')),
-              ],
-              selected: {_range},
-              onSelectionChanged: (s) {
-                if (s.isEmpty) return;
-                setState(() => _range = s.first);
-              },
-              style: SegmentedButton.styleFrom(
-                backgroundColor: AppColors.transparent,
-                foregroundColor: AppColors.textSecondary,
-                selectedForegroundColor: AppColors.textPrimary,
-                selectedBackgroundColor: AppColors.surface,
-                side: BorderSide.none,
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-                textStyle: AppTypography.caption.copyWith(
-                  fontWeight: FontWeight.w600,
-                  letterSpacing: 0.2,
-                ),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                visualDensity: VisualDensity.compact,
-              ),
-            ),
-          ),
+        AppSegmentControl<_HeatmapRange>(
+          selected: _range,
+          onChanged: (range) => setState(() => _range = range),
+          options: const [
+            AppSegmentOption(value: _HeatmapRange.day, label: 'Day'),
+            AppSegmentOption(value: _HeatmapRange.week, label: 'Week'),
+            AppSegmentOption(value: _HeatmapRange.month, label: 'Month'),
+          ],
         ),
         const SizedBox(height: AppSpacing.md),
         Row(
@@ -237,9 +216,7 @@ class _AppListingAvailabilityHeatmapState
               child: Text(
                 _navTitle,
                 textAlign: TextAlign.center,
-                style: AppTypography.bodyStrong.copyWith(
-                  letterSpacing: -0.2,
-                ),
+                style: AppTypography.bodyStrong.copyWith(letterSpacing: -0.2),
               ),
             ),
             Material(
@@ -286,7 +263,10 @@ class _AppListingAvailabilityHeatmapState
             decoration: BoxDecoration(
               color: c,
               borderRadius: BorderRadius.circular(2),
-              border: Border.all(color: AppColors.heatmapFrameStroke, width: 0.5),
+              border: Border.all(
+                color: AppColors.heatmapFrameStroke,
+                width: 0.5,
+              ),
             ),
           ),
           const SizedBox(width: 6),
@@ -306,7 +286,7 @@ class _AppListingAvailabilityHeatmapState
     );
   }
 
-  // time labels 0/6/12/18/24h so 6pm isn't stuck at far right
+  // Time labels 0/6/12/18/24h so 6pm isn’t stuck at the far right
   Widget _timeAxisQuarters() {
     final style = AppTypography.caption.copyWith(
       color: AppColors.textSecondary,
@@ -489,10 +469,7 @@ class _AppListingAvailabilityHeatmapState
 }
 
 class _HorizontalTimelineBar extends StatelessWidget {
-  const _HorizontalTimelineBar({
-    required this.segments,
-    this.barHeight,
-  });
+  const _HorizontalTimelineBar({required this.segments, this.barHeight});
 
   final List<AvailabilitySlotState> segments;
   final double? barHeight;
@@ -509,7 +486,10 @@ class _HorizontalTimelineBar extends StatelessWidget {
                 color: _heatmapSlotFill(segments[i]),
                 border: Border(
                   right: i < segments.length - 1
-                      ? const BorderSide(color: AppColors.heatmapStripeDivider, width: 1)
+                      ? const BorderSide(
+                          color: AppColors.heatmapStripeDivider,
+                          width: 1,
+                        )
                       : BorderSide.none,
                 ),
               ),

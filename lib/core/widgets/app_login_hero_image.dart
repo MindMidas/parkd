@@ -5,7 +5,7 @@ import 'package:flutter/material.dart';
 import '../assets/parkd_assets.dart';
 import '../theme/app_colors.dart';
 
-// login hero photo with dark tint and centered brand logo (no chip)
+// Login hero photo with dark tint and centered brand logo (no chip)
 class AppLoginHeroImage extends StatelessWidget {
   const AppLoginHeroImage({
     super.key,

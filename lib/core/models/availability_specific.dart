@@ -1,6 +1,7 @@
 import '../utils/time_step_minutes.dart';
 
-// mirrors public.availability_specific (date-range slots)
+/// Mirrors public.availability_specific (date-range slots)
+/// Schema: supabase/schema.sql
 class AvailabilitySpecific {
   const AvailabilitySpecific({
     required this.id,
@@ -20,12 +21,12 @@ class AvailabilitySpecific {
   final double? priceDay;
   final DateTime? createdAt;
 
-  // for UI: "Sep 15, 2026 · 9:00 AM"
+  /// For UI: "Sep 15, 2026 • 9:00 AM" (same time style as [TimeStepMinutes.formatAmPm])
   static String formatDateTime(DateTime dt) {
     const months = 'JanFebMarAprMayJunJulAugSepOctNovDec';
     final m = months.substring((dt.month - 1) * 3, dt.month * 3);
     final time = TimeStepMinutes.formatAmPm(dt.hour * 60 + dt.minute);
-    return '$m ${dt.day}, ${dt.year} · $time';
+    return '$m ${dt.day}, ${dt.year} • $time';
   }
 
   String get fromDisplay => formatDateTime(startDatetime);
@@ -46,12 +47,12 @@ class AvailabilitySpecific {
   }
 
   Map<String, dynamic> toJson() => {
-        'id': id,
-        'listing_id': listingId,
-        'start_datetime': startDatetime.toIso8601String(),
-        'end_datetime': endDatetime.toIso8601String(),
-        'price_hour': priceHour,
-        'price_day': priceDay,
-        'created_at': createdAt?.toIso8601String(),
-      };
+    'id': id,
+    'listing_id': listingId,
+    'start_datetime': startDatetime.toIso8601String(),
+    'end_datetime': endDatetime.toIso8601String(),
+    'price_hour': priceHour,
+    'price_day': priceDay,
+    'created_at': createdAt?.toIso8601String(),
+  };
 }

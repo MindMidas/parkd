@@ -1,0 +1,11 @@
+title = "Parkd secret scanning"
+
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Retired Firebase public client configuration in preserved history"
+paths = [
+  '''(?:^|/)android/app/google-services\.json$''',
+  '''(?:^|/)ios/Runner/GoogleService-Info\.plist$''',
+]

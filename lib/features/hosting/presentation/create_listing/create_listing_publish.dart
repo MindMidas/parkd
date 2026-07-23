@@ -3,16 +3,21 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/utils/availability_overlap.dart';
 import '../../../../core/utils/time_step_minutes.dart';
 import '../../../../core/widgets/app_day_checkboxes.dart';
+import '../../../../core/utils/weekday_ui_to_db.dart';
 import '../../../auth/providers/auth_providers.dart';
 import '../../../map/providers/map_providers.dart';
 import '../../../profile/providers/profile_providers.dart';
 import 'create_listing_draft.dart';
 
-// publish listing in one shot (photos, pin, availability, terms), deletes row if anything fails after insert
+/// Single publish flow: listing row → protected Storage upload → marker →
+/// availability rows → publish + terms flags
+/// [listings.availability_mode] is set on insert **before** any availability rows
+/// so DB triggers allow inserts. On any failure after the listing row exists,
+/// the listing is deleted so you do not get half-published rows
 class CreateListingPublish {
   CreateListingPublish._();
 
-  // user-facing error line for the terms step
+  /// Short message for the terms-step snackbar / banner
   static String describePublishError(Object e) {
     final raw = e.toString();
     if (raw.contains('23505') ||
@@ -27,8 +32,20 @@ class CreateListingPublish {
       return 'Availability could not be saved. Please go back to the '
           'availability step and try again.';
     }
+    if (raw.toLowerCase().contains('storage') ||
+        raw.toLowerCase().contains('bucket') ||
+        raw.toLowerCase().contains('object') ||
+        raw.contains('statusCode: 400') ||
+        raw.contains('statusCode: 403')) {
+      return 'The listing photo could not be uploaded. Try a JPEG or PNG under '
+          '5 MB, then publish again.';
+    }
     if (e is StateError) {
       return e.message;
+    }
+    final trimmed = raw.trim();
+    if (trimmed.isNotEmpty && trimmed != 'Exception') {
+      return trimmed.length > 160 ? '${trimmed.substring(0, 157)}…' : trimmed;
     }
     return 'Could not publish listing. Please try again.';
   }
@@ -54,6 +71,9 @@ class CreateListingPublish {
   }
 
   static Future<void> submit(WidgetRef ref, CreateListingDraft d) async {
+    if (d.publishedSuccessfully) {
+      return;
+    }
     if (!d.isCompleteForPublish) {
       throw StateError('Listing draft is incomplete');
     }
@@ -96,6 +116,7 @@ class CreateListingPublish {
         latitude: lat,
         longitude: lon,
         availabilityMode: modeStr,
+        locationSharing: d.locationSharing,
       );
       rollbackListingId = listing.id;
 
@@ -116,7 +137,7 @@ class CreateListingPublish {
         for (final s in d.weeklySlots) {
           final i = kWeekdayLabels.indexOf(s.day);
           if (i < 0) continue;
-          final dow = i;
+          final dow = weekdayUiMonFirstToPostgres(i);
           final p = AvailabilityOverlap.tryParseAmPmTimeRange(s.timeRange);
           if (p == null) continue;
           final startHhMm = TimeStepMinutes.minutesToHhMm(p.startMin);
@@ -166,6 +187,7 @@ class CreateListingPublish {
       );
 
       rollbackListingId = null;
+      d.publishedSuccessfully = true;
 
       ref.invalidate(myListingsForCurrentUserProvider);
       ref.invalidate(mapPublishedListingsProvider);

@@ -1,8 +1,9 @@
 import 'dart:async';
+import 'dart:math';
 
 import 'package:supabase_flutter/supabase_flutter.dart';
 
-// Edge Functions call Stripe, app only uses publishable key + client_secret
+/// Edge Functions call Stripe; app only uses publishable key + client_secret
 class StripeCheckoutRemote {
   StripeCheckoutRemote(this._client);
 
@@ -16,7 +17,7 @@ class StripeCheckoutRemote {
   static const Duration _sessionRefreshTimeout = Duration(seconds: 25);
   static const Duration _edgeInvokeTimeout = Duration(seconds: 45);
 
-  // refresh session so Edge gets a valid JWT
+  /// Refresh session so Edge gets a valid JWT (don’t bypass client auth headers)
   Future<void> _ensureSessionReadyForEdge() async {
     final auth = _client.auth;
     if (auth.currentSession == null) {
@@ -25,12 +26,10 @@ class StripeCheckoutRemote {
       );
     }
     try {
-      await auth
-          .refreshSession()
-          .timeout(
-            _sessionRefreshTimeout,
-            onTimeout: () => throw TimeoutException('refreshSession'),
-          );
+      await auth.refreshSession().timeout(
+        _sessionRefreshTimeout,
+        onTimeout: () => throw TimeoutException('refreshSession'),
+      );
     } catch (_) {
       final s = auth.currentSession;
       if (s == null || s.isExpired) {
@@ -48,10 +47,7 @@ class StripeCheckoutRemote {
     await _ensureSessionReadyForEdge();
     try {
       final res = await _client.functions
-          .invoke(
-            functionName,
-            body: body ?? const <String, dynamic>{},
-          )
+          .invoke(functionName, body: body ?? const <String, dynamic>{})
           .timeout(
             _edgeInvokeTimeout,
             onTimeout: () {
@@ -97,14 +93,39 @@ class StripeCheckoutRemote {
     return 'Payment service error (${e.status}). Try again.';
   }
 
-  // paymentMethodId is saved card row id (stored method)
-  Future<String> createPaymentIntentClientSecret(
-    String reservationId, {
+  /// Starts or resumes one server-authoritative checkout.
+  ///
+  /// The client deliberately sends no price or fee. The Edge Function validates
+  /// availability, calculates the total, creates the reservation/payment rows in
+  /// one transaction, and then creates the corresponding Stripe test object.
+  Future<TrustedCheckoutSession> createCheckout({
+    required String listingId,
+    required DateTime startTime,
+    required DateTime endTime,
+    required String idempotencyKey,
+    required bool web,
     String? paymentMethodId,
+    Uri? successUrl,
+    Uri? cancelUrl,
   }) async {
-    final body = <String, dynamic>{'reservation_id': reservationId};
+    final body = <String, dynamic>{
+      'listing_id': listingId,
+      'start_time': startTime.toUtc().toIso8601String(),
+      'end_time': endTime.toUtc().toIso8601String(),
+      'idempotency_key': idempotencyKey,
+      'platform': web ? 'web' : 'mobile',
+    };
     if (paymentMethodId != null && paymentMethodId.trim().isNotEmpty) {
       body['payment_method_id'] = paymentMethodId.trim();
+    }
+    if (web) {
+      if (successUrl == null || cancelUrl == null) {
+        throw const StripeCheckoutRemoteException(
+          'Web checkout requires success and cancellation URLs.',
+        );
+      }
+      body['success_url'] = successUrl.toString();
+      body['cancel_url'] = cancelUrl.toString();
     }
     final res = await _invoke(_createIntent, body: body);
     if (res.status != 200) {
@@ -116,16 +137,26 @@ class StripeCheckoutRemote {
     if (data is! Map) {
       throw const StripeCheckoutRemoteException('Invalid payment response');
     }
-    final map = Map<String, dynamic>.from(data);
-    final secret = map['client_secret'] as String?;
-    if (secret == null || secret.isEmpty) {
-      throw const StripeCheckoutRemoteException('Missing payment client secret');
-    }
-    return secret;
+    return TrustedCheckoutSession.fromJson(Map<String, dynamic>.from(data));
   }
 
-  Future<String> createSetupIntentClientSecret() async {
-    final res = await _invoke(_createSetupIntent, body: const <String, dynamic>{});
+  /// Creates a URL-safe key that is reused for every retry from one checkout UI.
+  static String newIdempotencyKey() {
+    final random = Random.secure();
+    final entropy = List<int>.generate(16, (_) => random.nextInt(256));
+    final suffix = entropy
+        .map((byte) => byte.toRadixString(16).padLeft(2, '0'))
+        .join();
+    return 'checkout_${DateTime.now().microsecondsSinceEpoch}_$suffix';
+  }
+
+  Future<String> createSetupIntentClientSecret({
+    required String idempotencyKey,
+  }) async {
+    final res = await _invoke(
+      _createSetupIntent,
+      body: {'idempotency_key': idempotencyKey},
+    );
     if (res.status != 200) {
       throw StripeCheckoutRemoteException(
         _messageFromResponse(res.data, 'Could not start card setup'),
@@ -143,7 +174,7 @@ class StripeCheckoutRemote {
     return secret;
   }
 
-  // returns new payment_methods id (when present)
+  /// Returns new payment_methods id when present
   Future<String?> completePaymentMethodSetup({
     required String setupIntentId,
   }) async {
@@ -190,4 +221,97 @@ class StripeCheckoutRemoteException implements Exception {
 
   @override
   String toString() => message;
+}
+
+/// Values returned by the trusted Edge checkout. Monetary values are integer
+/// minor units so no floating-point amount crosses the security boundary.
+class TrustedCheckoutSession {
+  const TrustedCheckoutSession({
+    required this.reservationId,
+    required this.paymentId,
+    required this.subtotalCents,
+    required this.serviceFeeCents,
+    required this.amountCents,
+    required this.currency,
+    this.clientSecret,
+    this.checkoutUrl,
+  });
+
+  final String reservationId;
+  final String paymentId;
+  final int subtotalCents;
+  final int serviceFeeCents;
+  final int amountCents;
+  final String currency;
+  final String? clientSecret;
+  final Uri? checkoutUrl;
+
+  double get subtotal => subtotalCents / 100;
+  double get serviceFee => serviceFeeCents / 100;
+  double get total => amountCents / 100;
+
+  factory TrustedCheckoutSession.fromJson(Map<String, dynamic> json) {
+    String requiredString(String key) {
+      final value = json[key];
+      if (value is! String || value.trim().isEmpty) {
+        throw StripeCheckoutRemoteException(
+          'Payment service returned an invalid $key.',
+        );
+      }
+      return value.trim();
+    }
+
+    int requiredCents(String key) {
+      final value = json[key];
+      if (value is! num || value.isNaN || value.isInfinite) {
+        throw StripeCheckoutRemoteException(
+          'Payment service returned an invalid $key.',
+        );
+      }
+      final cents = value.toInt();
+      if (cents < 0 || cents != value) {
+        throw StripeCheckoutRemoteException(
+          'Payment service returned an invalid $key.',
+        );
+      }
+      return cents;
+    }
+
+    final subtotal = requiredCents('subtotal_cents');
+    final fee = requiredCents('service_fee_cents');
+    final total = requiredCents('amount_cents');
+    if (subtotal + fee != total || total < 50) {
+      throw const StripeCheckoutRemoteException(
+        'Payment service returned inconsistent totals.',
+      );
+    }
+
+    final clientSecret = json['client_secret'];
+    final checkoutUrlRaw = json['checkout_url'];
+    final checkoutUrl = checkoutUrlRaw is String
+        ? Uri.tryParse(checkoutUrlRaw.trim())
+        : null;
+    final secret = clientSecret is String && clientSecret.trim().isNotEmpty
+        ? clientSecret.trim()
+        : null;
+    if (secret == null &&
+        (checkoutUrl == null ||
+            checkoutUrl.scheme != 'https' ||
+            checkoutUrl.host.isEmpty)) {
+      throw const StripeCheckoutRemoteException(
+        'Payment service returned no usable checkout destination.',
+      );
+    }
+
+    return TrustedCheckoutSession(
+      reservationId: requiredString('reservation_id'),
+      paymentId: requiredString('payment_id'),
+      subtotalCents: subtotal,
+      serviceFeeCents: fee,
+      amountCents: total,
+      currency: requiredString('currency').toUpperCase(),
+      clientSecret: secret,
+      checkoutUrl: checkoutUrl,
+    );
+  }
 }

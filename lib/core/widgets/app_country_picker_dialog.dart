@@ -1,13 +1,16 @@
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:intl_phone_field/countries.dart';
-import 'package:intl_phone_field/country_picker_dialog.dart' show PickerDialogStyle;
+import 'package:intl_phone_field/country_picker_dialog.dart'
+    show PickerDialogStyle;
 import 'package:intl_phone_field/helpers.dart';
 
+import '../theme/app_colors.dart';
+import '../theme/app_radius.dart';
 import '../theme/app_typography.dart';
 import 'app_divider.dart';
 
-// Country list dialog that scrolls (fork of intl_phone_field picker)
+// Country list dialog that actually scrolls (fork of intl_phone_field picker)
 class AppCountryPickerDialog extends StatefulWidget {
   const AppCountryPickerDialog({
     super.key,
@@ -29,8 +32,7 @@ class AppCountryPickerDialog extends StatefulWidget {
   final PickerDialogStyle? style;
 
   @override
-  State<AppCountryPickerDialog> createState() =>
-      _AppCountryPickerDialogState();
+  State<AppCountryPickerDialog> createState() => _AppCountryPickerDialogState();
 }
 
 class _AppCountryPickerDialogState extends State<AppCountryPickerDialog> {
@@ -63,7 +65,11 @@ class _AppCountryPickerDialogState extends State<AppCountryPickerDialog> {
             ? (mediaWidth - width) / 2
             : horizontalPad,
       ),
-      backgroundColor: widget.style?.backgroundColor,
+      backgroundColor: widget.style?.backgroundColor ?? AppColors.surface,
+      surfaceTintColor: AppColors.transparent,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(AppRadius.xl),
+      ),
       child: SizedBox(
         width: width.clamp(280.0, mediaWidth - horizontalPad * 2),
         height: listHeight + 120,
@@ -73,11 +79,11 @@ class _AppCountryPickerDialogState extends State<AppCountryPickerDialog> {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               Padding(
-                padding:
-                    widget.style?.searchFieldPadding ?? EdgeInsets.zero,
+                padding: widget.style?.searchFieldPadding ?? EdgeInsets.zero,
                 child: TextField(
                   cursorColor: widget.style?.searchFieldCursorColor,
-                  decoration: widget.style?.searchFieldInputDecoration ??
+                  decoration:
+                      widget.style?.searchFieldInputDecoration ??
                       InputDecoration(
                         suffixIcon: const Icon(Icons.search),
                         labelText: widget.searchText,
@@ -87,15 +93,14 @@ class _AppCountryPickerDialogState extends State<AppCountryPickerDialog> {
                   },
                   onChanged: (value) {
                     setState(() {
-                      _filteredCountries = widget.countryList
-                          .stringSearch(value)
-                        ..sort(
-                          (a, b) => a
-                              .localizedName(widget.languageCode)
-                              .compareTo(
-                                b.localizedName(widget.languageCode),
-                              ),
-                        );
+                      _filteredCountries =
+                          widget.countryList.stringSearch(value)..sort(
+                            (a, b) => a
+                                .localizedName(widget.languageCode)
+                                .compareTo(
+                                  b.localizedName(widget.languageCode),
+                                ),
+                          );
                     });
                   },
                 ),
@@ -123,12 +128,14 @@ class _AppCountryPickerDialogState extends State<AppCountryPickerDialog> {
                           contentPadding: widget.style?.listTilePadding,
                           title: Text(
                             c.localizedName(widget.languageCode),
-                            style: widget.style?.countryNameStyle ??
+                            style:
+                                widget.style?.countryNameStyle ??
                                 AppTypography.bodyStrong,
                           ),
                           trailing: Text(
                             '+${c.dialCode}',
-                            style: widget.style?.countryCodeStyle ??
+                            style:
+                                widget.style?.countryCodeStyle ??
                                 AppTypography.bodyStrong,
                           ),
                           onTap: () {

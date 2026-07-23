@@ -1,16 +1,19 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../map/map_filter_availability.dart';
 import '../map/map_filters.dart';
-import '../models/availability_specific.dart';
-import '../models/availability_weekly.dart';
+import '../map/map_geo.dart';
 import '../models/listing.dart';
-import '../models/slot_pricing_summary.dart';
+import 'reservations_remote.dart';
 
-// public.listings reads and writes
+/// public.listings reads and writes
 class ListingsRemote {
   ListingsRemote(this._client);
 
   final SupabaseClient _client;
+  static const _listingPhotosBucket = 'listing-photos';
+
+  ReservationsRemote get _reservations => ReservationsRemote(_client);
 
   Future<List<Listing>> listByHostId(String hostId) async {
     final rows = await _client
@@ -27,8 +30,8 @@ class ListingsRemote {
     }).toList();
   }
 
-  // lowest sort_order wins (hero is 0)
-  static String? _heroPhotoUrlFromListingPhotosEmbed(dynamic raw) {
+  /// Lowest [sort_order] wins (hero is 0)
+  String? _heroPhotoUrlFromListingPhotosEmbed(dynamic raw) {
     if (raw is! List || raw.isEmpty) return null;
     String? bestUrl;
     var bestOrder = 1 << 30;
@@ -40,10 +43,17 @@ class ListingsRemote {
       final order = (m['sort_order'] as num?)?.toInt() ?? 0;
       if (order < bestOrder) {
         bestOrder = order;
-        bestUrl = url.trim();
+        bestUrl = _publicPhotoUrl(url.trim());
       }
     }
     return bestUrl;
+  }
+
+  String _publicPhotoUrl(String storedPathOrUrl) {
+    if (storedPathOrUrl.startsWith('http')) return storedPathOrUrl;
+    return _client.storage
+        .from(_listingPhotosBucket)
+        .getPublicUrl(storedPathOrUrl);
   }
 
   Future<Listing?> fetchById(String id) async {
@@ -60,36 +70,80 @@ class ListingsRemote {
     return Listing.fromJson(map);
   }
 
-  Future<List<Listing>> fetchPublishedForMap({MapFilters? filters}) async {
+  Future<List<Listing>> fetchPublishedForMap({
+    MapFilters? filters,
+    double? proximityUserLatitude,
+    double? proximityUserLongitude,
+  }) async {
     final flt = filters ?? const MapFilters();
     final rows = await _client
-        .from('listings')
-        .select(
-          'id, host_id, address, city, postal_code, country, spot_number, '
-          'latitude, longitude, availability_mode, is_active, is_published, '
-          'terms_accepted, terms_accepted_at, created_at, updated_at, '
-          'availability_weekly(*), '
-          'availability_specific(*), '
-          'listing_photos(photo_url, sort_order)',
-        )
-        .eq('is_published', true)
-        .eq('is_active', true)
+        .from('public_listing_cards')
+        .select()
         .order('created_at', ascending: false);
     final list = <Listing>[];
+    final availabilityCandidates = <Listing>[];
+    final availabilityStart = flt.availabilityWindowStart;
+    final availabilityEnd = flt.availabilityWindowEnd;
+    final applyAvailability =
+        flt.availabilityFilterEnabled &&
+        flt.hasValidAvailabilityWindow &&
+        availabilityStart != null &&
+        availabilityEnd != null;
+
     for (final e in rows as List) {
       final row = Map<String, dynamic>.from(e as Map);
-      final weekly = _embeddedWeekly(row['availability_weekly']);
-      final specific = _embeddedSpecific(row['availability_specific']);
-      final minH = SlotPricingSummary.minHourly(weekly, specific);
+      final hero = row['hero_photo_url'];
+      if (hero is String && hero.trim().isNotEmpty) {
+        row['hero_photo_url'] = _publicPhotoUrl(hero.trim());
+      }
+      final listing = Listing.fromJson(row);
+      final minH = listing.minHourlyPrice;
       if (minH == null || minH > flt.maxPricePerHour) continue;
-      row.remove('availability_weekly');
-      row.remove('availability_specific');
-      final embeddedPhotos = row.remove('listing_photos');
-      final hero = _heroPhotoUrlFromListingPhotosEmbed(embeddedPhotos);
-      if (hero != null) row['hero_photo_url'] = hero;
-      final l = Listing.fromJson(row);
-      if (flt.guelphOnly && l.city.trim().toLowerCase() != 'guelph') continue;
-      list.add(l);
+      if (flt.guelphOnly && listing.city.trim().toLowerCase() != 'guelph') {
+        continue;
+      }
+      if (flt.proximityEnabled &&
+          proximityUserLatitude != null &&
+          proximityUserLongitude != null) {
+        final distanceKm = distanceKmBetween(
+          proximityUserLatitude,
+          proximityUserLongitude,
+          listing.latitude,
+          listing.longitude,
+        );
+        if (distanceKm > flt.proximityRadiusKm) continue;
+      }
+      if (applyAvailability) {
+        availabilityCandidates.add(listing);
+      } else {
+        list.add(listing);
+      }
+    }
+
+    if (availabilityCandidates.isNotEmpty &&
+        availabilityStart != null &&
+        availabilityEnd != null) {
+      final busyWindows = await _reservations.fetchOverlappingBlocksForListings(
+        availabilityCandidates
+            .map((listing) => listing.id)
+            .toList(growable: false),
+        rangeStart: availabilityStart,
+        rangeEnd: availabilityEnd,
+      );
+      for (final listing in availabilityCandidates) {
+        if (listingMatchesMapAvailabilityWindow(
+          listing: listing,
+          weekly: listing.publicWeeklyAvailability,
+          specific: listing.publicSpecificAvailability,
+          bookings: busyWindows[listing.id] ?? const [],
+          rangeStartDay: flt.availRangeStart!,
+          rangeEndDay: flt.availRangeEnd!,
+          startMinutes: flt.availStartMinutes,
+          endMinutes: flt.availEndMinutes,
+        )) {
+          list.add(listing);
+        }
+      }
     }
     return list;
   }
@@ -104,6 +158,7 @@ class ListingsRemote {
     required double latitude,
     required double longitude,
     String availabilityMode = 'weekly',
+    ListingLocationSharing locationSharing = ListingLocationSharing.general,
   }) async {
     final row = await _client
         .from('listings')
@@ -117,6 +172,7 @@ class ListingsRemote {
           'latitude': latitude,
           'longitude': longitude,
           'availability_mode': availabilityMode,
+          'location_sharing': locationSharing.dbValue,
         })
         .select()
         .single();
@@ -160,25 +216,12 @@ class ListingsRemote {
   }
 
   Future<void> deleteListing(String listingId) async {
-    await _client.from('listings').delete().eq('id', listingId);
+    final deleted = await _client.rpc(
+      'soft_delete_listing',
+      params: {'p_listing_id': listingId},
+    );
+    if (deleted != true) {
+      throw StateError('Listing was not found or could not be removed.');
+    }
   }
-
-  List<AvailabilityWeekly> _embeddedWeekly(dynamic raw) {
-    if (raw is! List) return [];
-    return raw
-        .map((e) => AvailabilityWeekly.fromJson(Map<String, dynamic>.from(e as Map)))
-        .toList();
-  }
-
-  List<AvailabilitySpecific> _embeddedSpecific(dynamic raw) {
-    if (raw is! List) return [];
-    return raw
-        .map(
-          (e) => AvailabilitySpecific.fromJson(
-            Map<String, dynamic>.from(e as Map),
-          ),
-        )
-        .toList();
-  }
-
 }

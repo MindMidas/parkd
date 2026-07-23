@@ -2,7 +2,7 @@ import 'dart:io';
 
 import 'package:image_picker/image_picker.dart';
 
-// writes pick bytes to a temp path native image_cropper can open
+/// Writes pick bytes to a temp path native [image_cropper] can open
 Future<String> materializeXFileForImageCrop(XFile file) async {
   final bytes = await file.readAsBytes();
   final lower = file.name.toLowerCase();

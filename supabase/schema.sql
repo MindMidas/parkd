@@ -1,8 +1,9 @@
--- parkd: full schema for a new/empty database
--- Requires Supabase auth; run after project creation.
+-- parkd supabase schema
+
 
 -- extensions
 create extension if not exists pgcrypto;
+create extension if not exists btree_gist;
 
 -- helpers
 
@@ -17,33 +18,62 @@ begin
 end;
 $$;
 
+create or replace function public.request_jwt_role()
+returns text
+language sql
+stable
+as $$
+  select coalesce(nullif(current_setting('request.jwt.claim.role', true), ''), current_user);
+$$;
+
 -- enums
 
 
-create type public.reservation_status as enum (
-  'pending',
-  'confirmed',
-  'active',
-  'completed',
-  'cancelled'
-);
+do $$
+begin
+  create type public.reservation_status as enum (
+    'pending',
+    'confirmed',
+    'active',
+    'completed',
+    'cancelled'
+  );
+exception
+  when duplicate_object then null;
+end $$;
 
-create type public.payment_status as enum (
-  'pending',
-  'succeeded',
-  'failed',
-  'refunded'
-);
+do $$
+begin
+  create type public.payment_status as enum (
+    'pending',
+    'succeeded',
+    'failed',
+    'refunded'
+  );
+exception
+  when duplicate_object then null;
+end $$;
 
-create type public.availability_mode as enum (
-  'weekly',
-  'specific'
-);
 
-create type public.message_status as enum (
-  'sent',
-  'read'
-);
+do $$
+begin
+  create type public.availability_mode as enum (
+    'weekly',
+    'specific'
+  );
+exception
+  when duplicate_object then null;
+end $$;
+
+do $$
+begin
+  create type public.message_status as enum (
+    'sent',
+    'read'
+  );
+exception
+  when duplicate_object then null;
+end $$;
 
 -- profiles (1:1 auth.users; password policy is auth + dashboard + app)
 
@@ -58,25 +88,33 @@ create table if not exists public.profiles (
   birth_date date,
   rating numeric(3,2) not null default 0,
   rating_count integer not null default 0,
-  stripe_customer_id text,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
 
   constraint profiles_rating_check
-    check (rating >= 0 and rating <= 5),
-  constraint profiles_username_format_check
-    check (username is null or username ~ '^[a-z0-9_]{3,20}$'),
-  constraint profiles_full_name_len_check
-    check (full_name is null or char_length(trim(full_name)) >= 2),
-  constraint profiles_phone_e164_check
-    check (phone is null or trim(phone) ~ '^\+[1-9][0-9]{6,14}$')
+    check (rating >= 0 and rating <= 5)
 );
 
 -- stripe_customer_id set by edge functions only
+alter table public.profiles add column if not exists stripe_customer_id text;
 drop index if exists profiles_stripe_customer_id_unique;
 create unique index profiles_stripe_customer_id_unique
   on public.profiles (stripe_customer_id)
   where stripe_customer_id is not null and trim(stripe_customer_id) <> '';
+
+-- username / name / phone rules aligned with app validators
+alter table public.profiles drop constraint if exists profiles_username_format_check;
+alter table public.profiles add constraint profiles_username_format_check
+  check (username is null or username ~ '^[a-z0-9_]{3,20}$');
+
+alter table public.profiles drop constraint if exists profiles_full_name_len_check;
+alter table public.profiles add constraint profiles_full_name_len_check
+  check (full_name is null or char_length(trim(full_name)) >= 2);
+
+-- phone E.164 + and 7–15 digits
+alter table public.profiles drop constraint if exists profiles_phone_e164_check;
+alter table public.profiles add constraint profiles_phone_e164_check
+  check (phone is null or trim(phone) ~ '^\+[1-9][0-9]{6,14}$');
 
 -- unique phone when set
 drop index if exists profiles_phone_unique;
@@ -89,6 +127,48 @@ create trigger trg_profiles_updated_at
 before update on public.profiles
 for each row
 execute function public.set_updated_at();
+
+create or replace view public.public_profiles as
+select
+  id,
+  username,
+  full_name,
+  avatar_url,
+  rating,
+  rating_count,
+  created_at
+from public.profiles;
+
+grant select on public.public_profiles to anon, authenticated;
+
+create or replace function public.is_username_available(candidate text)
+returns boolean
+language sql
+security definer
+set search_path = public
+as $$
+  select not exists (
+    select 1
+    from public.profiles p
+    where p.username = lower(trim(candidate))
+  );
+$$;
+
+create or replace function public.is_phone_available(candidate text)
+returns boolean
+language sql
+security definer
+set search_path = public
+as $$
+  select not exists (
+    select 1
+    from public.profiles p
+    where p.phone = trim(candidate)
+  );
+$$;
+
+grant execute on function public.is_username_available(text) to anon, authenticated;
+grant execute on function public.is_phone_available(text) to anon, authenticated;
 
 -- profile after email confirmed (auth.users)
 
@@ -211,6 +291,10 @@ create table if not exists public.listings (
   updated_at timestamptz not null default now()
 );
 
+
+alter table public.listings
+  add column if not exists availability_mode public.availability_mode not null default 'weekly';
+
 drop trigger if exists trg_listings_updated_at on public.listings;
 create trigger trg_listings_updated_at
 before update on public.listings
@@ -251,28 +335,34 @@ create table if not exists public.listing_photos (
   listing_id uuid not null references public.listings(id) on delete cascade,
   photo_url text not null,
   sort_order integer not null default 0,
+  -- photo marker x/y in 0..1 (annotate step)
   marker_x double precision,
   marker_y double precision,
-  created_at timestamptz not null default now(),
-
-  constraint listing_photos_marker_coords_check
-    check (
-      (marker_x is null and marker_y is null)
-      or (
-        marker_x is not null
-        and marker_y is not null
-        and marker_x >= 0
-        and marker_x <= 1
-        and marker_y >= 0
-        and marker_y <= 1
-      )
-    )
+  created_at timestamptz not null default now()
 );
+
+-- idempotent column adds
+alter table public.listing_photos add column if not exists marker_x double precision;
+alter table public.listing_photos add column if not exists marker_y double precision;
+
+alter table public.listing_photos drop constraint if exists listing_photos_marker_coords_check;
+alter table public.listing_photos add constraint listing_photos_marker_coords_check
+  check (
+    (marker_x is null and marker_y is null)
+    or (
+      marker_x is not null
+      and marker_y is not null
+      and marker_x >= 0
+      and marker_x <= 1
+      and marker_y >= 0
+      and marker_y <= 1
+    )
+  );
 
 create index if not exists listing_photos_listing_id_idx
 on public.listing_photos(listing_id);
 
--- weekly slots (day_of_week 0=mon .. 6=sun, same order as UI chips)
+-- weekly slots (day_of_week 0=sun .. 6=sat)
 
 
 create table if not exists public.availability_weekly (
@@ -326,7 +416,55 @@ create table if not exists public.availability_specific (
 create index if not exists availability_specific_listing_id_idx
 on public.availability_specific(listing_id);
 
--- prices live on availability rows only (not on listings)
+-- prices on availability rows only; backfill from legacy listings.price_* if those columns exist
+
+
+alter table public.availability_weekly add column if not exists price_hour numeric(10,2);
+alter table public.availability_weekly add column if not exists price_day numeric(10,2);
+alter table public.availability_specific add column if not exists price_hour numeric(10,2);
+alter table public.availability_specific add column if not exists price_day numeric(10,2);
+
+do $$
+begin
+  if exists (
+    select 1 from information_schema.columns
+    where table_schema = 'public' and table_name = 'listings' and column_name = 'price_hour'
+  ) then
+    update public.availability_weekly w
+    set
+      price_hour = coalesce(w.price_hour, l.price_hour, 0),
+      price_day = coalesce(w.price_day, l.price_day)
+    from public.listings l
+    where w.listing_id = l.id;
+
+    update public.availability_specific s
+    set
+      price_hour = coalesce(s.price_hour, l.price_hour, 0),
+      price_day = coalesce(s.price_day, l.price_day)
+    from public.listings l
+    where s.listing_id = l.id;
+  end if;
+end $$;
+
+update public.availability_weekly set price_hour = 0 where price_hour is null;
+update public.availability_specific set price_hour = 0 where price_hour is null;
+
+alter table public.availability_weekly alter column price_hour set default 0;
+alter table public.availability_specific alter column price_hour set default 0;
+
+alter table public.availability_weekly drop constraint if exists availability_weekly_price_hour_check;
+alter table public.availability_weekly add constraint availability_weekly_price_hour_check
+  check (price_hour >= 0);
+
+alter table public.availability_specific drop constraint if exists availability_specific_price_hour_check;
+alter table public.availability_specific add constraint availability_specific_price_hour_check
+  check (price_hour >= 0);
+
+alter table public.availability_weekly alter column price_hour set not null;
+alter table public.availability_specific alter column price_hour set not null;
+
+alter table public.listings drop column if exists price_hour;
+alter table public.listings drop column if exists price_day;
 
 -- slot rows must match listing.availability_mode (weekly or specific)
 
@@ -492,6 +630,39 @@ execute function public.set_updated_at();
 create index if not exists payment_methods_user_id_idx
 on public.payment_methods(user_id);
 
+create or replace function public.prevent_untrusted_payment_method_changes()
+returns trigger
+language plpgsql
+as $$
+begin
+  if public.request_jwt_role() not in ('anon', 'authenticated') then
+    return new;
+  end if;
+
+  if tg_op = 'INSERT' then
+    raise exception 'PAYMENT_METHODS_EDGE_ONLY';
+  end if;
+
+  if new.user_id is distinct from old.user_id
+    or new.stripe_payment_method_id is distinct from old.stripe_payment_method_id
+    or new.brand is distinct from old.brand
+    or new.last4 is distinct from old.last4
+    or new.exp_month is distinct from old.exp_month
+    or new.exp_year is distinct from old.exp_year
+  then
+    raise exception 'PAYMENT_METHOD_TRUSTED_FIELDS_SERVER_ONLY';
+  end if;
+
+  return new;
+end;
+$$;
+
+drop trigger if exists trg_payment_methods_untrusted_change_guard on public.payment_methods;
+create trigger trg_payment_methods_untrusted_change_guard
+before insert or update on public.payment_methods
+for each row
+execute function public.prevent_untrusted_payment_method_changes();
+
 -- reservations
 
 
@@ -582,6 +753,95 @@ before insert or update of driver_id, listing_id, host_id on public.reservations
 for each row
 execute function public.assert_reservation_not_own_listing();
 
+-- A listing cannot have overlapping live reservations. Pending reservations may
+-- overlap while users are in checkout, but only one can be confirmed/active.
+create or replace function public.prevent_overlapping_live_reservations()
+returns trigger
+language plpgsql
+as $$
+begin
+  if new.status not in ('confirmed', 'active') then
+    return new;
+  end if;
+
+  if exists (
+    select 1
+    from public.reservations o
+    where o.listing_id = new.listing_id
+      and o.id is distinct from new.id
+      and o.status in ('confirmed', 'active')
+      and o.start_time < new.end_time
+      and o.end_time > new.start_time
+  ) then
+    raise exception 'OVERLAP_RESERVATION';
+  end if;
+
+  return new;
+end;
+$$;
+
+drop trigger if exists trg_reservations_live_overlap_guard on public.reservations;
+create trigger trg_reservations_live_overlap_guard
+before insert or update of listing_id, start_time, end_time, status on public.reservations
+for each row
+execute function public.prevent_overlapping_live_reservations();
+
+alter table public.reservations
+  drop constraint if exists reservations_no_live_overlap;
+
+alter table public.reservations
+  add constraint reservations_no_live_overlap
+  exclude using gist (
+    listing_id with =,
+    tstzrange(start_time, end_time, '[)') with &&
+  )
+  where (status in ('confirmed', 'active'));
+
+create or replace function public.prevent_untrusted_reservation_updates()
+returns trigger
+language plpgsql
+as $$
+begin
+  if public.request_jwt_role() not in ('anon', 'authenticated') then
+    return new;
+  end if;
+
+  if tg_op = 'INSERT' then
+    new.status := 'pending';
+    return new;
+  end if;
+
+  if new.listing_id is distinct from old.listing_id
+    or new.driver_id is distinct from old.driver_id
+    or new.host_id is distinct from old.host_id
+    or new.start_time is distinct from old.start_time
+    or new.end_time is distinct from old.end_time
+    or new.total_price is distinct from old.total_price
+    or new.service_fee is distinct from old.service_fee
+    or new.extended_from_reservation_id is distinct from old.extended_from_reservation_id
+  then
+    raise exception 'RESERVATION_IMMUTABLE_FIELDS';
+  end if;
+
+  if new.status is distinct from old.status
+    and not (
+      new.status = 'cancelled'
+      and old.status in ('pending', 'confirmed', 'active')
+    )
+  then
+    raise exception 'RESERVATION_STATUS_SERVER_ONLY';
+  end if;
+
+  return new;
+end;
+$$;
+
+drop trigger if exists trg_reservations_untrusted_update_guard on public.reservations;
+create trigger trg_reservations_untrusted_update_guard
+before insert or update on public.reservations
+for each row
+execute function public.prevent_untrusted_reservation_updates();
+
 -- payments: one row per reservation
 
 
@@ -608,6 +868,63 @@ execute function public.set_updated_at();
 
 create index if not exists payments_reservation_id_idx
 on public.payments(reservation_id);
+
+create or replace function public.prevent_untrusted_payment_changes()
+returns trigger
+language plpgsql
+as $$
+declare
+  reservation_amount numeric(10,2);
+  reservation_fee numeric(10,2);
+begin
+  if public.request_jwt_role() not in ('anon', 'authenticated') then
+    return new;
+  end if;
+
+  if tg_op = 'INSERT' then
+    select r.total_price, r.service_fee
+    into reservation_amount, reservation_fee
+    from public.reservations r
+    where r.id = new.reservation_id;
+
+    if reservation_amount is null then
+      raise exception 'PAYMENT_RESERVATION_NOT_FOUND';
+    end if;
+
+    new.amount := reservation_amount;
+    new.service_fee := reservation_fee;
+    new.status := 'pending';
+    new.stripe_payment_intent_id := null;
+    return new;
+  end if;
+
+  if new.reservation_id is distinct from old.reservation_id
+    or new.payment_method_id is distinct from old.payment_method_id
+    or new.stripe_payment_intent_id is distinct from old.stripe_payment_intent_id
+    or new.amount is distinct from old.amount
+    or new.service_fee is distinct from old.service_fee
+  then
+    raise exception 'PAYMENT_TRUSTED_FIELDS_SERVER_ONLY';
+  end if;
+
+  if new.status is distinct from old.status
+    and not (
+      old.status = 'pending'
+      and new.status = 'failed'
+    )
+  then
+    raise exception 'PAYMENT_STATUS_SERVER_ONLY';
+  end if;
+
+  return new;
+end;
+$$;
+
+drop trigger if exists trg_payments_untrusted_change_guard on public.payments;
+create trigger trg_payments_untrusted_change_guard
+before insert or update on public.payments
+for each row
+execute function public.prevent_untrusted_payment_changes();
 
 -- conversations: one per reservation
 
@@ -677,6 +994,42 @@ on public.messages(conversation_id);
 create index if not exists messages_sender_id_idx
 on public.messages(sender_id);
 
+create or replace function public.prevent_untrusted_message_updates()
+returns trigger
+language plpgsql
+as $$
+begin
+  if public.request_jwt_role() not in ('anon', 'authenticated') then
+    return new;
+  end if;
+
+  if new.conversation_id is distinct from old.conversation_id
+    or new.sender_id is distinct from old.sender_id
+    or new.message is distinct from old.message
+    or new.created_at is distinct from old.created_at
+  then
+    raise exception 'MESSAGE_CONTENT_IMMUTABLE';
+  end if;
+
+  if new.status is distinct from old.status
+    and not (
+      old.status = 'sent'
+      and new.status = 'read'
+    )
+  then
+    raise exception 'MESSAGE_STATUS_INVALID';
+  end if;
+
+  return new;
+end;
+$$;
+
+drop trigger if exists trg_messages_untrusted_update_guard on public.messages;
+create trigger trg_messages_untrusted_update_guard
+before update on public.messages
+for each row
+execute function public.prevent_untrusted_message_updates();
+
 -- reviews
 
 
@@ -737,10 +1090,25 @@ alter table public.reviews enable row level security;
 
 
 drop policy if exists "profiles_public_read" on public.profiles;
-create policy "profiles_public_read"
+drop policy if exists "profiles_read_own_or_reservation_participant" on public.profiles;
+create policy "profiles_read_own_or_reservation_participant"
 on public.profiles
 for select
-using (true);
+using (
+  auth.uid() = id
+  or exists (
+    select 1
+    from public.reservations r
+    where (
+      r.driver_id = auth.uid()
+      and r.host_id = profiles.id
+    )
+    or (
+      r.host_id = auth.uid()
+      and r.driver_id = profiles.id
+    )
+  )
+);
 
 drop policy if exists "profiles_insert_own" on public.profiles;
 create policy "profiles_insert_own"
@@ -1127,3 +1495,32 @@ create policy "reviews_insert_reviewer"
 on public.reviews
 for insert
 with check (auth.uid() = reviewer_id);
+
+-- if both weekly and specific existed: drop weekly for that listing, set availability_mode from remaining rows
+
+
+begin;
+
+delete from public.availability_weekly w
+where exists (
+  select 1
+  from public.availability_specific s
+  where s.listing_id = w.listing_id
+);
+
+update public.listings l
+set availability_mode = 'specific'
+where exists (
+  select 1 from public.availability_specific s where s.listing_id = l.id
+);
+
+update public.listings l
+set availability_mode = 'weekly'
+where exists (
+  select 1 from public.availability_weekly w where w.listing_id = l.id
+)
+and not exists (
+  select 1 from public.availability_specific s where s.listing_id = l.id
+);
+
+commit;

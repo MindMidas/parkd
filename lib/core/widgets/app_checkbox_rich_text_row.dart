@@ -44,9 +44,7 @@ class AppCheckboxRichTextRow extends StatelessWidget {
           ),
         ),
         const SizedBox(width: AppSpacing.sm),
-        Expanded(
-          child: RichText(text: labelSpan),
-        ),
+        Expanded(child: RichText(text: labelSpan)),
       ],
     );
   }

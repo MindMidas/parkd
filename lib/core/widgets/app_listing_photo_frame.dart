@@ -1,12 +1,13 @@
 import 'package:flutter/material.dart';
 
-// Listing photo area
+// Listing photo area: fixed aspect, clip, optional overlay/tap
 class AppListingPhotoFrame extends StatelessWidget {
   const AppListingPhotoFrame({
     super.key,
     required this.child,
     this.overlay,
     this.onTap,
+    this.heroTag,
     this.aspectRatio = appListingPhotoFrameAspectRatio,
     this.borderRadius = 0,
   });
@@ -14,6 +15,7 @@ class AppListingPhotoFrame extends StatelessWidget {
   final Widget child;
   final Widget? overlay;
   final VoidCallback? onTap;
+  final Object? heroTag;
   final double aspectRatio;
   final double borderRadius;
 
@@ -23,26 +25,20 @@ class AppListingPhotoFrame extends StatelessWidget {
       aspectRatio: aspectRatio,
       child: ClipRRect(
         borderRadius: BorderRadius.circular(borderRadius),
-        child: Stack(
-          fit: StackFit.expand,
-          children: [
-            child,
-            ?overlay,
-          ],
-        ),
+        child: Stack(fit: StackFit.expand, children: [child, ?overlay]),
       ),
     );
-    if (onTap == null) return content;
-    return GestureDetector(
-      onTap: onTap,
-      child: content,
-    );
+    final framed = onTap == null
+        ? content
+        : GestureDetector(onTap: onTap, child: content);
+    if (heroTag == null) return framed;
+    return Hero(tag: heroTag!, child: framed);
   }
 }
 
-// shared 4:3 for listing photos
+// Shared 4:3 for listing photos
 const appListingPhotoFrameAspectRatio = 4 / 3;
 
-// car pin size on listing photos
+/// Car marker on listing photos (annotate + read-only overlay); ~20% smaller than 42 / 20
 const appListingSpotMarkerDiameter = 34.0;
 const appListingSpotMarkerIconSize = 16.0;

@@ -1,24 +1,17 @@
 import 'package:flutter/material.dart';
 
 import '../theme/app_colors.dart';
+import '../theme/app_ink.dart';
+import '../theme/app_radius.dart';
 import '../theme/app_spacing.dart';
 import '../theme/app_typography.dart';
 import 'app_display_fields.dart';
 import 'app_divider.dart';
 import 'app_listing_photo_frame.dart';
 
-enum AppMenuLeadingType {
-  profile,
-  parking,
-}
+enum AppMenuLeadingType { profile, parking }
 
-enum AppMenuRightKind {
-  chevron,
-  icon,
-  pillIcon,
-  amount,
-  none,
-}
+enum AppMenuRightKind { chevron, icon, pillIcon, amount, none }
 
 class AppMenuRow extends StatelessWidget {
   const AppMenuRow({
@@ -63,10 +56,16 @@ class AppMenuRow extends StatelessWidget {
   Widget? _buildLeading() {
     if (leading != null) return leading;
     if (leadingIcon != null) {
-      return Icon(
-        leadingIcon,
-        size: 22,
-        color: AppColors.iconGrey,
+      return DecoratedBox(
+        decoration: BoxDecoration(
+          color: AppColors.secondaryGrey.withValues(alpha: 0.35),
+          borderRadius: BorderRadius.circular(AppRadius.sm),
+        ),
+        child: SizedBox(
+          width: 40,
+          height: 40,
+          child: Icon(leadingIcon, size: 22, color: AppColors.iconGrey),
+        ),
       );
     }
     if (leadingType == null) return null;
@@ -85,17 +84,9 @@ class AppMenuRow extends StatelessWidget {
       case AppMenuRightKind.none:
         return null;
       case AppMenuRightKind.chevron:
-        return Icon(
-          rightIcon,
-          size: 22,
-          color: AppColors.iconGrey,
-        );
+        return Icon(rightIcon, size: 22, color: AppColors.iconGrey);
       case AppMenuRightKind.icon:
-        return Icon(
-          rightIcon,
-          size: 22,
-          color: AppColors.iconGrey,
-        );
+        return Icon(rightIcon, size: 22, color: AppColors.iconGrey);
       case AppMenuRightKind.pillIcon:
         return AppMenuPillIconButton(
           onPressed: onTap ?? () {},
@@ -116,47 +107,62 @@ class AppMenuRow extends StatelessWidget {
   Widget build(BuildContext context) {
     final trailingWidget = _buildTrailing();
     final lead = _buildLeading();
+    final hasMeta =
+        (subtitle != null && subtitle!.isNotEmpty) ||
+        (tertiary != null && tertiary!.isNotEmpty);
+
     return Column(
       children: [
         if (showTopDivider) const AppDividerWide(),
         ListTile(
-          minLeadingWidth: lead != null ? 72 : null,
+          minLeadingWidth: lead != null ? 64 : null,
+          minVerticalPadding: hasMeta ? 10 : 12,
+          visualDensity: VisualDensity.compact,
           contentPadding: const EdgeInsets.symmetric(
             horizontal: AppSpacing.lg,
-            vertical: 4,
+            vertical: 2,
           ),
+          splashColor: AppInk.splashSoft,
+          hoverColor: AppInk.hover,
           leading: lead,
-          title: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                title,
-                style: AppTypography.body,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-              ),
-              if (subtitle != null && subtitle!.isNotEmpty) ...[
-                const SizedBox(height: 2),
-                Text(
-                  subtitle!,
-                  style: AppTypography.caption,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ],
-              if (tertiary != null && tertiary!.isNotEmpty) ...[
-                const SizedBox(height: 2),
-                Text(
-                  tertiary!,
-                  style: AppTypography.caption,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ],
-            ],
+          title: Text(
+            title,
+            style: AppTypography.body,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
           ),
-          trailing: rightKind == AppMenuRightKind.amount && trailingWidget != null
+          subtitle: hasMeta
+              ? Padding(
+                  padding: const EdgeInsets.only(top: 2),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      if (subtitle != null && subtitle!.isNotEmpty)
+                        Text(
+                          subtitle!,
+                          style: AppTypography.caption,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      if (tertiary != null && tertiary!.isNotEmpty) ...[
+                        if (subtitle != null && subtitle!.isNotEmpty)
+                          const SizedBox(height: 2),
+                        Text(
+                          tertiary!,
+                          style: AppTypography.caption.copyWith(
+                            color: AppColors.iconGrey,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ],
+                    ],
+                  ),
+                )
+              : null,
+          trailing:
+              rightKind == AppMenuRightKind.amount && trailingWidget != null
               ? SizedBox(
                   width: 84,
                   child: Align(
@@ -178,8 +184,8 @@ class AppMenuPillIconButton extends StatelessWidget {
     super.key,
     required this.onPressed,
     required this.icon,
-    this.width = 56,
-    this.height = 44,
+    this.width = 48,
+    this.height = 40,
   });
 
   final VoidCallback onPressed;
@@ -189,17 +195,16 @@ class AppMenuPillIconButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(22),
-      child: Material(
-        color: AppColors.primaryBlue,
-        child: InkWell(
-          onTap: onPressed,
-          child: SizedBox(
-            width: width,
-            height: height,
-            child: Icon(icon, color: AppColors.onPrimary, size: 22),
-          ),
+    return Material(
+      color: AppColors.primaryBlue,
+      borderRadius: BorderRadius.circular(AppRadius.sm),
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: onPressed,
+        child: SizedBox(
+          width: width,
+          height: height,
+          child: Icon(icon, color: AppColors.onPrimary, size: 20),
         ),
       ),
     );
@@ -211,10 +216,11 @@ class AppMenuProfileAvatar extends StatelessWidget {
     super.key,
     required this.imageProvider,
     this.fallbackIcon = Icons.person_rounded,
-    this.size = 56,
+    this.size = 52,
     this.hostListingSolidPlaceholder = false,
   });
 
+  /// Solid blue circle used on listing cards when there is no host photo (40dp or 36dp compact)
   factory AppMenuProfileAvatar.hostListingPlaceholder({
     Key? key,
     bool compact = false,
@@ -252,21 +258,16 @@ class AppMenuProfileAvatar extends StatelessWidget {
                   filterQuality: FilterQuality.medium,
                   gaplessPlayback: true,
                 )
-              : Icon(
-                  fallbackIcon,
-                  size: iconSize,
-                  color: AppColors.onPrimary,
-                ),
+              : Icon(fallbackIcon, size: iconSize, color: AppColors.onPrimary),
         ),
       );
     }
 
     return Material(
-      elevation: 2,
-      shadowColor: AppColors.shadowMedium,
-      color: AppColors.secondaryBlue.withValues(alpha: 0.2),
+      elevation: 0,
+      color: AppColors.secondaryBlue.withValues(alpha: 0.35),
       shape: const CircleBorder(
-        side: BorderSide(color: AppColors.surface, width: 2),
+        side: BorderSide(color: AppColors.secondaryGrey, width: 0.5),
       ),
       clipBehavior: Clip.antiAlias,
       child: SizedBox(
@@ -282,7 +283,7 @@ class AppMenuProfileAvatar extends StatelessWidget {
             : Icon(
                 fallbackIcon,
                 color: AppColors.primaryBlue,
-                size: size * 0.5,
+                size: size * 0.45,
               ),
       ),
     );
@@ -293,6 +294,8 @@ class AppMenuParkingAvatar extends StatelessWidget {
   const AppMenuParkingAvatar({
     super.key,
     required this.imageProvider,
+
+    /// Height of the 4:3 thumbnail; width follows [appListingPhotoFrameAspectRatio]
     this.size = 48,
   });
 
@@ -301,39 +304,31 @@ class AppMenuParkingAvatar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final borderRadius = BorderRadius.circular(10);
+    final borderRadius = BorderRadius.circular(AppRadius.sm);
     final h = size;
     final w = h * appListingPhotoFrameAspectRatio;
-    return SizedBox(
-      width: w,
-      height: h,
-      child: DecoratedBox(
-        decoration: BoxDecoration(
-          borderRadius: borderRadius,
-          color: AppColors.secondaryBlue.withValues(alpha: 0.2),
-          border: Border.all(color: AppColors.surface, width: 2),
-          boxShadow: [
-            BoxShadow(
-              color: AppColors.shadowLow,
-              blurRadius: 4,
-              offset: const Offset(0, 2),
-            ),
-          ],
-        ),
-        child: ClipRRect(
-          borderRadius: borderRadius,
-          child: imageProvider != null
-              ? Image(image: imageProvider!, fit: BoxFit.cover)
-              : Center(
-                  child: Text(
-                    'P',
-                    style: AppTypography.bodyStrong.copyWith(
-                      color: AppColors.primaryBlue,
-                      fontSize: h * 0.45,
-                    ),
+    return Material(
+      color: AppColors.secondaryBlue.withValues(alpha: 0.35),
+      elevation: 0,
+      shape: RoundedRectangleBorder(
+        borderRadius: borderRadius,
+        side: const BorderSide(color: AppColors.secondaryGrey, width: 0.5),
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: SizedBox(
+        width: w,
+        height: h,
+        child: imageProvider != null
+            ? Image(image: imageProvider!, fit: BoxFit.cover)
+            : Center(
+                child: Text(
+                  'P',
+                  style: AppTypography.bodyStrong.copyWith(
+                    color: AppColors.primaryBlue,
+                    fontSize: h * 0.4,
                   ),
                 ),
-        ),
+              ),
       ),
     );
   }

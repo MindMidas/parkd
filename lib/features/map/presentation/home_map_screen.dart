@@ -10,8 +10,10 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../../app/main_shell_tab_provider.dart';
 import '../../../core/map/map_constants.dart';
+import '../../../core/map/map_geo.dart';
 import '../../../core/map/map_listing_camera.dart';
 import '../../../core/map/map_user_location.dart';
+import '../../../core/map/mapbox_runtime.dart';
 import '../../../core/map/nominatim_geocoding.dart';
 import '../../../core/models/listing.dart';
 import '../../../core/models/search_result.dart';
@@ -21,12 +23,17 @@ import '../../../core/theme/app_typography.dart';
 import '../../../core/widgets/widgets.dart';
 import '../../hosting/presentation/hosting_hub_screen.dart';
 import '../../profile/presentation/account/account_tab_screen.dart';
+import '../../profile/providers/notifications_providers.dart';
 import '../../reservations/presentation/reservations_hub_screen.dart';
 import '../providers/map_providers.dart';
 import 'listing_detail_from_map_screen.dart';
-import '../../../app/main_tab.dart';
+import 'approximate_area_listings_sheet.dart';
+import 'main_tab.dart';
 import 'map.dart';
+import 'map_filters_sheet.dart';
+import 'map_platform_fallback.dart';
 
+// Explore shell — map plus nested hubs, search, and the listing preview sheet
 class HomeMapScreen extends ConsumerStatefulWidget {
   const HomeMapScreen({
     super.key,
@@ -58,20 +65,22 @@ class _HomeMapScreenState extends ConsumerState<HomeMapScreen>
       GlobalKey<NavigatorState>();
   final TextEditingController _searchController = TextEditingController();
   MapboxMap? _mapbox;
+  SearchResult? _fallbackSearchCenter;
   ({double lat, double lon, double zoom})? _pendingFlyTo;
 
-  // last camera the user cared about (GPS center or a search). Used when map widget is recreated (such as switching tabs)
+  /// Last camera the user cared about (GPS center or a search). Used when the
+  /// map widget is recreated (e.g. switching tabs)
   ({double lat, double lon, double zoom})? _mapCameraTarget;
 
-  // snapshot from [MapboxMap.getCameraState] before listing preview (restore when sheet closes)
-  ({
-    double lat,
-    double lon,
-    double zoom,
-    double bearing,
-    double pitch,
-  })?
+  /// Snapshot from [MapboxMap.getCameraState] before listing preview (restore when sheet closes)
+  ({double lat, double lon, double zoom, double bearing, double pitch})?
   _cameraBeforeListingPreview;
+
+  /// Airbnb-style shaded area while an approximate listing preview is open.
+  ({double latitude, double longitude})? _approximatePrivacyHalo;
+
+  /// Listing open in the bottom preview (price-pill selected state).
+  String? _selectedListingId;
 
   bool _isRoughlyDefaultGuelphCamera() {
     final t = _mapCameraTarget;
@@ -83,7 +92,8 @@ class _HomeMapScreenState extends ConsumerState<HomeMapScreen>
 
   Future<void> _syncLocationPuckWithPermission(MapboxMap map) async {
     final perm = await geo.Geolocator.checkPermission();
-    final granted = perm == geo.LocationPermission.whileInUse ||
+    final granted =
+        perm == geo.LocationPermission.whileInUse ||
         perm == geo.LocationPermission.always;
     await configureMapLocationPuck(map, enabled: granted);
   }
@@ -93,16 +103,12 @@ class _HomeMapScreenState extends ConsumerState<HomeMapScreen>
     final pending = _pendingFlyTo;
     if (pending != null) {
       _pendingFlyTo = null;
-      unawaited(
-        _flyAndRemember(map, pending.lat, pending.lon, pending.zoom),
-      );
+      unawaited(_flyAndRemember(map, pending.lat, pending.lon, pending.zoom));
       return;
     }
     final saved = _mapCameraTarget;
     if (saved != null) {
-      unawaited(
-        _flyAndRemember(map, saved.lat, saved.lon, saved.zoom),
-      );
+      unawaited(_flyAndRemember(map, saved.lat, saved.lon, saved.zoom));
       return;
     }
     unawaited(_centerOnUser(map));
@@ -144,7 +150,8 @@ class _HomeMapScreenState extends ConsumerState<HomeMapScreen>
     await _syncLocationPuckWithPermission(map);
     if (!mounted) return;
     final perm = await geo.Geolocator.checkPermission();
-    final granted = perm == geo.LocationPermission.whileInUse ||
+    final granted =
+        perm == geo.LocationPermission.whileInUse ||
         perm == geo.LocationPermission.always;
     if (!granted || !_isRoughlyDefaultGuelphCamera()) return;
     final serviceOn = await geo.Geolocator.isLocationServiceEnabled();
@@ -164,12 +171,7 @@ class _HomeMapScreenState extends ConsumerState<HomeMapScreen>
     final lon = pos.longitude;
     await configureMapLocationPuck(map, enabled: true);
     final zoom = MapConstants.defaultZoom;
-    await flyMapToLatLon(
-      map,
-      latitude: lat,
-      longitude: lon,
-      zoom: zoom,
-    );
+    await flyMapToLatLon(map, latitude: lat, longitude: lon, zoom: zoom);
     if (!mounted) return;
     setState(() {
       _mapCameraTarget = (lat: lat, lon: lon, zoom: zoom);
@@ -183,12 +185,9 @@ class _HomeMapScreenState extends ConsumerState<HomeMapScreen>
     if (!serviceOn) {
       await configureMapLocationPuck(map, enabled: false);
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text(
-            'Turn on Location Services in your device settings to use your position on the map.',
-          ),
-        ),
+      AppMessenger.showError(
+        context,
+        'Turn on Location Services in your device settings to use your position on the map.',
       );
       return;
     }
@@ -207,12 +206,7 @@ class _HomeMapScreenState extends ConsumerState<HomeMapScreen>
     final lat = pos.latitude;
     final lon = pos.longitude;
     final zoom = MapConstants.defaultZoom;
-    await flyMapToLatLon(
-      map,
-      latitude: lat,
-      longitude: lon,
-      zoom: zoom,
-    );
+    await flyMapToLatLon(map, latitude: lat, longitude: lon, zoom: zoom);
     if (!mounted) return;
     setState(() {
       _mapCameraTarget = (lat: lat, lon: lon, zoom: zoom);
@@ -236,35 +230,37 @@ class _HomeMapScreenState extends ConsumerState<HomeMapScreen>
     }
     if (!mounted) return;
 
-    final wantsSystemPrompt = await showDialog<bool>(
+    final wantsSystemPrompt =
+        await showDialog<bool>(
           context: context,
           barrierDismissible: false,
-          builder: (ctx) => Dialog(
-            child: Padding(
-              padding: const EdgeInsets.all(AppSpacing.lg),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  const AppSectionTitle('Parking near you'),
-                  const SizedBox(height: AppSpacing.md),
-                  Text(
-                    'Allow location while you use the app so we can show '
-                    'parking spots near you on the map.',
-                    style: AppTypography.body,
-                  ),
-                  const SizedBox(height: AppSpacing.lg),
-                  AppSecondaryButton(
-                    label: 'Not now',
-                    onPressed: () => Navigator.pop(ctx, false),
-                  ),
-                  const SizedBox(height: AppSpacing.sm),
-                  AppPrimaryButton(
-                    label: 'Continue',
-                    onPressed: () => Navigator.pop(ctx, true),
-                  ),
-                ],
-              ),
+          builder: (ctx) => AppDialogSurface(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Text(
+                  'Parking near you',
+                  style: AppTypography.hubTitle,
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: AppSpacing.md),
+                Text(
+                  'Allow location while you use the app so we can show '
+                  'parking spots near you on the map.',
+                  style: AppTypography.bodyMuted,
+                ),
+                const SizedBox(height: AppSpacing.xl),
+                AppSecondaryButton(
+                  label: 'Not now',
+                  onPressed: () => Navigator.pop(ctx, false),
+                ),
+                const SizedBox(height: AppSpacing.sm),
+                AppPrimaryButton(
+                  label: 'Continue',
+                  onPressed: () => Navigator.pop(ctx, true),
+                ),
+              ],
             ),
           ),
         ) ??
@@ -290,34 +286,36 @@ class _HomeMapScreenState extends ConsumerState<HomeMapScreen>
       final foreverSheetDismissed =
           prefs.getBool(_kLocationNeverModeSheetDismissedKey) ?? false;
       if (foreverSheetDismissed) return;
-      final openSettings = await showDialog<bool>(
+      final openSettings =
+          await showDialog<bool>(
             context: context,
             barrierDismissible: false,
-            builder: (ctx) => Dialog(
-              child: Padding(
-                padding: const EdgeInsets.all(AppSpacing.lg),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    const AppSectionTitle('Location is off for Parkd'),
-                    const SizedBox(height: AppSpacing.md),
-                    Text(
-                      'Open Settings to allow "While Using the App".',
-                      style: AppTypography.body,
-                    ),
-                    const SizedBox(height: AppSpacing.lg),
-                    AppSecondaryButton(
-                      label: 'Not now',
-                      onPressed: () => Navigator.pop(ctx, false),
-                    ),
-                    const SizedBox(height: AppSpacing.sm),
-                    AppPrimaryButton(
-                      label: 'Open Settings',
-                      onPressed: () => Navigator.pop(ctx, true),
-                    ),
-                  ],
-                ),
+            builder: (ctx) => AppDialogSurface(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Text(
+                    'Location is off for Parkd',
+                    style: AppTypography.hubTitle,
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: AppSpacing.md),
+                  Text(
+                    'Open Settings to allow "While Using the App".',
+                    style: AppTypography.bodyMuted,
+                  ),
+                  const SizedBox(height: AppSpacing.xl),
+                  AppSecondaryButton(
+                    label: 'Not now',
+                    onPressed: () => Navigator.pop(ctx, false),
+                  ),
+                  const SizedBox(height: AppSpacing.sm),
+                  AppPrimaryButton(
+                    label: 'Open Settings',
+                    onPressed: () => Navigator.pop(ctx, true),
+                  ),
+                ],
               ),
             ),
           ) ??
@@ -342,7 +340,7 @@ class _HomeMapScreenState extends ConsumerState<HomeMapScreen>
       if (current == next) return;
       router.go('/home?tab=$next');
     } on GoError {
-      // Not under a GoRouter page (e.g. HomeMapScreen pushed with Navigator only)
+      // Not under a GoRouter page (e.g. [HomeMapScreen] pushed with [Navigator] only)
     }
   }
 
@@ -426,7 +424,7 @@ class _HomeMapScreenState extends ConsumerState<HomeMapScreen>
       key: navigatorKey,
       onGenerateInitialRoutes: (navigator, initialRoute) {
         return [
-          MaterialPageRoute<void>(
+          AppPageRoute<void>(
             settings: RouteSettings(name: routeName),
             builder: (_) => root,
           ),
@@ -435,13 +433,45 @@ class _HomeMapScreenState extends ConsumerState<HomeMapScreen>
     );
   }
 
+  /// Map tab: map + search. Kept in an [IndexedStack] (see [_buildTabBody]) so the
+  /// Mapbox platform view is not disposed when switching bottom tabs — iOS can
+  /// throw `recreating_view` if the native view is recreated while still tearing down
   Widget _buildMapTab() {
+    final listingsAsync = ref.watch(mapPublishedListingsProvider);
+    final listings = listingsAsync.maybeWhen(
+      data: (data) => data,
+      orElse: () => <Listing>[],
+    );
+    if (!supportsNativeMapboxMaps) {
+      final searchCenter = _fallbackSearchCenter;
+      final orderedListings = searchCenter == null
+          ? listings
+          : sortListingsNear(
+              listings: listings,
+              latitude: searchCenter.lat,
+              longitude: searchCenter.lon,
+            );
+      return MapPlatformFallback(
+        searchPanel: AppMapAddressSearchPanel(
+          controller: _searchController,
+          hintText: 'Search city or address…',
+          showFilterButton: true,
+          onFilterTap: _showMapFilterSheet,
+          searchFn: nominatimSearchAddresses,
+          onResultSelected: _onResultTapped,
+        ),
+        listings: orderedListings,
+        isLoading: listingsAsync.isLoading,
+        hasError: listingsAsync.hasError,
+        selectedAreaLabel: searchCenter?.displayName,
+        onRetry: () => ref.invalidate(mapPublishedListingsProvider),
+        onListingTap: (listing) {
+          unawaited(_openListingPreview(listing));
+        },
+      );
+    }
+
     final topPad = MediaQuery.paddingOf(context).top;
-    final listings = ref.watch(mapPublishedListingsProvider).when(
-          data: (d) => d,
-          loading: () => <Listing>[],
-          error: (_, _) => <Listing>[],
-        );
     final fabBottom =
         kParkdMapRecenterFabBottomOffset + MediaQuery.paddingOf(context).bottom;
     final compassMb =
@@ -460,6 +490,11 @@ class _HomeMapScreenState extends ConsumerState<HomeMapScreen>
             onListingTap: (listing) {
               unawaited(_openListingPreview(listing));
             },
+            onApproximateAreaTap: (areaListings) {
+              unawaited(_openApproximateArea(areaListings));
+            },
+            approximatePrivacyHalo: _approximatePrivacyHalo,
+            selectedListingId: _selectedListingId,
             onRecenterPressed: _onRecenterMapPressed,
             mapRecenterFabBottomOffset: fabBottom,
             compassBottomMargin: compassMb,
@@ -474,10 +509,43 @@ class _HomeMapScreenState extends ConsumerState<HomeMapScreen>
             hintText: 'Search city or address…',
             showFilterButton: true,
             onFilterTap: _showMapFilterSheet,
-            searchFn: searchAddressesForParkd,
+            searchFn: nominatimSearchAddresses,
             onResultSelected: _onResultTapped,
           ),
         ),
+        if (listingsAsync.hasError)
+          Positioned(
+            left: AppSpacing.mapSearchOverlayHorizontal,
+            right: AppSpacing.mapSearchOverlayHorizontal,
+            bottom: fabBottom + 64,
+            child: AppMapOverlayCard(
+              child: Padding(
+                padding: const EdgeInsets.all(AppSpacing.sm),
+                child: Row(
+                  children: [
+                    const Icon(
+                      Icons.cloud_off_outlined,
+                      color: AppColors.error,
+                    ),
+                    const SizedBox(width: AppSpacing.sm),
+                    Expanded(
+                      child: Text(
+                        'Parking spots could not be loaded.',
+                        style: AppTypography.bodySecondary,
+                      ),
+                    ),
+                    AppPrimaryButton(
+                      label: 'Retry',
+                      fullWidth: false,
+                      compact: true,
+                      onPressed: () =>
+                          ref.invalidate(mapPublishedListingsProvider),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
       ],
     );
   }
@@ -515,68 +583,43 @@ class _HomeMapScreenState extends ConsumerState<HomeMapScreen>
   }
 
   void _showMapFilterSheet() {
-    FocusManager.instance.primaryFocus?.unfocus();
-    showModalBottomSheet<void>(
-      context: context,
-      showDragHandle: true,
-      builder: (ctx) {
-        return Consumer(
-          builder: (context, ref, _) {
-            final f = ref.watch(mapFiltersProvider);
-            return SafeArea(
-              child: Padding(
-                padding: const EdgeInsets.all(AppSpacing.lg),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    const AppSectionTitle('Map filters'),
-                    const SizedBox(height: AppSpacing.md),
-                    Text(
-                      'Max price per hour: \$${f.maxPricePerHour.toStringAsFixed(0)}',
-                      style: AppTypography.body,
-                    ),
-                    Slider(
-                      value: f.maxPricePerHour.clamp(5, 50),
-                      min: 5,
-                      max: 50,
-                      divisions: 9,
-                      label: '\$${f.maxPricePerHour.toStringAsFixed(0)}',
-                      onChanged: (v) {
-                        ref
-                            .read(mapFiltersProvider.notifier)
-                            .setMaxPricePerHour(v);
-                      },
-                    ),
-                    SwitchListTile(
-                      contentPadding: EdgeInsets.zero,
-                      title: const Text('Guelph listings only'),
-                      subtitle: Text(
-                        'When off, shows any published listing in the database.',
-                        style: AppTypography.bodyMuted,
-                      ),
-                      value: f.guelphOnly,
-                      onChanged: (v) {
-                        ref.read(mapFiltersProvider.notifier).setGuelphOnly(v);
-                      },
-                    ),
-                    AppPrimaryButton(
-                      label: 'Done',
-                      onPressed: () => Navigator.of(ctx).pop(),
-                    ),
-                  ],
-                ),
-              ),
-            );
-          },
-        );
-      },
+    showMapFiltersSheet(context);
+  }
+
+  Future<void> _openApproximateArea(List<Listing> listings) async {
+    if (listings.isEmpty) return;
+    if (listings.length == 1) {
+      await _openListingPreview(listings.first);
+      return;
+    }
+    final chosen = await showApproximateAreaListingsSheet(
+      context,
+      listings: listings,
     );
+    if (!mounted || chosen == null) return;
+    await _openListingPreview(chosen);
   }
 
   Future<void> _openListingPreview(Listing listing) async {
     final map = _mapbox;
-    const zoom = 17.0;
+    const zoom = 16.0;
+
+    setState(() {
+      _selectedListingId = listing.id;
+      if (listing.isApproximateLocation) {
+        final obfuscated = obfuscateApproximateMapCenter(
+          listingId: listing.id,
+          latitude: listing.latitude,
+          longitude: listing.longitude,
+        );
+        _approximatePrivacyHalo = (
+          latitude: obfuscated.latitude,
+          longitude: obfuscated.longitude,
+        );
+      } else {
+        _approximatePrivacyHalo = null;
+      }
+    });
 
     if (map != null) {
       try {
@@ -593,25 +636,13 @@ class _HomeMapScreenState extends ConsumerState<HomeMapScreen>
         final t = _mapCameraTarget;
         _cameraBeforeListingPreview = t == null
             ? null
-            : (
-                lat: t.lat,
-                lon: t.lon,
-                zoom: t.zoom,
-                bearing: 0,
-                pitch: 0,
-              );
+            : (lat: t.lat, lon: t.lon, zoom: t.zoom, bearing: 0, pitch: 0);
       }
     } else {
       final t = _mapCameraTarget;
       _cameraBeforeListingPreview = t == null
           ? null
-          : (
-              lat: t.lat,
-              lon: t.lon,
-              zoom: t.zoom,
-              bearing: 0,
-              pitch: 0,
-            );
+          : (lat: t.lat, lon: t.lon, zoom: t.zoom, bearing: 0, pitch: 0);
     }
 
     if (!mounted) return;
@@ -620,17 +651,26 @@ class _HomeMapScreenState extends ConsumerState<HomeMapScreen>
       final mq = MediaQuery.of(context);
       final h = mq.size.height;
       const previewFraction = 0.70;
-      final topPad = mq.padding.top +
+      // Center the pin in the visible band: below the floating search card and above
+      // the 70% sheet (must match Stack + ListingDetailFromMapSheet heights)
+      // Top: Positioned(top: safe + sm) + Material vertical padding + search row + nudge
+      // so the target sits lower in the gap (Mapbox centers in the padded inset)
+      final topPad =
+          mq.padding.top +
           AppSpacing.sm +
           AppSpacing.xs * 2 +
           64 +
           AppSpacing.lg +
           AppSpacing.lg;
+      // Bottom: sheet height from physical bottom — do not add safe-area padding here
+      // (the sheet fills into the home indicator; extra bottom inset skews center upward)
       final bottomPad = h * previewFraction;
+      final focusLat = _approximatePrivacyHalo?.latitude ?? listing.latitude;
+      final focusLon = _approximatePrivacyHalo?.longitude ?? listing.longitude;
       await flyMapToListingPreview(
         map,
-        latitude: listing.latitude,
-        longitude: listing.longitude,
+        latitude: focusLat,
+        longitude: focusLon,
         zoom: zoom,
         topPadding: topPad,
         bottomPadding: bottomPad,
@@ -638,8 +678,8 @@ class _HomeMapScreenState extends ConsumerState<HomeMapScreen>
       if (!mounted) return;
       setState(() {
         _mapCameraTarget = (
-          lat: listing.latitude,
-          lon: listing.longitude,
+          lat: focusLat,
+          lon: focusLon,
           zoom: zoom,
         );
       });
@@ -660,7 +700,7 @@ class _HomeMapScreenState extends ConsumerState<HomeMapScreen>
     if (!mounted) return;
     if (sheetResult == kListingDetailSheetResultFull) {
       await Navigator.of(context).push<void>(
-        MaterialPageRoute<void>(
+        AppPageRoute<void>(
           fullscreenDialog: true,
           builder: (_) => ListingDetailFromMapScreen(listing: listing),
         ),
@@ -670,6 +710,13 @@ class _HomeMapScreenState extends ConsumerState<HomeMapScreen>
     final m = _mapbox;
     final prev = _cameraBeforeListingPreview;
     _cameraBeforeListingPreview = null;
+    if (mounted &&
+        (_approximatePrivacyHalo != null || _selectedListingId != null)) {
+      setState(() {
+        _approximatePrivacyHalo = null;
+        _selectedListingId = null;
+      });
+    }
     if (m != null && prev != null && mounted) {
       await flyMapToLatLonWithoutPadding(
         m,
@@ -707,21 +754,23 @@ class _HomeMapScreenState extends ConsumerState<HomeMapScreen>
   }
 
   void _onResultTapped(SearchResult result) {
+    if (!supportsNativeMapboxMaps) {
+      setState(() => _fallbackSearchCenter = result);
+      return;
+    }
+    // Closer than [MapConstants.defaultZoom] so a chosen place feels “zoomed in”
     const zoom = 15.5;
     final map = _mapbox;
     if (map != null) {
       unawaited(_flyAndRemember(map, result.lat, result.lon, zoom));
     } else {
-      _pendingFlyTo = (
-        lat: result.lat,
-        lon: result.lon,
-        zoom: zoom,
-      );
+      _pendingFlyTo = (lat: result.lat, lon: result.lon, zoom: zoom);
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    final notificationCounts = ref.watch(myNotificationHubCountsProvider);
     return PopScope(
       canPop: false,
       onPopInvokedWithResult: (didPop, _) {
@@ -733,8 +782,17 @@ class _HomeMapScreenState extends ConsumerState<HomeMapScreen>
         body: _buildTabBody(),
         bottomNavigationBar: AppBottomNav(
           selectedIndex: _selectedIndex,
+          reservationsBadgeCount: notificationCounts.reservations,
+          hostingBadgeCount: notificationCounts.hosting,
+          accountBadgeCount: notificationCounts.account,
           onDestinationSelected: (index) {
             final prevIndex = _selectedIndex;
+            final tabNav = _navigatorKeyForTab(index)?.currentState;
+            // Re-tapping the active tab pops nested menus back to the hub root
+            if (index == prevIndex && tabNav != null && tabNav.canPop()) {
+              tabNav.popUntil((route) => route.isFirst);
+              return;
+            }
             setState(() {
               _selectedIndex = index;
               if (index == MainTab.map) {

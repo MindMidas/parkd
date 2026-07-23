@@ -1,6 +1,6 @@
 import 'payment_record_status.dart';
 
-// mirrors public.payments
+/// Mirrors public.payments
 class PaymentRow {
   const PaymentRow({
     required this.id,
@@ -32,7 +32,8 @@ class PaymentRow {
       stripePaymentIntentId: json['stripe_payment_intent_id'] as String?,
       amount: (json['amount'] as num).toDouble(),
       serviceFee: (json['service_fee'] as num).toDouble(),
-      status: PaymentRecordStatus.fromWire(json['status'] as String?) ??
+      status:
+          PaymentRecordStatus.fromWire(json['status'] as String?) ??
           PaymentRecordStatus.pending,
       createdAt: json['created_at'] != null
           ? DateTime.parse(json['created_at'] as String)

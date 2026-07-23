@@ -1,13 +1,14 @@
-// title outline sections for add/edit payment card forms
+// Titled outline sections for add/edit payment card forms
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../theme/app_spacing.dart';
 import '../theme/app_typography.dart';
 import 'app_display_fields.dart';
+import 'app_segment_control.dart';
 import 'app_text_field.dart';
 
-// card brand + number, name, expiry, CVV
+// Card brand + number, name, expiry, CVV in one titled outline card
 class AppPaymentCardDetailsFieldsCard extends StatelessWidget {
   const AppPaymentCardDetailsFieldsCard({
     super.key,
@@ -41,23 +42,21 @@ class AppPaymentCardDetailsFieldsCard extends StatelessWidget {
         children: [
           Text('Card type', style: AppTypography.caption),
           const SizedBox(height: AppSpacing.sm),
-          SegmentedButton<String>(
-            segments: const [
-              ButtonSegment(
+          AppSegmentControl<String>(
+            selected: selectedBrand,
+            onChanged: onBrandChanged,
+            options: const [
+              AppSegmentOption(
                 value: 'Visa',
-                label: Text('Visa'),
-                icon: Icon(Icons.credit_card, size: 18),
+                label: 'Visa',
+                icon: Icons.credit_card_rounded,
               ),
-              ButtonSegment(
+              AppSegmentOption(
                 value: 'Mastercard',
-                label: Text('Mastercard'),
-                icon: Icon(Icons.credit_card, size: 18),
+                label: 'Mastercard',
+                icon: Icons.credit_card_rounded,
               ),
             ],
-            selected: {selectedBrand},
-            onSelectionChanged: (s) {
-              if (s.isNotEmpty) onBrandChanged(s.first);
-            },
           ),
           const SizedBox(height: AppSpacing.lg),
           AppTextField(
@@ -96,9 +95,7 @@ class AppPaymentCardDetailsFieldsCard extends StatelessWidget {
                   label: 'Expiry (MM/YY)',
                   hint: '09/28',
                   keyboardType: TextInputType.datetime,
-                  inputFormatters: [
-                    LengthLimitingTextInputFormatter(5),
-                  ],
+                  inputFormatters: [LengthLimitingTextInputFormatter(5)],
                   validator: (v) {
                     final s = (v ?? '').trim();
                     if (!RegExp(r'^\d{2}/\d{2}$').hasMatch(s)) {
@@ -135,7 +132,7 @@ class AppPaymentCardDetailsFieldsCard extends StatelessWidget {
   }
 }
 
-// street, city, postal in one titled outline card
+// Street, city, postal in one titled outline card
 class AppBillingAddressFieldsCard extends StatelessWidget {
   const AppBillingAddressFieldsCard({
     super.key,

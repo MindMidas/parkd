@@ -17,51 +17,65 @@ final reservationsRepositoryProvider = Provider<ReservationsRepository>((ref) {
   return SupabaseReservationsRepository(ref.watch(supabaseClientProvider));
 });
 
-final reservationPaymentProvider =
-    FutureProvider.family<PaymentRow?, String>((ref, reservationId) async {
-  return ref.read(reservationsRepositoryProvider).paymentForReservation(
-        reservationId,
-      );
+final reservationByIdProvider = FutureProvider.family<ReservationRow?, String>((
+  ref,
+  reservationId,
+) {
+  return ref.read(reservationsRepositoryProvider).getReservation(reservationId);
+});
+
+final reservationPaymentProvider = FutureProvider.family<PaymentRow?, String>((
+  ref,
+  reservationId,
+) async {
+  return ref
+      .read(reservationsRepositoryProvider)
+      .paymentForReservation(reservationId);
 });
 
 final messagingRepositoryProvider = Provider<MessagingRepository>((ref) {
   return SupabaseMessagingRepository(ref.watch(supabaseClientProvider));
 });
 
-final driverActiveReservationsProvider =
-    FutureProvider<List<ReservationRow>>((ref) async {
+final driverActiveReservationsProvider = FutureProvider<List<ReservationRow>>((
+  ref,
+) async {
   final repo = ref.watch(reservationsRepositoryProvider);
   final uid = ref.watch(currentSessionProvider)?.user.id;
   if (uid == null) return [];
   return repo.listDriverTrips(driverId: uid, activeOnly: true);
 });
 
-final driverPastReservationsProvider =
-    FutureProvider<List<ReservationRow>>((ref) async {
+final driverPastReservationsProvider = FutureProvider<List<ReservationRow>>((
+  ref,
+) async {
   final repo = ref.watch(reservationsRepositoryProvider);
   final uid = ref.watch(currentSessionProvider)?.user.id;
   if (uid == null) return [];
   return repo.listDriverTrips(driverId: uid, activeOnly: false);
 });
 
-final hostActiveReservationsProvider =
-    FutureProvider<List<ReservationRow>>((ref) async {
+final hostActiveReservationsProvider = FutureProvider<List<ReservationRow>>((
+  ref,
+) async {
   final repo = ref.watch(reservationsRepositoryProvider);
   final uid = ref.watch(currentSessionProvider)?.user.id;
   if (uid == null) return [];
   return repo.listHostTrips(hostId: uid, activeOnly: true);
 });
 
-final hostPastReservationsProvider =
-    FutureProvider<List<ReservationRow>>((ref) async {
+final hostPastReservationsProvider = FutureProvider<List<ReservationRow>>((
+  ref,
+) async {
   final repo = ref.watch(reservationsRepositoryProvider);
   final uid = ref.watch(currentSessionProvider)?.user.id;
   if (uid == null) return [];
   return repo.listHostTrips(hostId: uid, activeOnly: false);
 });
 
-final messagingInboxProvider =
-    FutureProvider<List<ConversationRow>>((ref) async {
+final messagingInboxProvider = FutureProvider<List<ConversationRow>>((
+  ref,
+) async {
   final repo = ref.watch(messagingRepositoryProvider);
   final uid = ref.watch(currentSessionProvider)?.user.id;
   if (uid == null) return [];
@@ -69,43 +83,50 @@ final messagingInboxProvider =
 });
 
 final conversationMessagesProvider =
-    FutureProvider.family<List<ChatMessageRow>, String>((ref, conversationId) async {
-  return ref.read(messagingRepositoryProvider).messages(conversationId);
-});
+    StreamProvider.family<List<ChatMessageRow>, String>((ref, conversationId) {
+      return ref
+          .read(messagingRepositoryProvider)
+          .watchMessages(conversationId);
+    });
 
 final hostListingActiveThreadsProvider =
     FutureProvider.family<List<HostListingBookingThread>, String>((
-  ref,
-  listingId,
-) async {
-  final uid = ref.watch(currentSessionProvider)?.user.id;
-  if (uid == null) return [];
-  return ref.read(messagingRepositoryProvider).listHostListingThreads(
-        hostId: uid,
-        listingId: listingId,
-        activeOnly: true,
-      );
-});
+      ref,
+      listingId,
+    ) async {
+      final uid = ref.watch(currentSessionProvider)?.user.id;
+      if (uid == null) return [];
+      return ref
+          .read(messagingRepositoryProvider)
+          .listHostListingThreads(
+            hostId: uid,
+            listingId: listingId,
+            activeOnly: true,
+          );
+    });
 
 final hostListingPastThreadsProvider =
     FutureProvider.family<List<HostListingBookingThread>, String>((
-  ref,
-  listingId,
-) async {
-  final uid = ref.watch(currentSessionProvider)?.user.id;
-  if (uid == null) return [];
-  return ref.read(messagingRepositoryProvider).listHostListingThreads(
-        hostId: uid,
-        listingId: listingId,
-        activeOnly: false,
-      );
-});
+      ref,
+      listingId,
+    ) async {
+      final uid = ref.watch(currentSessionProvider)?.user.id;
+      if (uid == null) return [];
+      return ref
+          .read(messagingRepositoryProvider)
+          .listHostListingThreads(
+            hostId: uid,
+            listingId: listingId,
+            activeOnly: false,
+          );
+    });
 
-// driver: active trips with listing rows for address search
+/// Driver: your active trips with listing rows for address search
 typedef DriverTripRow = ({ReservationRow reservation, Listing? listing});
 
-final driverActiveTripsProvider =
-    FutureProvider<List<DriverTripRow>>((ref) async {
+final driverActiveTripsProvider = FutureProvider<List<DriverTripRow>>((
+  ref,
+) async {
   final uid = ref.watch(currentSessionProvider)?.user.id;
   if (uid == null) return [];
   final reservations = await ref
@@ -120,7 +141,9 @@ final driverActiveTripsProvider =
   return out;
 });
 
-final driverPastTripsProvider = FutureProvider<List<DriverTripRow>>((ref) async {
+final driverPastTripsProvider = FutureProvider<List<DriverTripRow>>((
+  ref,
+) async {
   final uid = ref.watch(currentSessionProvider)?.user.id;
   if (uid == null) return [];
   final reservations = await ref

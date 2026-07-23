@@ -8,7 +8,7 @@ import 'app_section_title.dart';
 
 // Models + UI for showing listing availability (date ranges and/or weekly)
 
-// from/to display strings + prices
+// From/to display strings + prices
 class DateRangeSlot {
   const DateRangeSlot({
     required this.from,
@@ -22,7 +22,7 @@ class DateRangeSlot {
   final double? priceDay;
 }
 
-// day label + time range + prices
+// Day label + time range + prices
 class WeeklySlot {
   const WeeklySlot({
     required this.day,
@@ -36,7 +36,7 @@ class WeeklySlot {
   final double? priceDay;
 }
 
-// renders whichever lists you pass (empty list = that section hidden)
+// Renders whichever lists you pass (empty list = that section hidden)
 class AppAvailabilitySlots extends StatelessWidget {
   const AppAvailabilitySlots._({
     required this.title,
@@ -48,7 +48,7 @@ class AppAvailabilitySlots extends StatelessWidget {
     this.useOuterPadding = true,
   });
 
-  // only date-range slots
+  // Only date-range slots
   factory AppAvailabilitySlots.dateRanges({
     required List<DateRangeSlot> slots,
     String title = 'Scheduled time slots',
@@ -67,7 +67,7 @@ class AppAvailabilitySlots extends StatelessWidget {
     );
   }
 
-  // only weekly slots
+  // Only weekly slots
   factory AppAvailabilitySlots.weekly({
     required List<WeeklySlot> slots,
     String title = 'Scheduled time slots',
@@ -86,7 +86,7 @@ class AppAvailabilitySlots extends StatelessWidget {
     );
   }
 
-  // date ranges first, then weekly (pass only non-empty lists from data)
+  // Date ranges first, then weekly (pass only non-empty lists from your data layer)
   factory AppAvailabilitySlots.combined({
     required String title,
     List<DateRangeSlot>? dateRangeSlots,
@@ -121,12 +121,12 @@ class AppAvailabilitySlots extends StatelessWidget {
 
   static const double _editButtonWidth = 92;
 
-  // scroll area max heights (approx 3 rows)
+  // Scroll area max heights (~3 rows)
   static const double _scrollViewportDateMaxHeight = 360;
   static const double _scrollViewportWeeklyMaxHeight = 280;
   static const int _maxSlotsBeforeScroll = 3;
 
-  // "Sep 15, 2026 · 9:00 AM" -> date + time
+  // "Sep 15, 2026 • 9:00 AM" -> date + time
   static (String date, String time) splitDateAndTime(String fromOrTo) =>
       splitDisplayDateTime(fromOrTo);
 

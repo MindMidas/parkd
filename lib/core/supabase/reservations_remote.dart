@@ -2,9 +2,8 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../models/booking_time_window.dart';
 import '../models/reservation_row.dart';
-import '../models/reservation_status.dart';
 
-// inserts + reads public.reservations, host_id filled by trigger
+/// Inserts and reads public.reservations — host_id filled by trigger
 class ReservationsRemote {
   ReservationsRemote(this._client);
 
@@ -12,35 +11,13 @@ class ReservationsRemote {
 
   static const _driverHostActiveTripStatuses = ['confirmed', 'active'];
   static const _pastStatuses = ['completed', 'cancelled'];
-  static const _blockingStatuses = ['confirmed', 'active'];
-
-  Future<ReservationRow> insertReservation({
-    required String listingId,
-    required String driverId,
-    required DateTime startTime,
-    required DateTime endTime,
-    required double totalPrice,
-    required double serviceFee,
-    ReservationStatus status = ReservationStatus.pending,
-  }) async {
-    final row = await _client
-        .from('reservations')
-        .insert({
-          'listing_id': listingId,
-          'driver_id': driverId,
-          'start_time': startTime.toUtc().toIso8601String(),
-          'end_time': endTime.toUtc().toIso8601String(),
-          'total_price': totalPrice,
-          'service_fee': serviceFee,
-          'status': status.name,
-        })
-        .select()
-        .single();
-    return ReservationRow.fromJson(Map<String, dynamic>.from(row));
-  }
 
   Future<ReservationRow?> fetchById(String id) async {
-    final row = await _client.from('reservations').select().eq('id', id).maybeSingle();
+    final row = await _client
+        .from('reservations')
+        .select()
+        .eq('id', id)
+        .maybeSingle();
     if (row == null) return null;
     return ReservationRow.fromJson(Map<String, dynamic>.from(row));
   }
@@ -53,7 +30,7 @@ class ReservationsRemote {
         .toList();
   }
 
-  // past = completed/cancelled in DB, or confirmed/active whose window has ended
+  /// Past = completed/cancelled in DB, or confirmed/active whose window has ended
   List<ReservationRow> _mergePastReservationRows(dynamic a, dynamic b) {
     final seen = <String>{};
     final merged = <ReservationRow>[];
@@ -133,7 +110,7 @@ class ReservationsRemote {
     return _mergePastReservationRows(byPastStatus, expiredActive);
   }
 
-  // bookings you host for a single listing (active = confirmed/active only)
+  /// Bookings you host for a single listing (active = confirmed/active only)
   Future<List<ReservationRow>> fetchForHostListing(
     String hostId,
     String listingId, {
@@ -169,44 +146,76 @@ class ReservationsRemote {
     return _mergePastReservationRows(byPastStatus, expiredActive);
   }
 
-  Future<void> updateStatus(String reservationId, ReservationStatus status) async {
-    await _client
-        .from('reservations')
-        .update({'status': status.name}).eq('id', reservationId);
+  Future<void> cancelCheckoutHold(String reservationId) async {
+    await _client.rpc(
+      'cancel_checkout_hold',
+      params: {
+        'p_reservation_id': reservationId,
+        'p_reason': 'driver_cancelled_checkout',
+      },
+    );
   }
 
-  // busy windows for heatmap/slot-picker (overlaps [rangeStart, rangeEnd))
+  /// Busy windows for heatmap / slot picker (overlaps [rangeStart, rangeEnd))
   Future<List<BookingTimeWindow>> fetchOverlappingBlocksForListing(
     String listingId, {
     required DateTime rangeStart,
     required DateTime rangeEnd,
   }) async {
-    try {
-      final fromIso = rangeStart.toUtc().toIso8601String();
-      final toIso = rangeEnd.toUtc().toIso8601String();
-      final rows = await _client
-          .from('reservations')
-          .select('start_time, end_time, status')
-          .eq('listing_id', listingId)
-          .gt('end_time', fromIso)
-          .lt('start_time', toIso)
-          .inFilter('status', _blockingStatuses);
-      final out = <BookingTimeWindow>[];
-      for (final e in rows as List) {
-        final m = Map<String, dynamic>.from(e as Map);
-        final s = m['start_time'];
-        final t = m['end_time'];
-        if (s == null || t == null) continue;
-        out.add(
-          BookingTimeWindow(
-            start: DateTime.parse(s as String).toLocal(),
-            end: DateTime.parse(t as String).toLocal(),
-          ),
-        );
-      }
-      return out;
-    } catch (_) {
-      return [];
+    final fromIso = rangeStart.toUtc().toIso8601String();
+    final toIso = rangeEnd.toUtc().toIso8601String();
+    final rows = await _client
+        .from('public_listing_busy_windows')
+        .select('start_time, end_time')
+        .eq('listing_id', listingId)
+        .gt('end_time', fromIso)
+        .lt('start_time', toIso);
+    final out = <BookingTimeWindow>[];
+    for (final e in rows as List) {
+      final m = Map<String, dynamic>.from(e as Map);
+      final s = m['start_time'];
+      final t = m['end_time'];
+      if (s == null || t == null) continue;
+      out.add(
+        BookingTimeWindow(
+          start: DateTime.parse(s as String).toLocal(),
+          end: DateTime.parse(t as String).toLocal(),
+        ),
+      );
     }
+    return out;
+  }
+
+  /// Busy windows for several public listings in one privacy-safe query.
+  Future<Map<String, List<BookingTimeWindow>>>
+  fetchOverlappingBlocksForListings(
+    List<String> listingIds, {
+    required DateTime rangeStart,
+    required DateTime rangeEnd,
+  }) async {
+    final ids = listingIds.toSet().toList(growable: false);
+    if (ids.isEmpty) return const {};
+
+    final rows = await _client
+        .from('public_listing_busy_windows')
+        .select('listing_id, start_time, end_time')
+        .inFilter('listing_id', ids)
+        .gt('end_time', rangeStart.toUtc().toIso8601String())
+        .lt('start_time', rangeEnd.toUtc().toIso8601String());
+    final out = <String, List<BookingTimeWindow>>{};
+    for (final value in rows as List) {
+      final row = Map<String, dynamic>.from(value as Map);
+      final listingId = row['listing_id'];
+      final start = row['start_time'];
+      final end = row['end_time'];
+      if (listingId is! String || start is! String || end is! String) continue;
+      (out[listingId] ??= []).add(
+        BookingTimeWindow(
+          start: DateTime.parse(start).toLocal(),
+          end: DateTime.parse(end).toLocal(),
+        ),
+      );
+    }
+    return out;
   }
 }

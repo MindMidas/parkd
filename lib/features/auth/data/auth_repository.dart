@@ -1,15 +1,11 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../core/supabase/auth_remote.dart';
-import '../../../core/supabase/profiles_remote.dart';
 
 class AuthRepository {
-  AuthRepository(SupabaseClient client)
-      : _auth = AuthRemote(client),
-        _profiles = ProfilesRemote(client);
+  AuthRepository(SupabaseClient client) : _auth = AuthRemote(client);
 
   final AuthRemote _auth;
-  final ProfilesRemote _profiles;
 
   Stream<AuthState> authStateChanges() => _auth.authStateChanges();
 
@@ -17,19 +13,14 @@ class AuthRepository {
 
   bool needsMfaChallenge() => _auth.needsMfaChallenge();
 
-  Future<bool> isPhoneAvailable(String phoneE164) =>
-      _profiles.isPhoneAvailable(phoneE164);
-
-  Future<bool> isUsernameAvailable(String username) =>
-      _profiles.isUsernameAvailable(username);
-
   Future<AuthResponse> signUp({
     required String email,
     required String password,
     required String fullName,
     required String username,
-    required String phoneE164,
+    String? phoneE164,
     DateTime? birthDate,
+    String? captchaToken,
   }) {
     return _auth.signUp(
       email: email,
@@ -38,6 +29,7 @@ class AuthRepository {
       username: username,
       phoneE164: phoneE164,
       birthDate: birthDate,
+      captchaToken: captchaToken,
     );
   }
 
@@ -85,8 +77,7 @@ class AuthRepository {
     return _auth.mfaChallengeAndVerify(factorId: factorId, code: code);
   }
 
-  Future<AuthMFAListFactorsResponse> mfaListFactors() =>
-      _auth.mfaListFactors();
+  Future<AuthMFAListFactorsResponse> mfaListFactors() => _auth.mfaListFactors();
 
   Future<void> mfaUnenroll(String factorId) => _auth.mfaUnenroll(factorId);
 
@@ -99,6 +90,11 @@ class AuthRepository {
 
   Future<UserResponse> updateUserEmail(String newEmail) =>
       _auth.updateUserEmail(newEmail);
+
+  Future<UserResponse> updatePassword(String newPassword) =>
+      _auth.updatePassword(newPassword);
+
+  Future<void> deleteCurrentAccount() => _auth.deleteCurrentAccount();
 
   Future<AuthResponse> verifyEmailChangeOtp({
     required String email,

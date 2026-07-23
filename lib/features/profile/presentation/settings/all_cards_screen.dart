@@ -4,14 +4,14 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/models/payment_method_row.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_spacing.dart';
-import '../../../../core/utils/scroll_view_bottom_inset.dart';
+import '../../../../core/theme/app_typography.dart';
 import '../../../../core/widgets/widgets.dart';
 import '../../providers/payment_method_provider.dart';
 import '../../providers/profile_providers.dart';
 import 'add_card_screen.dart';
 import 'select_payment_method_screen.dart';
 
-// all saved cards, default picker, FAB-style add
+// All saved cards, default picker, FAB-style add
 class AllCardsScreen extends ConsumerWidget {
   const AllCardsScreen({super.key});
 
@@ -20,28 +20,26 @@ class AllCardsScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final bottom = scrollViewBottomInset(context);
     final methodsAsync = ref.watch(paymentMethodsForCurrentUserProvider);
     final method = ref.watch(selectedPaymentMethodProvider);
 
     return Scaffold(
       backgroundColor: AppColors.surface,
       appBar: const AppTopBar(title: 'All Cards', showBack: true),
-      body: methodsAsync.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (e, st) =>
-            const AppMutedBodyCenter('Could not load cards.'),
+      body: AppAsyncBody(
+        value: methodsAsync,
+        errorTitle: 'Could not load cards.',
         data: (cards) {
           final defaultRow = method ?? (cards.isNotEmpty ? cards.first : null);
           return SingleChildScrollView(
             physics: const BouncingScrollPhysics(
               parent: AlwaysScrollableScrollPhysics(),
             ),
-            padding: EdgeInsets.fromLTRB(
+            padding: const EdgeInsets.fromLTRB(
               AppSpacing.lg,
               AppSpacing.lg,
               AppSpacing.lg,
-              AppSpacing.xl + 52 + AppSpacing.md + bottom,
+              AppSpacing.xl,
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -53,7 +51,7 @@ class AllCardsScreen extends ConsumerWidget {
                     lastFour: _last4(defaultRow),
                     onChangePressed: () {
                       Navigator.of(context).push<void>(
-                        MaterialPageRoute<void>(
+                        AppPageRoute<void>(
                           builder: (_) => const SelectPaymentMethodScreen(),
                         ),
                       );
@@ -68,9 +66,15 @@ class AllCardsScreen extends ConsumerWidget {
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
                       if (cards.isEmpty)
-                        const Padding(
-                          padding: EdgeInsets.symmetric(vertical: AppSpacing.md),
-                          child: Text('No cards yet.'),
+                        Padding(
+                          padding: const EdgeInsets.symmetric(
+                            vertical: AppSpacing.md,
+                          ),
+                          child: Text(
+                            'No cards yet.',
+                            style: AppTypography.bodyMuted,
+                            textAlign: TextAlign.center,
+                          ),
                         )
                       else
                         for (var i = 0; i < cards.length; i++) ...[
@@ -80,7 +84,7 @@ class AllCardsScreen extends ConsumerWidget {
                             lastFour: _last4(cards[i]),
                             onTap: () {
                               Navigator.of(context).push<void>(
-                                MaterialPageRoute<void>(
+                                AppPageRoute<void>(
                                   builder: (_) =>
                                       AddCardScreen(editing: cards[i]),
                                 ),
@@ -101,29 +105,17 @@ class AllCardsScreen extends ConsumerWidget {
           );
         },
       ),
-      bottomNavigationBar: Material(
-        color: AppColors.surface,
-        child: SafeArea(
-          top: false,
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(
-              AppSpacing.lg,
-              AppSpacing.sm,
-              AppSpacing.lg,
-              AppSpacing.md,
-            ),
-            child: AppPrimaryButton(
-              label: 'Add card',
-              icon: Icons.add_rounded,
-              onPressed: () {
-                Navigator.of(context).push<void>(
-                  MaterialPageRoute<void>(
-                    builder: (_) => const AddCardScreen(),
-                  ),
-                );
-              },
-            ),
-          ),
+      bottomNavigationBar: AppStickyFooter(
+        child: AppPrimaryButton(
+          label: 'Add card',
+          icon: Icons.add_rounded,
+          onPressed: () {
+            Navigator.of(context).push<void>(
+              AppPageRoute<void>(
+                builder: (_) => const AddCardScreen(),
+              ),
+            );
+          },
         ),
       ),
     );

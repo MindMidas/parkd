@@ -8,17 +8,19 @@ import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/theme/app_typography.dart';
 import '../../../../core/utils/profile_avatar_image_provider.dart';
-import '../../../../core/utils/scroll_view_bottom_inset.dart';
 import '../../../../core/widgets/widgets.dart';
 import '../../../auth/providers/auth_providers.dart';
-import '../../../../app/main_tab.dart';
+import '../../../map/presentation/main_tab.dart';
 import '../../providers/profile_providers.dart';
+import '../../providers/notifications_providers.dart';
 import '../settings/all_cards_screen.dart';
 import '../settings/edit_profile_screen.dart';
+import '../settings/notification_preferences_screen.dart';
 import '../settings/security/security_screen.dart';
+import 'notifications_screen.dart';
 import 'support_screen.dart';
 
-// account tab, user pfp, the tiles, sign out when done
+// Account tab — profile header, grouped tiles, sign out when you're done
 class AccountTabScreen extends ConsumerWidget {
   const AccountTabScreen({super.key});
 
@@ -30,8 +32,7 @@ class AccountTabScreen extends ConsumerWidget {
       context: context,
       builder: (ctx) => AppConfirmDialog(
         title: 'Sign out?',
-        message:
-            'You will need to sign in again to use your account.',
+        message: 'You will need to sign in again to use your account.',
         cancelLabel: 'Cancel',
         confirmLabel: 'Sign out',
         confirmDestructive: true,
@@ -58,82 +59,118 @@ class AccountTabScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final profileAsync = ref.watch(currentProfileProvider);
+    final notificationCounts = ref.watch(myNotificationHubCountsProvider);
     return Scaffold(
       backgroundColor: AppColors.surface,
+      appBar: const AppTopBar(
+        title: 'Account',
+        showBack: false,
+        centerTitle: true,
+        backgroundColor: kAppHubTitleBar,
+      ),
       body: SafeArea(
         bottom: false,
         child: SingleChildScrollView(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              Padding(
-                padding: const EdgeInsets.fromLTRB(
-                  AppSpacing.lg,
-                  AppSpacing.lg,
-                  AppSpacing.lg,
-                  0,
-                ),
-                child: Center(
-                  child: Text(
-                    'Account',
-                    style: AppTypography.hubTitle,
+              AppHubMenuIntro(
+                lead:
+                    'Update your profile, manage payments, and set your '
+                    'preferences.',
+                header: _AccountHeader(profileAsync: profileAsync),
+              ),
+              AppHubMenuSection(
+                title: 'Profile',
+                topSpacing: AppSpacing.sm,
+                children: [
+                  AppNavTile(
+                    showDividerAbove: true,
+                    icon: Icons.account_circle_outlined,
+                    label: 'Personal Information',
+                    onTap: () {
+                      Navigator.of(context).push(
+                        AppPageRoute<void>(
+                          builder: (_) => const EditProfileScreen(),
+                        ),
+                      );
+                    },
                   ),
-                ),
+                  AppNavTile(
+                    showDividerAbove: true,
+                    showDividerBelow: true,
+                    icon: Icons.credit_card_outlined,
+                    label: 'Payment Preferences',
+                    onTap: () {
+                      Navigator.of(context).push(
+                        AppPageRoute<void>(
+                          builder: (_) => const AllCardsScreen(),
+                        ),
+                      );
+                    },
+                  ),
+                ],
               ),
-              const SizedBox(height: AppSpacing.lg),
-              _AccountHeader(profileAsync: profileAsync),
-              const SizedBox(height: AppSpacing.lg),
-              AppSettingsNavTile(
-                icon: Icons.account_circle_outlined,
-                label: 'Personal Information',
-                onTap: () {
-                  Navigator.of(context).push(
-                    MaterialPageRoute<void>(
-                      builder: (_) => const EditProfileScreen(),
-                    ),
-                  );
-                },
+              AppHubMenuSection(
+                title: 'Preferences',
+                children: [
+                  AppNavTile(
+                    showDividerAbove: true,
+                    icon: Icons.security_rounded,
+                    label: 'Security',
+                    onTap: () {
+                      Navigator.of(context).push(
+                        AppPageRoute<void>(
+                          builder: (_) => const SecuritySettingsScreen(),
+                        ),
+                      );
+                    },
+                  ),
+                  AppNavTile(
+                    showDividerAbove: true,
+                    icon: Icons.notifications_none_rounded,
+                    label: 'Notifications',
+                    badgeCount: notificationCounts.total,
+                    onTap: () {
+                      Navigator.of(context).push(
+                        AppPageRoute<void>(
+                          builder: (_) => const NotificationsScreen(),
+                        ),
+                      );
+                    },
+                  ),
+                  AppNavTile(
+                    showDividerAbove: true,
+                    showDividerBelow: true,
+                    icon: Icons.notifications_active_outlined,
+                    label: 'In-app alerts',
+                    onTap: () {
+                      Navigator.of(context).push(
+                        AppPageRoute<void>(
+                          builder: (_) => const NotificationPreferencesScreen(),
+                        ),
+                      );
+                    },
+                  ),
+                ],
               ),
-              AppSettingsNavTile(
-                icon: Icons.credit_card_outlined,
-                label: 'Payment Preferences',
-                onTap: () {
-                  Navigator.of(context).push(
-                    MaterialPageRoute<void>(
-                      builder: (_) => const AllCardsScreen(),
-                    ),
-                  );
-                },
-              ),
-              AppSettingsNavTile(
-                icon: Icons.notifications_none_rounded,
-                label: 'Notifications',
-                onTap: () {
-                  // TODO: navigate to Notifications
-                },
-              ),
-              AppSettingsNavTile(
-                icon: Icons.security_rounded,
-                label: 'Security',
-                onTap: () {
-                  Navigator.of(context).push(
-                    MaterialPageRoute<void>(
-                      builder: (_) => const SecuritySettingsScreen(),
-                    ),
-                  );
-                },
-              ),
-              AppSettingsNavTile(
-                icon: Icons.help_outline_rounded,
-                label: 'Help & Support',
-                showDividerBelow: true,
-                onTap: () {
-                  Navigator.of(context).push(
-                    MaterialPageRoute<void>(
-                      builder: (_) => const SupportScreen(),
-                    ),
-                  );
-                },
+              AppHubMenuSection(
+                title: 'Support',
+                children: [
+                  AppNavTile(
+                    showDividerAbove: true,
+                    showDividerBelow: true,
+                    icon: Icons.help_outline_rounded,
+                    label: 'Help & Support',
+                    onTap: () {
+                      Navigator.of(context).push(
+                        AppPageRoute<void>(
+                          builder: (_) => const SupportScreen(),
+                        ),
+                      );
+                    },
+                  ),
+                ],
               ),
               Padding(
                 padding: const EdgeInsets.fromLTRB(
@@ -142,19 +179,81 @@ class AccountTabScreen extends ConsumerWidget {
                   AppSpacing.md,
                   AppSpacing.sm,
                 ),
-                child: AppPrimaryButton(
-                  label: 'Sign out',
-                  icon: Icons.logout_rounded,
-                  onPressed: () => _confirmAndSignOut(context, ref),
+                child: Column(
+                  children: [
+                    AppPrimaryButton(
+                      label: 'Sign out',
+                      icon: Icons.logout_rounded,
+                      onPressed: () => _confirmAndSignOut(context, ref),
+                    ),
+                    const SizedBox(height: AppSpacing.sm),
+                    const _DeleteAccountButton(),
+                  ],
                 ),
               ),
-              SizedBox(
-                height: AppSpacing.lg + scrollViewBottomInset(context),
-              ),
+              SizedBox(height: AppSpacing.lg + scrollViewBottomInset(context)),
             ],
           ),
         ),
       ),
+    );
+  }
+}
+
+class _DeleteAccountButton extends ConsumerStatefulWidget {
+  const _DeleteAccountButton();
+
+  @override
+  ConsumerState<_DeleteAccountButton> createState() =>
+      _DeleteAccountButtonState();
+}
+
+class _DeleteAccountButtonState extends ConsumerState<_DeleteAccountButton> {
+  bool _busy = false;
+
+  Future<void> _delete() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AppConfirmDialog(
+        title: 'Delete account?',
+        message:
+            'Your profile and account content will be removed or anonymized. '
+            'This cannot be undone.',
+        cancelLabel: 'Keep',
+        confirmLabel: 'Delete',
+        confirmDestructive: true,
+        onCancel: () => Navigator.of(dialogContext).pop(false),
+        onConfirm: () => Navigator.of(dialogContext).pop(true),
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+
+    setState(() => _busy = true);
+    final shellTab = ref.read(mainShellTabIndexProvider.notifier);
+    try {
+      await ref.read(authRepositoryProvider).deleteCurrentAccount();
+      shellTab.setTab(MainTab.map);
+      if (mounted) context.go('/auth');
+    } on Exception catch (_) {
+      if (mounted) {
+        AppMessenger.showError(
+          context,
+          'Account deletion could not be completed. Please try again.',
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AppPrimaryButton(
+      label: 'Delete account',
+      icon: Icons.delete_outline_rounded,
+      destructive: true,
+      loading: _busy,
+      onPressed: _busy ? null : _delete,
     );
   }
 }
@@ -169,8 +268,9 @@ class _AccountHeader extends StatelessWidget {
     return profileAsync.when(
       data: (profile) {
         final name = profile?.displayName ?? 'User';
-        final handle =
-            profile?.username != null ? '@${profile!.username}' : null;
+        final handle = profile?.username != null
+            ? '@${profile!.username}'
+            : null;
         return Column(
           children: [
             AppMenuProfileAvatar(
@@ -205,10 +305,7 @@ class _AccountHeader extends StatelessWidget {
       ),
       error: (_, _) => Column(
         children: [
-          const AppMenuProfileAvatar(
-            imageProvider: null,
-            size: 96,
-          ),
+          const AppMenuProfileAvatar(imageProvider: null, size: 96),
           const SizedBox(height: AppSpacing.md),
           Text('User', style: AppTypography.profileDisplayName),
         ],

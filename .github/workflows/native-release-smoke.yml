@@ -1,0 +1,91 @@
+name: Native release smoke
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  FLUTTER_VERSION: 3.41.5
+
+jobs:
+  android-release-compile:
+    name: Android release compile (non-distributable)
+    runs-on: ubuntu-latest
+    env:
+      SDK_REGISTRY_TOKEN: ${{ secrets.SDK_REGISTRY_TOKEN }}
+      PARKD_ANDROID_KEYSTORE_PATH: /tmp/parkd-ci-upload.jks
+      PARKD_ANDROID_KEYSTORE_PASSWORD: ci-${{ github.run_id }}-${{ github.run_attempt }}
+      PARKD_ANDROID_KEY_ALIAS: parkd-ci
+      PARKD_ANDROID_KEY_PASSWORD: ci-${{ github.run_id }}-${{ github.run_attempt }}
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+
+      - name: Require Mapbox download credential
+        shell: bash
+        run: |
+          if [[ -z "$SDK_REGISTRY_TOKEN" ]]; then
+            echo "Add the SDK_REGISTRY_TOKEN repository secret (Downloads: Read only)."
+            exit 1
+          fi
+
+      - name: Install Flutter
+        uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+          cache: true
+
+      - name: Install Android API 36
+        run: sdkmanager "platforms;android-36" "build-tools;36.0.0"
+
+      - name: Resolve dependencies
+        run: flutter pub get
+
+      - name: Create disposable CI signing key
+        shell: bash
+        run: >-
+          keytool -genkeypair -noprompt
+          -keystore "$PARKD_ANDROID_KEYSTORE_PATH"
+          -storepass "$PARKD_ANDROID_KEYSTORE_PASSWORD"
+          -keypass "$PARKD_ANDROID_KEY_PASSWORD"
+          -alias "$PARKD_ANDROID_KEY_ALIAS"
+          -keyalg RSA -keysize 3072 -validity 2
+          -dname "CN=Parkd CI, O=Non-distributable QA, C=CA"
+
+      - name: Compile release app bundle
+        run: >-
+          flutter build appbundle --release
+          --dart-define=SUPABASE_URL=https://placeholder.supabase.co
+          --dart-define=SUPABASE_ANON_KEY=public-anon-placeholder
+          --dart-define=MAPBOX_ACCESS_TOKEN=public-native-placeholder
+
+      - name: Confirm artifact is QA-only
+        run: >-
+          echo "Release code compiled with a disposable key; this AAB must never be uploaded."
+
+  ios-simulator-compile:
+    name: iOS simulator compile
+    runs-on: macos-15
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+
+      - name: Install Flutter
+        uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+          cache: true
+
+      - name: Resolve dependencies
+        run: flutter pub get
+
+      - name: Compile iOS simulator app
+        run: >-
+          flutter build ios --simulator --debug
+          --dart-define=SUPABASE_URL=https://placeholder.supabase.co
+          --dart-define=SUPABASE_ANON_KEY=public-anon-placeholder
+          --dart-define=MAPBOX_ACCESS_TOKEN=public-native-placeholder

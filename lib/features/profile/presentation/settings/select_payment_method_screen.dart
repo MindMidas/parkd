@@ -8,7 +8,7 @@ import '../../../../core/widgets/widgets.dart';
 import '../../providers/payment_method_provider.dart';
 import '../../providers/profile_providers.dart';
 
-// tap a pill to set default id to pop
+// Tap a pill → set default id → pop
 class SelectPaymentMethodScreen extends ConsumerWidget {
   const SelectPaymentMethodScreen({super.key});
 
@@ -18,19 +18,17 @@ class SelectPaymentMethodScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final methodsAsync = ref.watch(paymentMethodsForCurrentUserProvider);
-    final selectedId = ref.watch(effectiveSelectedPaymentMethodIdProvider);
 
     return Scaffold(
       backgroundColor: AppColors.surface,
       appBar: const AppTopBar(title: 'Payment method', showBack: true),
-      body: methodsAsync.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (e, st) =>
-            const AppMutedBodyCenter('Could not load cards.'),
+      body: AppAsyncBody(
+        value: methodsAsync,
+        errorTitle: 'Could not load cards.',
+        isEmpty: (methods) => methods.isEmpty,
+        emptyTitle: 'No saved cards.',
         data: (methods) {
-          if (methods.isEmpty) {
-            return const AppMutedBodyCenter('No saved cards.');
-          }
+          final selectedId = ref.watch(effectiveSelectedPaymentMethodIdProvider);
           return ListView.separated(
             padding: const EdgeInsets.symmetric(
               horizontal: AppSpacing.lg,
@@ -46,7 +44,9 @@ class SelectPaymentMethodScreen extends ConsumerWidget {
                 lastFour: _last4(m),
                 selected: selected,
                 onTap: () {
-                  ref.read(selectedPaymentMethodIdProvider.notifier).select(m.id);
+                  ref
+                      .read(selectedPaymentMethodIdProvider.notifier)
+                      .select(m.id);
                   Navigator.of(context).maybePop();
                 },
               );

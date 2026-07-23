@@ -1,21 +1,25 @@
 import 'package:flutter/material.dart';
 
-import '../theme/app_colors.dart';
-
-// pill on bottom sheets so users know they can drag
+/// iOS-style sheet handle — visible pill with breathing room above the title.
 class AppBottomSheetGrabber extends StatelessWidget {
   const AppBottomSheetGrabber({super.key});
 
+  static const double _pillWidth = 36;
+  static const double _pillHeight = 5;
+
   @override
   Widget build(BuildContext context) {
-    return Center(
-      child: SizedBox(
-        width: 40,
-        height: 4,
-        child: DecoratedBox(
-          decoration: BoxDecoration(
-            color: AppColors.iconGrey.withValues(alpha: 0.35),
-            borderRadius: BorderRadius.circular(2),
+    return const Padding(
+      padding: EdgeInsets.only(top: 10, bottom: 10),
+      child: Center(
+        child: SizedBox(
+          width: _pillWidth,
+          height: _pillHeight,
+          child: DecoratedBox(
+            decoration: BoxDecoration(
+              color: Color(0xFFC6C6C8),
+              borderRadius: BorderRadius.all(Radius.circular(2.5)),
+            ),
           ),
         ),
       ),

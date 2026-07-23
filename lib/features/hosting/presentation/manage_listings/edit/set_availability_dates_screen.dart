@@ -16,7 +16,7 @@ typedef _DateSlotDraft = ({
   double? dailyPrice,
 });
 
-// Edit specific-date slots for a listing user already owns
+// Edit specific-date slots for a listing you already own
 class SetAvailabilityDatesScreen extends StatefulWidget {
   const SetAvailabilityDatesScreen({
     super.key,
@@ -50,8 +50,7 @@ class _SetAvailabilityDatesScreenState
 
   bool get _hasSlots => _slots.isNotEmpty;
 
-  bool get _allSlotsPriced =>
-      _slots.every((s) => (s.hourlyPrice ?? 0) > 0);
+  bool get _allSlotsPriced => _slots.every((s) => (s.hourlyPrice ?? 0) > 0);
 
   bool get _canConfirm => !_hasSlots || _allSlotsPriced;
 
@@ -61,7 +60,7 @@ class _SetAvailabilityDatesScreenState
     _currentMonth = DateTime(DateTime.now().year, DateTime.now().month, 1);
   }
 
-  // All dates in selected range for calendar highlighting (start through end inclusive)
+  /// All dates in the selected range for calendar highlighting (start through end inclusive)
   Set<DateTime> get _selectedDatesForCalendar {
     if (_rangeStart == null || _rangeEnd == null) {
       if (_rangeStart != null) {
@@ -89,7 +88,7 @@ class _SetAvailabilityDatesScreenState
     final s = _slots[index];
     final result = await Navigator.push<({double hourly, double? daily})>(
       context,
-      MaterialPageRoute(
+      AppPageRoute<({double hourly, double? daily})>(
         builder: (_) => SetPricingScreen(
           initialHourly: s.hourlyPrice ?? 10,
           initialDaily: s.dailyPrice,
@@ -108,9 +107,7 @@ class _SetAvailabilityDatesScreenState
   }
 
   void _onConfirm() {
-    final ranges = _slots
-        .map((s) => (start: s.start, end: s.end))
-        .toList();
+    final ranges = _slots.map((s) => (start: s.start, end: s.end)).toList();
     if (AvailabilityOverlap.specificListHasOverlap(ranges)) {
       setState(() {
         _slotOverlapError = AvailabilityOverlap.userMessageSpecific;
@@ -119,7 +116,7 @@ class _SetAvailabilityDatesScreenState
     }
 
     Navigator.of(context).push(
-      MaterialPageRoute<void>(
+      AppPageRoute<void>(
         builder: (_) => ConfirmationSuccessScreen(
           message: 'Availability updated',
           onClose: _noopClose,
@@ -168,11 +165,11 @@ class _SetAvailabilityDatesScreenState
 
     for (final s in _slots) {
       if (AvailabilityOverlap.dateTimeRangesOverlap(
-            startDt,
-            endDt,
-            s.start,
-            s.end,
-          )) {
+        startDt,
+        endDt,
+        s.start,
+        s.end,
+      )) {
         setState(() {
           _slotOverlapError = AvailabilityOverlap.userMessageSpecific;
         });
@@ -216,120 +213,128 @@ class _SetAvailabilityDatesScreenState
       appBar: const AppTopBar(title: 'Availability', showBack: true),
       body: SafeArea(
         bottom: false,
-        child: SingleChildScrollView(
-          physics: const BouncingScrollPhysics(),
-          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              const SizedBox(height: AppSpacing.md),
-              AppListingSpecificDatesInputCard(
-                title: 'Specific dates',
-                calendar: AppMonthCalendar(
-                  currentMonth: _currentMonth,
-                  selectedDates: _selectedDatesForCalendar,
-                  minDate: _today,
-                  onPrevMonth: () => setState(() {
-                    _currentMonth = DateTime(
-                      _currentMonth.year,
-                      _currentMonth.month - 1,
-                    );
-                  }),
-                  onNextMonth: () => setState(() {
-                    _currentMonth = DateTime(
-                      _currentMonth.year,
-                      _currentMonth.month + 1,
-                    );
-                  }),
-                  onPrevYear: () => setState(() {
-                    _currentMonth = DateTime(
-                      _currentMonth.year - 1,
-                      _currentMonth.month,
-                    );
-                  }),
-                  onNextYear: () => setState(() {
-                    _currentMonth = DateTime(
-                      _currentMonth.year + 1,
-                      _currentMonth.month,
-                    );
-                  }),
-                  onDayTap: (date) {
-                    setState(() {
-                      final dayOnly = DateTime(
-                        date.year,
-                        date.month,
-                        date.day,
-                      );
-                      if (_rangeStart == null) {
-                        _rangeStart = dayOnly;
-                        _rangeEnd = dayOnly;
-                      } else if (_rangeStart == _rangeEnd) {
-                        if (dayOnly.isBefore(_rangeStart!)) {
-                          _rangeStart = dayOnly;
-                        } else {
-                          _rangeEnd = dayOnly;
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Expanded(
+              child: SingleChildScrollView(
+                physics: const BouncingScrollPhysics(),
+                padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    const SizedBox(height: AppSpacing.md),
+                    AppListingSpecificDatesInputCard(
+                      title: 'Specific dates',
+                      calendar: AppMonthCalendar(
+                        currentMonth: _currentMonth,
+                        selectedDates: _selectedDatesForCalendar,
+                        minDate: _today,
+                        onPrevMonth: () => setState(() {
+                          _currentMonth = DateTime(
+                            _currentMonth.year,
+                            _currentMonth.month - 1,
+                          );
+                        }),
+                        onNextMonth: () => setState(() {
+                          _currentMonth = DateTime(
+                            _currentMonth.year,
+                            _currentMonth.month + 1,
+                          );
+                        }),
+                        onPrevYear: () => setState(() {
+                          _currentMonth = DateTime(
+                            _currentMonth.year - 1,
+                            _currentMonth.month,
+                          );
+                        }),
+                        onNextYear: () => setState(() {
+                          _currentMonth = DateTime(
+                            _currentMonth.year + 1,
+                            _currentMonth.month,
+                          );
+                        }),
+                        onDayTap: (date) {
+                          setState(() {
+                            final dayOnly = DateTime(
+                              date.year,
+                              date.month,
+                              date.day,
+                            );
+                            if (_rangeStart == null) {
+                              _rangeStart = dayOnly;
+                              _rangeEnd = dayOnly;
+                            } else if (_rangeStart == _rangeEnd) {
+                              if (dayOnly.isBefore(_rangeStart!)) {
+                                _rangeStart = dayOnly;
+                              } else {
+                                _rangeEnd = dayOnly;
+                              }
+                            } else {
+                              _rangeStart = dayOnly;
+                              _rangeEnd = dayOnly;
+                            }
+                          });
+                        },
+                      ),
+                      startValue: TimeStepMinutes.formatAmPm(_startMinutes),
+                      endValue: TimeStepMinutes.formatAmPm(_endMinutes),
+                      onStartTap: () async {
+                        final m = await showAppTimePickerMinutes(
+                          context: context,
+                          initialMinutes: _startMinutes,
+                        );
+                        if (m != null && mounted) {
+                          setState(() => _startMinutes = m);
                         }
-                      } else {
-                        _rangeStart = dayOnly;
-                        _rangeEnd = dayOnly;
-                      }
-                    });
-                  },
+                      },
+                      onEndTap: () async {
+                        final m = await showAppTimePickerMinutes(
+                          context: context,
+                          initialMinutes: _endMinutes,
+                        );
+                        if (m != null && mounted) {
+                          setState(() => _endMinutes = m);
+                        }
+                      },
+                      onAddSlot: _addSlot,
+                    ),
+                    const SizedBox(height: AppSpacing.lg),
+                    AppListingSpecificDateSlotsCard(
+                      slots: cardSlots,
+                      onRemove: _removeSlot,
+                      onTapSlot: _openPricingForSlot,
+                    ),
+                    if (_slotOverlapError != null) ...[
+                      const SizedBox(height: AppSpacing.sm),
+                      AppFormErrorCaption(_slotOverlapError!),
+                    ],
+                    if (_hasSlots) ...[
+                      const SizedBox(height: AppSpacing.sm),
+                      const AppFormHelperText(
+                        'Tap a slot to set its price',
+                        textAlign: TextAlign.center,
+                      ),
+                    ],
+                    const SizedBox(height: AppSpacing.lg),
+                    const AppAnnotatePhotoInstruction(
+                      text:
+                          'Changes will only apply to future reservations. '
+                          'Existing or ongoing bookings will not be affected.',
+                    ),
+                    const SizedBox(height: AppSpacing.lg),
+                  ],
                 ),
-                startValue: TimeStepMinutes.formatAmPm(_startMinutes),
-                endValue: TimeStepMinutes.formatAmPm(_endMinutes),
-                onStartTap: () async {
-                  final m = await showAppTimePickerMinutes(
-                    context: context,
-                    initialMinutes: _startMinutes,
-                  );
-                  if (m != null && mounted) {
-                    setState(() => _startMinutes = m);
-                  }
-                },
-                onEndTap: () async {
-                  final m = await showAppTimePickerMinutes(
-                    context: context,
-                    initialMinutes: _endMinutes,
-                  );
-                  if (m != null && mounted) {
-                    setState(() => _endMinutes = m);
-                  }
-                },
-                onAddSlot: _addSlot,
               ),
-              const SizedBox(height: AppSpacing.lg),
-              AppListingSpecificDateSlotsCard(
-                slots: cardSlots,
-                onRemove: _removeSlot,
-                onTapSlot: _openPricingForSlot,
-              ),
-              if (_slotOverlapError != null) ...[
-                const SizedBox(height: AppSpacing.sm),
-                AppFormErrorCaption(_slotOverlapError!),
-              ],
-              if (_hasSlots) ...[
-                const SizedBox(height: AppSpacing.sm),
-                const AppFormHelperText(
-                  'Tap a slot to set its price',
-                  textAlign: TextAlign.center,
-                ),
-              ],
-              const SizedBox(height: AppSpacing.lg),
-              const AppAnnotatePhotoInstruction(
-                text:
-                    'Changes will only apply to future reservations. '
-                    'Existing or ongoing bookings will not be affected.',
-              ),
-              const SizedBox(height: AppSpacing.md),
-              AppPrimaryButton(
+            ),
+            AppStickyFooter(
+              child: AppPrimaryButton(
                 label: 'Confirm',
                 icon: Icons.check_rounded,
                 onPressed: _canConfirm ? _onConfirm : null,
               ),
-              const SizedBox(height: AppSpacing.xl),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );

@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../core/theme/app_theme.dart';
 import 'go_router_provider.dart';
+import 'realtime_alerts_overlay.dart';
 
 class ParkdApp extends ConsumerWidget {
   const ParkdApp({super.key});
@@ -16,6 +17,8 @@ class ParkdApp extends ConsumerWidget {
       debugShowCheckedModeBanner: false,
       theme: AppTheme.light(),
       routerConfig: router,
+      builder: (context, child) =>
+          RealtimeAlertsOverlay(child: child ?? const SizedBox.shrink()),
     );
   }
 }

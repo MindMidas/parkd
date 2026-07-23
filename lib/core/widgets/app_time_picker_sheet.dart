@@ -3,6 +3,7 @@ import 'package:flutter/cupertino.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_typography.dart';
 import '../utils/time_step_minutes.dart';
+import 'app_picker_sheet.dart';
 
 // Cupertino wheel; returns minutes since midnight or null if cancelled
 Future<int?> showAppTimePickerMinutes({
@@ -18,66 +19,28 @@ Future<int?> showAppTimePickerMinutes({
     context: context,
     builder: (ctx) {
       var selected = initial;
-      final bottom = MediaQuery.paddingOf(ctx).bottom;
-      return Container(
-        padding: EdgeInsets.only(bottom: bottom),
-        decoration: const BoxDecoration(
-          color: AppColors.surface,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(14)),
-        ),
-        child: SafeArea(
-          top: false,
-          bottom: false,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  CupertinoButton(
-                    padding: const EdgeInsets.symmetric(horizontal: 16),
-                    onPressed: () => Navigator.pop(ctx),
-                    child: Text(
-                      'Cancel',
-                      style: AppTypography.bodySecondary
-                          .copyWith(color: AppColors.iconGrey),
-                    ),
-                  ),
-                  CupertinoButton(
-                    padding: const EdgeInsets.symmetric(horizontal: 16),
-                    onPressed: () {
-                      final m = selected.hour * 60 + selected.minute;
-                      Navigator.pop(
-                        ctx,
-                        m.clamp(0, TimeStepMinutes.maxMinutes),
-                      );
-                    },
-                    child: Text(
-                      'Done',
-                      style: AppTypography.textAction,
-                    ),
-                  ),
-                ],
+      return AppPickerSheet(
+        onCancel: () => Navigator.pop(ctx),
+        onDone: () {
+          final m = selected.hour * 60 + selected.minute;
+          Navigator.pop(ctx, m.clamp(0, TimeStepMinutes.maxMinutes));
+        },
+        child: SizedBox(
+          height: 216,
+          child: CupertinoTheme(
+            data: CupertinoTheme.of(ctx).copyWith(
+              primaryColor: AppColors.primaryBlue,
+              textTheme: CupertinoTextThemeData(
+                dateTimePickerTextStyle: AppTypography.pickerWheel,
               ),
-              SizedBox(
-                height: 216,
-                child: CupertinoTheme(
-                  data: CupertinoTheme.of(ctx).copyWith(
-                    primaryColor: AppColors.primaryBlue,
-                    textTheme: CupertinoTextThemeData(
-                      dateTimePickerTextStyle: AppTypography.pickerWheel,
-                    ),
-                  ),
-                  child: CupertinoDatePicker(
-                    mode: CupertinoDatePickerMode.time,
-                    use24hFormat: false,
-                    minuteInterval: TimeStepMinutes.step,
-                    initialDateTime: initial,
-                    onDateTimeChanged: (d) => selected = d,
-                  ),
-                ),
-              ),
-            ],
+            ),
+            child: CupertinoDatePicker(
+              mode: CupertinoDatePickerMode.time,
+              use24hFormat: false,
+              minuteInterval: TimeStepMinutes.step,
+              initialDateTime: initial,
+              onDateTimeChanged: (d) => selected = d,
+            ),
           ),
         ),
       );
@@ -129,14 +92,18 @@ class _AllowedMinutesPickerSheet extends StatefulWidget {
       _AllowedMinutesPickerSheetState();
 }
 
-class _AllowedMinutesPickerSheetState extends State<_AllowedMinutesPickerSheet> {
+class _AllowedMinutesPickerSheetState
+    extends State<_AllowedMinutesPickerSheet> {
   late int _selectedIndex;
   late FixedExtentScrollController _controller;
 
   @override
   void initState() {
     super.initState();
-    _selectedIndex = widget.initialIndex.clamp(0, widget.allowedMinutes.length - 1);
+    _selectedIndex = widget.initialIndex.clamp(
+      0,
+      widget.allowedMinutes.length - 1,
+    );
     _controller = FixedExtentScrollController(initialItem: _selectedIndex);
   }
 
@@ -148,68 +115,32 @@ class _AllowedMinutesPickerSheetState extends State<_AllowedMinutesPickerSheet> 
 
   @override
   Widget build(BuildContext context) {
-    final bottom = MediaQuery.paddingOf(context).bottom;
-    return Container(
-      padding: EdgeInsets.only(bottom: bottom),
-      decoration: const BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.vertical(top: Radius.circular(14)),
+    return AppPickerSheet(
+      onCancel: () => Navigator.pop(context),
+      onDone: () => Navigator.pop(
+        context,
+        widget.allowedMinutes[_selectedIndex],
       ),
-      child: SafeArea(
-        top: false,
-        bottom: false,
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                CupertinoButton(
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
-                  onPressed: () => Navigator.pop(context),
-                  child: Text(
-                    'Cancel',
-                    style: AppTypography.bodySecondary
-                        .copyWith(color: AppColors.iconGrey),
-                  ),
-                ),
-                CupertinoButton(
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
-                  onPressed: () => Navigator.pop(
-                    context,
-                    widget.allowedMinutes[_selectedIndex],
-                  ),
-                  child: Text(
-                    'Done',
-                    style: AppTypography.textAction,
-                  ),
-                ),
-              ],
+      child: SizedBox(
+        height: 216,
+        child: CupertinoTheme(
+          data: CupertinoTheme.of(context).copyWith(
+            primaryColor: AppColors.primaryBlue,
+            textTheme: CupertinoTextThemeData(
+              dateTimePickerTextStyle: AppTypography.pickerWheel,
             ),
-            SizedBox(
-              height: 216,
-              child: CupertinoTheme(
-                data: CupertinoTheme.of(context).copyWith(
-                  primaryColor: AppColors.primaryBlue,
-                  textTheme: CupertinoTextThemeData(
-                    dateTimePickerTextStyle: AppTypography.pickerWheel,
-                  ),
-                ),
-                child: CupertinoPicker(
-                  scrollController: _controller,
-                  itemExtent: 40,
-                  onSelectedItemChanged: (i) => _selectedIndex = i,
-                  children: widget.allowedMinutes
-                      .map(
-                        (m) => Center(
-                          child: Text(TimeStepMinutes.formatAmPm(m)),
-                        ),
-                      )
-                      .toList(),
-                ),
-              ),
-            ),
-          ],
+          ),
+          child: CupertinoPicker(
+            scrollController: _controller,
+            itemExtent: 40,
+            onSelectedItemChanged: (i) => _selectedIndex = i,
+            children: widget.allowedMinutes
+                .map(
+                  (m) =>
+                      Center(child: Text(TimeStepMinutes.formatAmPm(m))),
+                )
+                .toList(),
+          ),
         ),
       ),
     );

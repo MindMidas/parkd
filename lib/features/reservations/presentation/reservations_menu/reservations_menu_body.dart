@@ -1,47 +1,63 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/widgets/widgets.dart';
+import '../../../profile/providers/notifications_providers.dart';
 import '../active_reservations/active_reservations_screen.dart';
 import '../past_reservations/past_reservations_screen.dart';
 
-// menu rows that push active vs past reservation lists
-class ReservationsMenuBody extends StatelessWidget {
-  const ReservationsMenuBody({super.key, this.topSpacing = AppSpacing.xl});
+// Menu rows that push active vs past reservation lists
+class ReservationsMenuBody extends ConsumerWidget {
+  const ReservationsMenuBody({super.key, this.topSpacing = AppSpacing.sm});
 
   final double topSpacing;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final unread = ref.watch(reservationNotificationsCountProvider);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        SizedBox(height: topSpacing),
-        AppSettingsNavTile(
-          icon: Icons.directions_car_outlined,
-          label: 'Active Reservations',
-          showDividerAbove: true,
-          onTap: () {
-            Navigator.of(context).push(
-              MaterialPageRoute<void>(
-                builder: (_) => const ActiveReservationsScreen(),
-              ),
-            );
-          },
+        const AppHubMenuIntro(
+          lead:
+              'See what\'s coming up, or look back at where you\'ve parked.',
         ),
-        AppSettingsNavTile(
-          icon: Icons.history_rounded,
-          label: 'Past Reservations',
-          showDividerAbove: true,
-          showDividerBelow: true,
-          onTap: () {
-            Navigator.of(context).push(
-              MaterialPageRoute<void>(
-                builder: (_) => const PastReservationsScreen(),
-              ),
-            );
-          },
+        AppHubMenuSection(
+          title: 'Your trips',
+          topSpacing: topSpacing,
+          children: [
+            AppNavTile(
+              icon: Icons.directions_car_outlined,
+              label: 'Active Reservations',
+              subtitle: 'Upcoming and in progress',
+              badgeCount: unread,
+              showDividerAbove: true,
+              onTap: () {
+                Navigator.of(context).push(
+                  AppPageRoute<void>(
+                    builder: (_) => const ActiveReservationsScreen(),
+                  ),
+                );
+              },
+            ),
+            AppNavTile(
+              icon: Icons.history_rounded,
+              label: 'Past Reservations',
+              subtitle: 'Completed trips',
+              showDividerAbove: true,
+              showDividerBelow: true,
+              onTap: () {
+                Navigator.of(context).push(
+                  AppPageRoute<void>(
+                    builder: (_) => const PastReservationsScreen(),
+                  ),
+                );
+              },
+            ),
+          ],
         ),
+        SizedBox(height: AppSpacing.lg + scrollViewBottomInset(context)),
       ],
     );
   }

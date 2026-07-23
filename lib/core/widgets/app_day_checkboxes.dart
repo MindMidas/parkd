@@ -1,15 +1,24 @@
 import 'package:flutter/material.dart';
 
 import '../theme/app_colors.dart';
+import '../theme/app_ink.dart';
+import '../theme/app_radius.dart';
 import '../theme/app_spacing.dart';
 import '../theme/app_typography.dart';
+import '../utils/app_feedback.dart';
 
-// Mon-Sun short labels (weekly UI)
+// Mon–Sun short labels (weekly UI)
 const List<String> kWeekdayLabels = [
-  'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun',
+  'Mon',
+  'Tue',
+  'Wed',
+  'Thu',
+  'Fri',
+  'Sat',
+  'Sun',
 ];
 
-// Day chips: row of 4 then 3; selectedIndices 0=Mon to 6=Sun
+// Day pills: row of 4 then 3; selectedIndices 0 = Mon … 6 = Sun
 class AppDayCheckboxes extends StatelessWidget {
   const AppDayCheckboxes({
     super.key,
@@ -22,20 +31,17 @@ class AppDayCheckboxes extends StatelessWidget {
   final ValueChanged<Set<int>> onChanged;
   final List<String> labels;
 
-  static const double _chipWidth = 64;
   static const double _chipHeight = 40;
-  static const double _circleSize = 18;
-  static const double _iconSize = 11;
-  static const double _labelFontSize = 11;
 
   @override
   Widget build(BuildContext context) {
     Widget chip(int index) {
       final selected = selectedIndices.contains(index);
-      return _DayChip(
+      return _DayPill(
         label: labels[index],
         selected: selected,
         onTap: () {
+          AppFeedback.selection(context);
           final next = Set<int>.from(selectedIndices);
           if (selected) {
             next.remove(index);
@@ -50,33 +56,29 @@ class AppDayCheckboxes extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          'Available Days',
-          style: AppTypography.bodyStrong,
-        ),
+        Text('Available Days', style: AppTypography.bodyStrong),
         const SizedBox(height: AppSpacing.sm),
         Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             Row(
-              mainAxisAlignment: MainAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
               children: [
                 for (int i = 0; i < 4; i++) ...[
-                  if (i > 0) SizedBox(width: AppSpacing.sm),
-                  chip(i),
+                  if (i > 0) const SizedBox(width: AppSpacing.xs),
+                  Expanded(child: chip(i)),
                 ],
               ],
             ),
-            const SizedBox(height: AppSpacing.sm),
+            const SizedBox(height: AppSpacing.xs),
             Row(
-              mainAxisAlignment: MainAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
               children: [
                 for (int i = 0; i < 3; i++) ...[
-                  if (i > 0) SizedBox(width: AppSpacing.sm),
-                  chip(i + 4),
+                  if (i > 0) const SizedBox(width: AppSpacing.xs),
+                  Expanded(child: chip(i + 4)),
                 ],
+                // Keep third row visually balanced with the four-up row.
+                const SizedBox(width: AppSpacing.xs),
+                const Expanded(child: SizedBox.shrink()),
               ],
             ),
           ],
@@ -86,8 +88,8 @@ class AppDayCheckboxes extends StatelessWidget {
   }
 }
 
-class _DayChip extends StatelessWidget {
-  const _DayChip({
+class _DayPill extends StatelessWidget {
+  const _DayPill({
     required this.label,
     required this.selected,
     required this.onTap,
@@ -100,57 +102,39 @@ class _DayChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Material(
-      color: AppColors.transparent,
+      color: selected ? AppColors.primaryBlue : AppColors.surface,
+      borderRadius: BorderRadius.circular(AppRadius.md),
+      clipBehavior: Clip.antiAlias,
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(8),
-        child: Container(
-          width: AppDayCheckboxes._chipWidth,
+        borderRadius: BorderRadius.circular(AppRadius.md),
+        splashColor: selected
+            ? AppColors.onPrimary.withValues(alpha: 0.22)
+            : AppInk.splash,
+        highlightColor: selected
+            ? AppColors.onPrimary.withValues(alpha: 0.1)
+            : AppInk.highlight,
+        child: Ink(
           height: AppDayCheckboxes._chipHeight,
-          padding: const EdgeInsets.symmetric(horizontal: 4),
           decoration: BoxDecoration(
-            color: selected
-                ? AppColors.secondaryBlue
-                : AppColors.surface,
-            borderRadius: BorderRadius.circular(8),
+            borderRadius: BorderRadius.circular(AppRadius.md),
             border: Border.all(
-              color: AppColors.secondaryGrey.withValues(alpha: 0.6),
+              color: selected
+                  ? AppColors.primaryBlue
+                  : AppColors.secondaryGrey.withValues(alpha: 0.7),
             ),
           ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Container(
-                width: AppDayCheckboxes._circleSize,
-                height: AppDayCheckboxes._circleSize,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: selected
-                      ? AppColors.primaryBlue
-                      : AppColors.secondaryGrey.withValues(alpha: 0.3),
-                ),
-                child: Icon(
-                  selected ? Icons.check : Icons.close,
-                  size: AppDayCheckboxes._iconSize,
-                  color: selected ? AppColors.onPrimary : AppColors.textSecondary,
-                ),
+          child: Center(
+            child: Text(
+              label,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: AppTypography.captionStrong.copyWith(
+                color: selected
+                    ? AppColors.onPrimary
+                    : AppColors.textPrimary,
               ),
-              const SizedBox(width: 4),
-              Expanded(
-                child: Text(
-                  label,
-                  maxLines: 1,
-                  softWrap: false,
-                  overflow: TextOverflow.ellipsis,
-                  style: AppTypography.bodySecondary.copyWith(
-                    fontWeight: FontWeight.w500,
-                    fontSize: AppDayCheckboxes._labelFontSize,
-                    height: 1.1,
-                  ),
-                ),
-              ),
-            ],
+            ),
           ),
         ),
       ),

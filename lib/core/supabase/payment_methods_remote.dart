@@ -2,7 +2,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../models/payment_method_row.dart';
 
-// CRUD for public.payment_methods, Stripe id is optional for the class demos
+/// CRUD for public.payment_methods — Stripe ID is optional while card setup runs.
 class PaymentMethodsRemote {
   PaymentMethodsRemote(this._client);
 
@@ -16,7 +16,9 @@ class PaymentMethodsRemote {
         .order('is_default', ascending: false)
         .order('created_at', ascending: false);
     return (rows as List)
-        .map((e) => PaymentMethodRow.fromJson(Map<String, dynamic>.from(e as Map)))
+        .map(
+          (e) => PaymentMethodRow.fromJson(Map<String, dynamic>.from(e as Map)),
+        )
         .toList();
   }
 
@@ -58,11 +60,17 @@ class PaymentMethodsRemote {
         .eq('user_id', userId);
     await _client
         .from('payment_methods')
-        .update({'is_default': true}).eq('id', id).eq('user_id', userId);
+        .update({'is_default': true})
+        .eq('id', id)
+        .eq('user_id', userId);
   }
 
   Future<void> deleteRow({required String userId, required String id}) async {
-    await _client.from('payment_methods').delete().eq('id', id).eq('user_id', userId);
+    await _client
+        .from('payment_methods')
+        .delete()
+        .eq('id', id)
+        .eq('user_id', userId);
   }
 
   Future<void> updateDisplayFields({

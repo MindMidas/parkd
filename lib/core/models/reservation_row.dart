@@ -1,6 +1,6 @@
 import 'reservation_status.dart';
 
-// Mirrors public.reservations
+/// Mirrors public.reservations
 class ReservationRow {
   const ReservationRow({
     required this.id,
@@ -40,7 +40,8 @@ class ReservationRow {
       endTime: DateTime.parse(json['end_time'] as String),
       totalPrice: (json['total_price'] as num).toDouble(),
       serviceFee: (json['service_fee'] as num).toDouble(),
-      status: ReservationStatus.fromString(json['status'] as String?) ??
+      status:
+          ReservationStatus.fromString(json['status'] as String?) ??
           ReservationStatus.pending,
       extendedFromReservationId:
           json['extended_from_reservation_id'] as String?,

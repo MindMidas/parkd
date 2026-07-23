@@ -1,4 +1,4 @@
-// mirrors public.payment_methods
+/// Mirrors public.payment_methods — use for repo/remote layers
 class PaymentMethodRow {
   const PaymentMethodRow({
     required this.id,

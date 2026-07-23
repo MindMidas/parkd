@@ -3,23 +3,28 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../../core/theme/app_colors.dart';
 import '../../../../../core/theme/app_spacing.dart';
-import '../../../../../core/messaging/app_messenger.dart';
 import '../../../../../core/theme/app_typography.dart';
 import '../../../../../core/widgets/widgets.dart';
+import '../../../../map/presentation/home_map_screen.dart';
+import '../../../../map/presentation/main_tab.dart';
+import '../../manage_listings/edit/confirmation_success_screen.dart';
 import '../create_listing_draft.dart';
 import '../create_listing_publish.dart';
 
+// Scroll the legal summary, then checkbox + transactional publish.
 class TermsAndConditionsScreen extends ConsumerStatefulWidget {
   const TermsAndConditionsScreen({
     super.key,
     required this.draft,
-    required this.onPublishSuccess,
+    this.onPublish,
     this.currentStep,
     this.totalSteps,
   });
 
   final CreateListingDraft draft;
-  final VoidCallback onPublishSuccess;
+
+  /// Optional host callback after the user leaves the success screen
+  final VoidCallback? onPublish;
 
   final int? currentStep;
   final int? totalSteps;
@@ -35,7 +40,7 @@ class _TermsAndConditionsScreenState
   bool _publishing = false;
 
   Future<void> _publish() async {
-    if (!_agreed || _publishing) return;
+    if (!_agreed || _publishing || widget.draft.publishedSuccessfully) return;
     if (!widget.draft.isCompleteForPublish) {
       AppMessenger.showError(
         context,
@@ -48,23 +53,57 @@ class _TermsAndConditionsScreenState
     try {
       await CreateListingPublish.submit(ref, widget.draft);
       if (!mounted) return;
-      widget.onPublishSuccess();
+      _openPublishedSuccess();
     } catch (e) {
-      if (mounted) {
-        AppMessenger.showError(
-          context,
-          CreateListingPublish.describePublishError(e),
-        );
+      if (!mounted) return;
+      if (widget.draft.publishedSuccessfully) {
+        _openPublishedSuccess();
+        return;
       }
+      AppMessenger.showError(
+        context,
+        CreateListingPublish.describePublishError(e),
+      );
     } finally {
       if (mounted) setState(() => _publishing = false);
     }
   }
 
+  void _openPublishedSuccess() {
+    final navigator = Navigator.of(context);
+    final rootNavigator = Navigator.of(context, rootNavigator: true);
+    final onPublish = widget.onPublish;
+    navigator.pushReplacement(
+      AppPageRoute<void>(
+        builder: (_) => ConfirmationSuccessScreen(
+          title: 'Listing Published',
+          message:
+              'Your parking spot is now live. Drivers can find and book it on Parkd.',
+          buttonLabel: 'Go to Home',
+          onClose: () {
+            if (onPublish != null) {
+              onPublish();
+            } else {
+              rootNavigator.pushAndRemoveUntil(
+                AppPageRoute<void>(
+                  builder: (_) => const HomeMapScreen(
+                    initialIndex: MainTab.map,
+                    hasTabInRoute: true,
+                  ),
+                ),
+                (route) => false,
+              );
+            }
+          },
+          popsOnClose: 0,
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
-    final useStepBar =
-        widget.currentStep != null && widget.totalSteps != null;
+    final useStepBar = widget.currentStep != null && widget.totalSteps != null;
 
     return Scaffold(
       backgroundColor: AppColors.surface,
@@ -74,10 +113,7 @@ class _TermsAndConditionsScreenState
               currentStep: widget.currentStep!,
               totalSteps: widget.totalSteps!,
             )
-          : const AppTopBar(
-              title: 'Terms and Conditions',
-              showBack: true,
-            ),
+          : const AppTopBar(title: 'Terms and Conditions', showBack: true),
       body: SafeArea(
         bottom: false,
         child: Column(
@@ -85,34 +121,33 @@ class _TermsAndConditionsScreenState
             Expanded(
               child: SingleChildScrollView(
                 physics: const BouncingScrollPhysics(),
-                padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    const SizedBox(height: AppSpacing.lg),
-
-                    Text(
-                      'Please read and agree before publishing your listing',
-                      textAlign: TextAlign.center,
-                      style: AppTypography.navTitle.copyWith(
-                        color: AppColors.black,
+                    const AppHubMenuIntro(
+                      lead:
+                          'Please read and agree before publishing your '
+                          'listing.',
+                    ),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: AppSpacing.lg,
                       ),
-                    ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          Text(
+                            'Terms and Conditions',
+                            style: AppTypography.overline,
+                          ),
+                          const SizedBox(height: AppSpacing.sm),
+                          Text(
+                            'Please read the following terms carefully before publishing your parking listing on Parkd. '
+                            'By creating and publishing a listing, you agree to comply with these terms.',
+                            style: AppTypography.caption,
+                          ),
 
-                    const SizedBox(height: AppSpacing.sm),
-                    const AppDivider(),
-                    const SizedBox(height: AppSpacing.sm),
-
-                    const AppFormHelperText('Terms and Conditions'),
-
-                    const SizedBox(height: AppSpacing.sm),
-
-                    const AppFormHelperText(
-                      'Please read the following terms carefully before publishing your parking listing on Parkd. '
-                      'By creating and publishing a listing, you agree to comply with these terms.',
-                    ),
-
-                    const SizedBox(height: AppSpacing.md),
+                    const SizedBox(height: AppSpacing.lg),
 
                     AppTermsNumberedSection(
                       number: '1',
@@ -123,9 +158,7 @@ class _TermsAndConditionsScreenState
                           'Misleading or inaccurate listings may be removed by Parkd at any time.',
                     ),
 
-                    const SizedBox(height: AppSpacing.sm),
-                    const AppDivider(),
-                    const SizedBox(height: AppSpacing.sm),
+                    const SizedBox(height: AppSpacing.md),
                     AppTermsNumberedSection(
                       number: '2',
                       title: 'Legal Use of Parking Space',
@@ -135,9 +168,7 @@ class _TermsAndConditionsScreenState
                           'Parkd is not responsible for verifying ownership or authorization of the parking location.',
                     ),
 
-                    const SizedBox(height: AppSpacing.sm),
-                    const AppDivider(),
-                    const SizedBox(height: AppSpacing.sm),
+                    const SizedBox(height: AppSpacing.md),
                     AppTermsNumberedSection(
                       number: '3',
                       title: 'Safety and Accessibility',
@@ -147,9 +178,7 @@ class _TermsAndConditionsScreenState
                           'Parkd is not liable for accidents or damages resulting from unsafe parking environments.',
                     ),
 
-                    const SizedBox(height: AppSpacing.sm),
-                    const AppDivider(),
-                    const SizedBox(height: AppSpacing.sm),
+                    const SizedBox(height: AppSpacing.md),
                     AppTermsNumberedSection(
                       number: '4',
                       title: 'Pricing and Payments',
@@ -159,9 +188,7 @@ class _TermsAndConditionsScreenState
                           'Hosts are responsible for any applicable taxes on earnings from their listings.',
                     ),
 
-                    const SizedBox(height: AppSpacing.sm),
-                    const AppDivider(),
-                    const SizedBox(height: AppSpacing.sm),
+                    const SizedBox(height: AppSpacing.md),
                     AppTermsNumberedSection(
                       number: '5',
                       title: 'Cancellations and Refunds',
@@ -171,25 +198,26 @@ class _TermsAndConditionsScreenState
                           'which may vary depending on how far in advance the cancellation is made.',
                     ),
 
-                    const SizedBox(height: AppSpacing.sm),
-                    const AppDivider(),
-                    const SizedBox(height: AppSpacing.sm),
+                    const SizedBox(height: AppSpacing.md),
                     AppTermsNumberedSection(
                       number: '6',
                       title: 'Privacy and Data',
                       body:
                           'By using Parkd, you agree to our Privacy Policy. We collect and use your information '
                           'to operate and improve the platform. Your personal data will not be sold to third parties. '
-                          'Location data is used only for parking bookings.',
+                          'Location data is used solely to facilitate parking bookings.',
                     ),
 
                     const SizedBox(height: AppSpacing.lg),
+                        ],
+                      ),
+                    ),
                   ],
                 ),
               ),
             ),
 
-            AppSurfaceFooterPad(
+            AppStickyFooter(
               child: Column(
                 children: [
                   AppTermsAgreementCheckboxRow(

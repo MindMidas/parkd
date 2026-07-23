@@ -3,6 +3,7 @@ import 'package:intl/intl.dart';
 
 import '../models/slot_pricing_summary.dart';
 import '../theme/app_colors.dart';
+import '../theme/app_radius.dart';
 import '../theme/app_spacing.dart';
 import '../theme/app_typography.dart';
 import '../utils/display_formatting.dart';
@@ -18,17 +19,10 @@ class AppDisplayOutlineCard extends StatelessWidget {
     return DecoratedBox(
       decoration: BoxDecoration(
         color: AppColors.surface,
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(AppRadius.md),
         border: Border.all(
-          color: AppColors.secondaryGrey.withValues(alpha: 0.6),
+          color: AppColors.secondaryGrey.withValues(alpha: 0.65),
         ),
-        boxShadow: [
-          BoxShadow(
-            color: AppColors.shadowWisp,
-            blurRadius: 4,
-            offset: const Offset(0, 2),
-          ),
-        ],
       ),
       child: Padding(
         padding: const EdgeInsets.all(AppSpacing.md),
@@ -50,26 +44,16 @@ class AppDisplayTitledOutlineCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(top: AppSpacing.xs),
-      child: Stack(
-        fit: StackFit.passthrough,
-        clipBehavior: Clip.none,
-        children: [
-          AppDisplayOutlineCard(child: child),
-          Positioned(
-            top: -AppSpacing.xs,
-            left: AppSpacing.lg,
-            child: DecoratedBox(
-              decoration: const BoxDecoration(color: AppColors.surface),
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xs),
-                child: Text(title, style: AppTypography.caption),
-              ),
-            ),
-          ),
+    final trimmed = title.trim();
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        if (trimmed.isNotEmpty) ...[
+          Text(trimmed, style: AppTypography.overline),
+          const SizedBox(height: AppSpacing.sm),
         ],
-      ),
+        AppDisplayOutlineCard(child: child),
+      ],
     );
   }
 }
@@ -190,8 +174,9 @@ class AppAvailabilityWeeklySlotBlock extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final captionBlue =
-        AppTypography.caption.copyWith(color: AppColors.primaryBlue);
+    final captionBlue = AppTypography.caption.copyWith(
+      color: AppColors.primaryBlue,
+    );
     final daily = SlotPricingSummary.dailyRateCaption(priceDay);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -202,10 +187,7 @@ class AppAvailabilityWeeklySlotBlock extends StatelessWidget {
           crossAxisAlignment: WrapCrossAlignment.center,
           children: [
             Text(day, style: AppTypography.bodyStrong),
-            Text(
-              timeRange,
-              style: AppTypography.body,
-            ),
+            Text(timeRange, style: AppTypography.body),
           ],
         ),
         const SizedBox(height: 6),
@@ -245,7 +227,7 @@ class AppAvailabilityDateRangeSlotBlock extends StatelessWidget {
   final double priceHour;
   final double? priceDay;
 
-  // from/to strings with * or between date and time
+  // from/to strings with • or · between date and time
   factory AppAvailabilityDateRangeSlotBlock.fromSlotStrings({
     required String from,
     required String to,
@@ -266,11 +248,11 @@ class AppAvailabilityDateRangeSlotBlock extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final fromSide =
-        fromTime.isNotEmpty ? '$fromDate, $fromTime' : fromDate;
+    final fromSide = fromTime.isNotEmpty ? '$fromDate, $fromTime' : fromDate;
     final toSide = toTime.isNotEmpty ? '$toDate, $toTime' : toDate;
-    final captionBlue =
-        AppTypography.caption.copyWith(color: AppColors.primaryBlue);
+    final captionBlue = AppTypography.caption.copyWith(
+      color: AppColors.primaryBlue,
+    );
     final daily = SlotPricingSummary.dailyRateCaption(priceDay);
 
     return Column(
@@ -284,9 +266,7 @@ class AppAvailabilityDateRangeSlotBlock extends StatelessWidget {
               child: Text('From', style: AppTypography.bodyStrong),
             ),
             const SizedBox(width: AppSpacing.sm),
-            Expanded(
-              child: Text(fromSide, style: AppTypography.body),
-            ),
+            Expanded(child: Text(fromSide, style: AppTypography.body)),
           ],
         ),
         const SizedBox(height: 4),
@@ -298,9 +278,7 @@ class AppAvailabilityDateRangeSlotBlock extends StatelessWidget {
               child: Text('To', style: AppTypography.bodyStrong),
             ),
             const SizedBox(width: AppSpacing.sm),
-            Expanded(
-              child: Text(toSide, style: AppTypography.body),
-            ),
+            Expanded(child: Text(toSide, style: AppTypography.body)),
           ],
         ),
         const SizedBox(height: 6),
@@ -451,6 +429,34 @@ class AppDetailDurationTimingBlock extends StatelessWidget {
   }
 }
 
+// Bold fixed-width label + body value (settings / simple detail rows)
+class AppLabelValueRow extends StatelessWidget {
+  const AppLabelValueRow({
+    super.key,
+    required this.label,
+    required this.value,
+    this.labelWidth = 60,
+  });
+
+  final String label;
+  final String value;
+  final double labelWidth;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        SizedBox(
+          width: labelWidth,
+          child: Text(label, style: AppTypography.bodyStrong),
+        ),
+        const SizedBox(width: AppSpacing.lg),
+        Expanded(child: Text(value, style: AppTypography.body)),
+      ],
+    );
+  }
+}
+
 class AppDetailAmountRow extends StatelessWidget {
   const AppDetailAmountRow({
     super.key,
@@ -515,9 +521,9 @@ class _TimingColumn extends StatelessWidget {
 }
 
 enum AppStreetAddressDensity {
-  section,
-  sheetHeader, 
-  listRow,
+  section, // detail body + muted secondary
+  sheetHeader, // nav title + caption (map/booking)
+  listRow, // list-tile-ish strong + caption
 }
 
 class AppStreetAddressBlock extends StatelessWidget {
@@ -624,6 +630,29 @@ class AppStreetAddressCard extends StatelessWidget {
     }
 
     return AppDisplayTitledOutlineCard(title: trimmedTitle, child: content);
+  }
+}
+
+class AppListingRatesBlock extends StatelessWidget {
+  const AppListingRatesBlock({
+    super.key,
+    required this.summary,
+    this.overlineLabel = 'PRICE',
+  });
+
+  final String summary;
+  final String overlineLabel;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(overlineLabel, style: AppTypography.overline),
+        const SizedBox(height: 4),
+        Text(summary, style: AppTypography.body),
+      ],
+    );
   }
 }
 
@@ -735,8 +764,9 @@ class AppReservationTotalLine extends StatelessWidget {
   final String priceText;
   final String durationLabel;
 
-  static final _priceStyle =
-      AppTypography.bodyStrong.copyWith(color: AppColors.success);
+  static final _priceStyle = AppTypography.bodyStrong.copyWith(
+    color: AppColors.success,
+  );
 
   @override
   Widget build(BuildContext context) {

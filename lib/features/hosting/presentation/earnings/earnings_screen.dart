@@ -7,7 +7,6 @@ import '../../../../core/models/host_payment_transaction.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/theme/app_typography.dart';
-import '../../../../core/utils/listing_search.dart';
 import '../../../../core/utils/profile_avatar_image_provider.dart';
 import '../../../../core/widgets/widgets.dart';
 import '../../../profile/providers/profile_providers.dart';
@@ -16,6 +15,7 @@ import '../active_bookings/booking_details_screen.dart';
 
 final _paidDateFmt = DateFormat('MMM d, y');
 
+/// Earnings: monthly rollups from `host_earnings` + succeeded `payments` lines
 class EarningsScreen extends ConsumerStatefulWidget {
   const EarningsScreen({super.key});
 
@@ -43,7 +43,11 @@ class _EarningsScreenState extends ConsumerState<EarningsScreen> {
     if (q.isEmpty) return true;
     final low = q.toLowerCase();
     final l = t.listing;
-    if (l != null && listingMatchesSearchQuery(l, q)) return true;
+    if (l != null) {
+      if (l.addressLine.toLowerCase().contains(low)) return true;
+      if (l.localityLine.toLowerCase().contains(low)) return true;
+      if (l.spotLabel?.toLowerCase().contains(low) == true) return true;
+    }
     if (t.reservation.id.toLowerCase().contains(low)) return true;
     if (t.payment.id.toLowerCase().contains(low)) return true;
     if (t.netToHost.toString().contains(low)) return true;
@@ -58,14 +62,13 @@ class _EarningsScreenState extends ConsumerState<EarningsScreen> {
   @override
   Widget build(BuildContext context) {
     final monthlyAsync = ref.watch(hostEarningsForCurrentUserProvider);
-    final txnsAsync = ref.watch(hostSucceededTransactionsForCurrentUserProvider);
+    final txnsAsync = ref.watch(
+      hostSucceededTransactionsForCurrentUserProvider,
+    );
 
     return Scaffold(
       backgroundColor: AppColors.surface,
-      appBar: const AppTopBar(
-        title: 'Earnings',
-        showBack: true,
-      ),
+      appBar: const AppTopBar(title: 'Earnings', showBack: true),
       body: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
@@ -88,8 +91,11 @@ class _EarningsScreenState extends ConsumerState<EarningsScreen> {
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
                       const AppFormHelperText(
-                        'How much you made each month, for trips starting that month. '
-                        'Showing your three most recent months.',
+                        'Up to three recent calendar months: your parking earnings '
+                        '(sum of trip prices) grouped by when each reservation '
+                        'starts. Trip count includes confirmed, active, and '
+                        'completed bookings. The list below shows individual paid '
+                        'trips (search applies there only).',
                       ),
                       const SizedBox(height: AppSpacing.md),
                       for (var i = 0; i < top.length; i++) ...[
@@ -116,25 +122,37 @@ class _EarningsScreenState extends ConsumerState<EarningsScreen> {
             ),
           ),
           Expanded(
-            child: txnsAsync.when(
-              loading: () => const Center(child: CircularProgressIndicator()),
-              error: (e, st) => const AppMutedBodyCenter(
-                'Could not load earnings.',
-              ),
+            child: AppAsyncBody(
+              value: txnsAsync,
+              errorTitle: 'Could not load earnings.',
+              errorMessage: 'Check your connection and try again.',
               data: (txns) {
-                final filtered =
-                    txns.where((t) => _txnMatches(t, _txnSearchQuery)).toList();
+                final filtered = txns
+                    .where((t) => _txnMatches(t, _txnSearchQuery))
+                    .toList();
                 if (filtered.isEmpty) {
-                  return AppMutedBodyCenter(
-                    txns.isEmpty
+                  return AppPageStatus.empty(
+                    title: txns.isEmpty
                         ? 'No earnings yet'
-                        : 'No transactions match your search.',
+                        : 'No matches',
+                    message: txns.isEmpty
+                        ? 'Payouts from completed bookings will show up here.'
+                        : 'Try a different guest or address.',
                   );
                 }
-                return AppDividerSeparatedListView(
-                  itemCount: filtered.length,
-                  rowBuilder: (context, index) =>
-                      _TransactionRow(txn: filtered[index]),
+                return ListView.separated(
+                  physics: const BouncingScrollPhysics(
+                    parent: AlwaysScrollableScrollPhysics(),
+                  ),
+                  padding: const EdgeInsets.only(bottom: AppSpacing.xl),
+                  itemCount: filtered.length + 2,
+                  separatorBuilder: (_, _) => const AppDividerWide(),
+                  itemBuilder: (context, index) {
+                    if (index == 0 || index == filtered.length + 1) {
+                      return const SizedBox.shrink();
+                    }
+                    return _TransactionRow(txn: filtered[index - 1]);
+                  },
                 );
               },
             ),
@@ -162,12 +180,7 @@ class _MonthSummaryRow extends StatelessWidget {
             style: AppTypography.body,
           ),
         ),
-        Text(
-          row.reservationCount == 1
-              ? '1 trip'
-              : '${row.reservationCount} trips',
-          style: AppTypography.caption,
-        ),
+        Text('${row.reservationCount} trips', style: AppTypography.caption),
         const SizedBox(width: AppSpacing.md),
         AppMoneyText(
           row.grossEarnings,
@@ -192,7 +205,8 @@ class _TransactionRow extends ConsumerWidget {
       orElse: () => 'Driver',
     );
     final avatar = profileAvatarImageProvider(driver.asData?.value);
-    final paid = txn.payment.createdAt ?? txn.payment.updatedAt ?? DateTime.now();
+    final paid =
+        txn.payment.createdAt ?? txn.payment.updatedAt ?? DateTime.now();
 
     return AppMenuRow(
       leadingType: AppMenuLeadingType.profile,
@@ -206,7 +220,7 @@ class _TransactionRow extends ConsumerWidget {
       rightAmountColor: AppColors.success,
       onTap: () {
         Navigator.of(context).push<void>(
-          MaterialPageRoute<void>(
+          AppPageRoute<void>(
             builder: (_) => BookingDetailsScreen(
               reservation: txn.reservation,
               listing: txn.listing,

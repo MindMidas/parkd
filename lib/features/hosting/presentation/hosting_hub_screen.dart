@@ -1,11 +1,10 @@
 import 'package:flutter/material.dart';
 
 import '../../../core/theme/app_colors.dart';
-import '../../../core/theme/app_spacing.dart';
 import '../../../core/widgets/widgets.dart';
 import 'hosting_menu_body.dart';
 
-// tab hub for hosts, same destinations as the pushed menu but no back bar
+// Tab hub for hosts — same destinations as the pushed menu but no back bar
 class HostingHubScreen extends StatelessWidget {
   const HostingHubScreen({super.key});
 
@@ -17,13 +16,13 @@ class HostingHubScreen extends StatelessWidget {
         title: 'Hosting',
         showBack: false,
         centerTitle: true,
+        backgroundColor: kAppHubTitleBar,
       ),
       body: SafeArea(
         bottom: false,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            const SizedBox(height: AppSpacing.lg),
             const Expanded(
               child: SingleChildScrollView(
                 child: HostingMenuBody(topSpacing: 0),

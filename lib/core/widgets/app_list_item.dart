@@ -6,7 +6,7 @@ import '../theme/app_typography.dart';
 import '../utils/display_formatting.dart';
 import 'app_divider.dart';
 
-// list row + chevron
+// List row + chevron; optional borders; label gets title case
 class AppListItem extends StatelessWidget {
   const AppListItem({
     super.key,
@@ -22,6 +22,7 @@ class AppListItem extends StatelessWidget {
   final bool showTopBorder;
   final bool showBottomBorder;
 
+  // Optional icon before the label
   final IconData? leadingIcon;
 
   @override
@@ -34,16 +35,9 @@ class AppListItem extends StatelessWidget {
           minVerticalPadding: 14,
           visualDensity: VisualDensity.compact,
           leading: leadingIcon != null
-              ? Icon(
-                  leadingIcon,
-                  size: 22,
-                  color: AppColors.iconGrey,
-                )
+              ? Icon(leadingIcon, size: 22, color: AppColors.iconGrey)
               : null,
-          title: Text(
-            formatTitleCaseWords(label),
-            style: AppTypography.body,
-          ),
+          title: Text(formatTitleCaseWords(label), style: AppTypography.body),
           trailing: const Icon(
             Icons.keyboard_arrow_right_rounded,
             size: 22,
@@ -56,4 +50,3 @@ class AppListItem extends StatelessWidget {
     );
   }
 }
-

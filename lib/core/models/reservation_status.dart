@@ -1,4 +1,4 @@
-// Mirrors public.reservation_status
+/// Mirrors public.reservation_status in supabase/schema.sql
 enum ReservationStatus {
   pending,
   confirmed,

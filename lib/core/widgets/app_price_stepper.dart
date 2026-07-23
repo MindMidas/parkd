@@ -4,7 +4,7 @@ import '../theme/app_colors.dart';
 import '../theme/app_spacing.dart';
 import '../theme/app_typography.dart';
 
-// Label + - / number / + (prices, counts, ...)
+// Label + − / number / + (prices, counts, etc.)
 class AppPriceStepper extends StatelessWidget {
   const AppPriceStepper({
     super.key,
@@ -29,19 +29,16 @@ class AppPriceStepper extends StatelessWidget {
   Widget build(BuildContext context) {
     final canDecrement = value > min;
     final canIncrement = value < max;
-    final displayValue = value is int ? value.toString() : value.toStringAsFixed(0);
+    final displayValue = value is int
+        ? value.toString()
+        : value.toStringAsFixed(0);
 
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: AppSpacing.sm),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-          Expanded(
-            child: Text(
-              label,
-              style: AppTypography.bodyStrong,
-            ),
-          ),
+          Expanded(child: Text(label, style: AppTypography.bodyStrong)),
           Row(
             mainAxisSize: MainAxisSize.min,
             children: [

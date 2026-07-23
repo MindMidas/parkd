@@ -3,16 +3,16 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../../../../core/messaging/app_messenger.dart';
 import '../../../../../core/theme/app_colors.dart';
 import '../../../../../core/theme/app_spacing.dart';
 import '../../../../../core/widgets/widgets.dart';
-import '../../../../../app/listing_invalidation.dart';
+import '../../../../profile/providers/listing_invalidation.dart';
 import '../../../../profile/providers/profile_providers.dart';
 import '../../create_listing/create_listing_draft.dart';
 import 'confirmation_success_screen.dart';
 import '../../create_listing/create_listing_flow/set_availability_screen.dart';
 
+// Drag marker on the photo — [createDraft] continues wizard; [listingId] saves immediately
 class AnnotateListingPhotoScreen extends ConsumerStatefulWidget {
   const AnnotateListingPhotoScreen({
     super.key,
@@ -23,9 +23,9 @@ class AnnotateListingPhotoScreen extends ConsumerStatefulWidget {
     this.totalSteps,
     this.selectedAddress,
   }) : assert(
-          (listingId != null && createDraft == null) ||
-              (listingId == null && createDraft != null),
-        );
+         (listingId != null && createDraft == null) ||
+             (listingId == null && createDraft != null),
+       );
 
   final String? listingId;
   final CreateListingDraft? createDraft;
@@ -54,7 +54,7 @@ class _AnnotateListingPhotoScreenState
       draft.markerX = x;
       draft.markerY = y;
       Navigator.of(context).push(
-        MaterialPageRoute<void>(
+        AppPageRoute<void>(
           builder: (_) => SetAvailabilityScreen(
             draft: draft,
             currentStep: widget.currentStep != null && widget.totalSteps != null
@@ -80,11 +80,7 @@ class _AnnotateListingPhotoScreenState
         localFilePath: widget.photoPath,
         sortOrder: 0,
       );
-      await repo.setHeroPhotoSpotMarker(
-        listingId: id,
-        markerX: x,
-        markerY: y,
-      );
+      await repo.setHeroPhotoSpotMarker(listingId: id, markerX: x, markerY: y);
       invalidateListingSurfaces(ref, id);
     } catch (_) {
       if (mounted) {
@@ -99,7 +95,7 @@ class _AnnotateListingPhotoScreenState
     }
     if (!mounted) return;
     Navigator.of(context).push(
-      MaterialPageRoute<void>(
+      AppPageRoute<void>(
         builder: (_) => const ConfirmationSuccessScreen(
           message: 'Photo updated',
           onClose: _noopClose,
@@ -160,33 +156,26 @@ class _AnnotateListingPhotoScreenState
             Expanded(
               child: Padding(
                 padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    const AppAnnotatePhotoInstruction(
-                      text:
-                          'Place the marker on the parking space in the photo. '
-                          'Drivers will park at this exact location when they book.',
-                    ),
-                    const Spacer(),
-                    widget.currentStep != null
-                        ? AppPrimaryButton(
-                            label: 'Looks good',
-                            icon: Icons.thumb_up_rounded,
-                            onPressed: () => _continue(),
-                            applyTitleCase: false,
-                            loading: _saving,
-                          )
-                        : AppPrimaryButton(
-                            label: 'Confirm',
-                            icon: Icons.check_rounded,
-                            onPressed: () => _continue(),
-                            loading: _saving,
-                          ),
-                    const SizedBox(height: AppSpacing.lg),
-                  ],
+                child: const AppAnnotatePhotoInstruction(
+                  text:
+                      'Place the marker on the parking space in the photo. '
+                      'Drivers will park at this exact location when they book.',
                 ),
               ),
+            ),
+            AppStickyFooter(
+              child: widget.currentStep != null
+                  ? AppPrimaryButton(
+                      label: 'Continue',
+                      onPressed: () => _continue(),
+                      applyTitleCase: false,
+                      loading: _saving,
+                    )
+                  : AppPrimaryButton(
+                      label: 'Confirm',
+                      onPressed: () => _continue(),
+                      loading: _saving,
+                    ),
             ),
           ],
         ),

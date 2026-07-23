@@ -4,7 +4,7 @@ import '../theme/app_colors.dart';
 import '../theme/app_spacing.dart';
 import '../theme/app_typography.dart';
 
-// draggable car marker on photo, reports 0-1 position for save
+// Draggable car marker on a photo; reports 0–1 position for save
 class AppAnnotatePhoto extends StatefulWidget {
   const AppAnnotatePhoto({
     super.key,
@@ -16,13 +16,13 @@ class AppAnnotatePhoto extends StatefulWidget {
     this.borderRadius = 12,
   });
 
-  // img widget (file, network, placeholder,..)
+  // Image widget (file, network, placeholder, etc.)
   final Widget image;
 
-  // 0-1 in the frame, default center
+  // 0–1 in the frame; default center
   final Offset? initialMarkerPosition;
 
-  // fires while dragging, offset is 0-1
+  // Fires while dragging; offset is 0–1
   final void Function(Offset fractional)? onMarkerPositionChanged;
   final double markerDiameter;
   final double markerIconSize;
@@ -117,11 +117,12 @@ class _AppAnnotatePhotoState extends State<AppAnnotatePhoto> {
   }
 }
 
-// hint under the annotate box
+// Hint under the annotate box
 class AppAnnotatePhotoInstruction extends StatelessWidget {
   const AppAnnotatePhotoInstruction({
     super.key,
-    this.text = 'Place the marker on the parking space. Drivers will park at this exact location.',
+    this.text =
+        'Place the marker on the parking space. Drivers will park at this exact location.',
   });
 
   final String text;
@@ -132,9 +133,7 @@ class AppAnnotatePhotoInstruction extends StatelessWidget {
       padding: const EdgeInsets.only(top: AppSpacing.md),
       child: Text(
         text,
-        style: AppTypography.caption.copyWith(
-          color: AppColors.textSecondary,
-        ),
+        style: AppTypography.caption.copyWith(color: AppColors.textSecondary),
         textAlign: TextAlign.center,
       ),
     );

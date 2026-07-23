@@ -1,4 +1,5 @@
-// mirrors public.profiles (auth.users 1:1)
+/// Mirrors public.profiles (auth.users 1:1)
+/// Schema: supabase/schema.sql
 class Profile {
   const Profile({
     required this.id,
@@ -26,10 +27,12 @@ class Profile {
   final DateTime? createdAt;
   final DateTime? updatedAt;
 
-  // display name: full_name or username or email fallback
+  /// Display name: full_name or username or email fallback
   String get displayName => fullName?.trim().isNotEmpty == true
       ? fullName!
-      : (username?.trim().isNotEmpty == true ? '@$username' : (email ?? 'User'));
+      : (username?.trim().isNotEmpty == true
+            ? '@$username'
+            : (email ?? 'User'));
 
   static Profile fromJson(Map<String, dynamic> json) {
     return Profile(
@@ -54,16 +57,16 @@ class Profile {
   }
 
   Map<String, dynamic> toJson() => {
-        'id': id,
-        'username': username,
-        'full_name': fullName,
-        'email': email,
-        'phone': phone,
-        'avatar_url': avatarUrl,
-        'birth_date': birthDate?.toIso8601String(),
-        'rating': rating,
-        'rating_count': ratingCount,
-        'created_at': createdAt?.toIso8601String(),
-        'updated_at': updatedAt?.toIso8601String(),
-      };
+    'id': id,
+    'username': username,
+    'full_name': fullName,
+    'email': email,
+    'phone': phone,
+    'avatar_url': avatarUrl,
+    'birth_date': birthDate?.toIso8601String(),
+    'rating': rating,
+    'rating_count': ratingCount,
+    'created_at': createdAt?.toIso8601String(),
+    'updated_at': updatedAt?.toIso8601String(),
+  };
 }

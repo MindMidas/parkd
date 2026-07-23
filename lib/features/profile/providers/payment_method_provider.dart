@@ -3,7 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/models/payment_method_row.dart';
 import 'profile_providers.dart';
 
-// explicit checkout/settings choice: 'null' falls back to default row or first card
+/// Explicit checkout/settings choice; `null` falls back to default row or first card
 class SelectedPaymentMethodIdNotifier extends Notifier<String?> {
   @override
   String? build() => null;
@@ -13,8 +13,8 @@ class SelectedPaymentMethodIdNotifier extends Notifier<String?> {
 
 final selectedPaymentMethodIdProvider =
     NotifierProvider<SelectedPaymentMethodIdNotifier, String?>(
-  SelectedPaymentMethodIdNotifier.new,
-);
+      SelectedPaymentMethodIdNotifier.new,
+    );
 
 final effectiveSelectedPaymentMethodIdProvider = Provider<String?>((ref) {
   final methods = ref.watch(paymentMethodsForCurrentUserProvider);

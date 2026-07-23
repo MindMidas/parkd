@@ -3,7 +3,7 @@ import '../../../../../core/theme/app_spacing.dart';
 import '../../../../../core/widgets/widgets.dart';
 import '../../../../../core/theme/app_colors.dart';
 
-// Hourly/daily step, also reused as modal from availability editors
+// Hourly/daily step — also reused as modal from availability editors
 class SetPricingScreen extends StatefulWidget {
   const SetPricingScreen({
     super.key,
@@ -36,8 +36,7 @@ class _SetPricingScreenState extends State<SetPricingScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final useStepBar =
-        widget.currentStep != null && widget.totalSteps != null;
+    final useStepBar = widget.currentStep != null && widget.totalSteps != null;
 
     return Scaffold(
       backgroundColor: AppColors.surface,
@@ -47,10 +46,7 @@ class _SetPricingScreenState extends State<SetPricingScreen> {
               currentStep: widget.currentStep!,
               totalSteps: widget.totalSteps!,
             )
-          : const AppTopBar(
-              title: 'Price',
-              showBack: true,
-            ),
+          : const AppTopBar(title: 'Price', showBack: true),
       body: SafeArea(
         bottom: false,
         child: Column(
@@ -85,14 +81,7 @@ class _SetPricingScreenState extends State<SetPricingScreen> {
               ),
             ),
 
-            // Save button
-            Padding(
-              padding: const EdgeInsets.fromLTRB(
-                AppSpacing.lg,
-                AppSpacing.sm,
-                AppSpacing.lg,
-                AppSpacing.md,
-              ),
+            AppStickyFooter(
               child: AppPrimaryButton(
                 label: 'Save',
                 onPressed: () =>

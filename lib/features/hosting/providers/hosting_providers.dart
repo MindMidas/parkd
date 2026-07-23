@@ -16,16 +16,16 @@ final hostEarningsRepositoryProvider = Provider<HostEarningsRepository>((ref) {
 
 final hostEarningsForCurrentUserProvider =
     FutureProvider<List<HostEarningsRow>>((ref) async {
-  final repo = ref.watch(hostEarningsRepositoryProvider);
-  final uid = ref.watch(currentSessionProvider)?.user.id;
-  if (uid == null) return [];
-  return repo.listForHost(uid);
-});
+      final repo = ref.watch(hostEarningsRepositoryProvider);
+      final uid = ref.watch(currentSessionProvider)?.user.id;
+      if (uid == null) return [];
+      return repo.listForHost(uid);
+    });
 
 final hostSucceededTransactionsForCurrentUserProvider =
     FutureProvider<List<HostPaymentTransaction>>((ref) async {
-  final repo = ref.watch(hostEarningsRepositoryProvider);
-  final uid = ref.watch(currentSessionProvider)?.user.id;
-  if (uid == null) return [];
-  return repo.listSucceededTransactionsForHost(uid);
-});
+      final repo = ref.watch(hostEarningsRepositoryProvider);
+      final uid = ref.watch(currentSessionProvider)?.user.id;
+      if (uid == null) return [];
+      return repo.listSucceededTransactionsForHost(uid);
+    });

@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 
+import 'app_map_search_card.dart';
 import 'app_search_field.dart';
-import '../theme/app_colors.dart';
 
-// Shadow card around AppSearchField, parent owns the controller
+/// Solid search chrome for list screens (Manage Listings, bookings, etc.).
 class AppListScreenSearchPanel extends StatelessWidget {
   const AppListScreenSearchPanel({
     super.key,
@@ -18,24 +18,12 @@ class AppListScreenSearchPanel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(12),
-        boxShadow: [
-          BoxShadow(
-            color: AppColors.shadowFloating,
-            blurRadius: 10,
-            offset: const Offset(0, 3),
-          ),
-        ],
-      ),
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(0, 4, 0, 4),
-        child: AppSearchField(
-          controller: controller,
-          hintText: hintText,
-          onChanged: onChanged,
-        ),
+    return AppMapSearchCard(
+      child: AppSearchField(
+        controller: controller,
+        hintText: hintText,
+        onChanged: onChanged,
+        embeddedInChrome: true,
       ),
     );
   }

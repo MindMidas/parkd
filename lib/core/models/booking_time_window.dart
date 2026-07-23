@@ -1,4 +1,4 @@
-// time range when listing is treated as unavailable (ex: a reservation)
+/// A time range when the listing is treated as unavailable (e.g. a reservation)
 class BookingTimeWindow {
   const BookingTimeWindow({required this.start, required this.end});
 

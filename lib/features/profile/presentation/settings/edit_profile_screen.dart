@@ -10,14 +10,12 @@ import '../../../../core/theme/app_typography.dart';
 import '../../../../core/utils/auth_error_messages.dart';
 import '../../../../core/utils/profile_avatar_image_provider.dart';
 import '../../../../core/utils/phone_e164.dart';
-import '../../../../core/utils/scroll_view_bottom_inset.dart';
-import '../../../../core/validation/form_validators.dart';
 import '../../../../core/widgets/widgets.dart';
 import '../../../auth/providers/auth_providers.dart';
 import '../../providers/profile_providers.dart';
 import 'upload_profile_photo_screen.dart';
 
-// edit profile plus email OTP when user changes address
+// Edit profile row + email OTP when you change the address — all the boring fields
 class EditProfileScreen extends ConsumerWidget {
   const EditProfileScreen({super.key});
 
@@ -45,14 +43,13 @@ class EditProfileScreen extends ConsumerWidget {
       loading: () => Scaffold(
         backgroundColor: AppColors.surface,
         appBar: const AppTopBar(title: 'Edit Account', showBack: true),
-        body: const Center(child: CircularProgressIndicator()),
+        body: const AppPageStatus.loading(),
       ),
       error: (_, _) => Scaffold(
         backgroundColor: AppColors.surface,
         appBar: const AppTopBar(title: 'Edit Account', showBack: true),
-        body: const AppMutedBodyCenter(
-          'Could not load your profile.',
-          padding: EdgeInsets.all(AppSpacing.lg),
+        body: const AppPageStatus.error(
+          title: 'Could not load your profile.',
         ),
       ),
       data: (profile) {
@@ -60,7 +57,7 @@ class EditProfileScreen extends ConsumerWidget {
           return Scaffold(
             backgroundColor: AppColors.surface,
             appBar: const AppTopBar(title: 'Edit Profile', showBack: true),
-            body: const AppMutedBodyCenter('No profile found.'),
+            body: const AppPageStatus.empty(title: 'No profile found.'),
           );
         }
         return _EditProfileScaffold(profile: profile);
@@ -75,7 +72,8 @@ class _EditProfileScaffold extends ConsumerStatefulWidget {
   final Profile profile;
 
   @override
-  ConsumerState<_EditProfileScaffold> createState() => _EditProfileScaffoldState();
+  ConsumerState<_EditProfileScaffold> createState() =>
+      _EditProfileScaffoldState();
 }
 
 class _EditProfileScaffoldState extends ConsumerState<_EditProfileScaffold> {
@@ -91,6 +89,7 @@ class _EditProfileScaffoldState extends ConsumerState<_EditProfileScaffold> {
   late String _sessionEmail;
   late String _phoneCountryCode;
 
+  /// Latest E.164-style value from [AppIntlPhoneField] (`+[country][national]`)
   String _phoneE164 = '';
 
   DateTime? _birthDate;
@@ -124,9 +123,7 @@ class _EditProfileScaffoldState extends ConsumerState<_EditProfileScaffold> {
         : '';
     _birthDate = widget.profile.birthDate;
     _birthDateDisplay = TextEditingController(
-      text: _birthDate != null
-          ? DateFormat.yMMMMd().format(_birthDate!)
-          : '',
+      text: _birthDate != null ? DateFormat.yMMMMd().format(_birthDate!) : '',
     );
     _emailOtp = TextEditingController();
 
@@ -153,7 +150,7 @@ class _EditProfileScaffoldState extends ConsumerState<_EditProfileScaffold> {
 
   Future<void> _pickBirthDate() async {
     final now = DateTime.now();
-    final picked = await showDatePicker(
+    final picked = await showAppDatePicker(
       context: context,
       initialDate: _birthDate ?? DateTime(now.year - 25),
       firstDate: DateTime(1900),
@@ -181,14 +178,12 @@ class _EditProfileScaffoldState extends ConsumerState<_EditProfileScaffold> {
       final last = _lastName.text.trim();
       final fullName = last.isEmpty ? first : '$first $last';
 
-      final nationalDigits =
-          _phone.text.replaceAll(RegExp(r'\D'), '');
+      final nationalDigits = _phone.text.replaceAll(RegExp(r'\D'), '');
       final String? phoneE164;
       if (nationalDigits.isEmpty) {
         phoneE164 = null;
       } else {
-        phoneE164 =
-            normalizePhoneToE164(_phoneE164) ?? _phoneE164;
+        phoneE164 = normalizePhoneToE164(_phoneE164) ?? _phoneE164;
       }
 
       final newEmail = _email.text.trim();
@@ -200,7 +195,6 @@ class _EditProfileScaffoldState extends ConsumerState<_EditProfileScaffold> {
         fullName: fullName,
         phoneE164: phoneE164,
         birthDate: _birthDate,
-        email: emailChanged ? null : newEmail,
       );
 
       if (emailChanged) {
@@ -210,12 +204,9 @@ class _EditProfileScaffoldState extends ConsumerState<_EditProfileScaffold> {
           _pendingNewEmail = newEmail;
           _saving = false;
         });
-        messenger.showSnackBar(
-          const SnackBar(
-            content: Text(
-              'We sent a confirmation code to your new email. Enter it below to finish the change.',
-            ),
-          ),
+        AppMessenger.showSuccessFor(
+          messenger,
+          'We sent a confirmation code to your new email. Enter it below to finish the change.',
         );
       } else {
         if (!mounted) return;
@@ -223,18 +214,14 @@ class _EditProfileScaffoldState extends ConsumerState<_EditProfileScaffold> {
           _saving = false;
           _pendingNewEmail = null;
         });
-        messenger.showSnackBar(
-          const SnackBar(content: Text('Profile updated.')),
-        );
+        AppMessenger.showSuccessFor(messenger, 'Profile updated.');
       }
 
       invalidateProfileSurfaces(ref, widget.profile.id);
     } catch (e) {
       if (!mounted) return;
       setState(() => _saving = false);
-      messenger.showSnackBar(
-        SnackBar(content: Text(userFacingAuthMessage(e))),
-      );
+      AppMessenger.showErrorFor(messenger, userFacingAuthMessage(e));
     }
   }
 
@@ -243,18 +230,18 @@ class _EditProfileScaffoldState extends ConsumerState<_EditProfileScaffold> {
     if (pending == null) return;
     final code = _emailOtp.text.trim();
     if (code.length < 6) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Enter the code from your email.')),
+      AppMessenger.showError(
+        context,
+        'Enter the code from your email.',
       );
       return;
     }
     setState(() => _verifyingEmail = true);
     final messenger = ScaffoldMessenger.of(context);
     try {
-      await ref.read(authRepositoryProvider).verifyEmailChangeOtp(
-            email: pending,
-            token: code,
-          );
+      await ref
+          .read(authRepositoryProvider)
+          .verifyEmailChangeOtp(email: pending, token: code);
       if (!mounted) return;
       setState(() {
         _verifyingEmail = false;
@@ -263,15 +250,11 @@ class _EditProfileScaffoldState extends ConsumerState<_EditProfileScaffold> {
       });
       _emailOtp.clear();
       invalidateProfileSurfaces(ref, widget.profile.id);
-      messenger.showSnackBar(
-        const SnackBar(content: Text('Email address confirmed.')),
-      );
+      AppMessenger.showSuccessFor(messenger, 'Email address confirmed.');
     } catch (e) {
       if (!mounted) return;
       setState(() => _verifyingEmail = false);
-      messenger.showSnackBar(
-        SnackBar(content: Text(userFacingAuthMessage(e))),
-      );
+      AppMessenger.showErrorFor(messenger, userFacingAuthMessage(e));
     }
   }
 
@@ -315,17 +298,14 @@ class _EditProfileScaffoldState extends ConsumerState<_EditProfileScaffold> {
                         ? null
                         : () async {
                             await Navigator.of(context).push<void>(
-                              MaterialPageRoute<void>(
+                              AppPageRoute<void>(
                                 builder: (_) => UploadProfilePhotoScreen(
                                   userId: widget.profile.id,
                                 ),
                               ),
                             );
                             if (mounted) {
-                              invalidateProfileSurfaces(
-                                ref,
-                                widget.profile.id,
-                              );
+                              invalidateProfileSurfaces(ref, widget.profile.id);
                             }
                           },
                     child: const SizedBox(
@@ -363,181 +343,187 @@ class _EditProfileScaffoldState extends ConsumerState<_EditProfileScaffold> {
 
   @override
   Widget build(BuildContext context) {
-    final bottomInset = scrollViewBottomInset(context);
-
     return Scaffold(
       backgroundColor: AppColors.surface,
       appBar: const AppTopBar(title: 'Edit Profile', showBack: true),
       body: Form(
         key: _formKey,
-        child: SingleChildScrollView(
-          physics: const BouncingScrollPhysics(
-            parent: AlwaysScrollableScrollPhysics(),
-          ),
-          padding: EdgeInsets.only(bottom: AppSpacing.lg + bottomInset),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              const SizedBox(height: AppSpacing.md),
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
-                child: _buildProfileHeader(),
-              ),
-              const SizedBox(height: AppSpacing.lg),
-              Padding(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: AppSpacing.lg,
-                  vertical: AppSpacing.md,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Expanded(
+              child: SingleChildScrollView(
+                physics: const BouncingScrollPhysics(
+                  parent: AlwaysScrollableScrollPhysics(),
                 ),
-                child: AppTextField(
-                  controller: _firstName,
-                  label: 'First name',
-                  hint: 'Alex',
-                  textCapitalization: TextCapitalization.words,
-                  inputFormatters: [LengthLimitingTextInputFormatter(60)],
-                  validator: FormValidators.firstName,
-                  enabled: !_saving,
-                ),
-              ),
-              Padding(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: AppSpacing.lg,
-                  vertical: AppSpacing.md,
-                ),
-                child: AppTextField(
-                  controller: _lastName,
-                  label: 'Last name',
-                  hint: 'Smith-Jones',
-                  textCapitalization: TextCapitalization.words,
-                  inputFormatters: [LengthLimitingTextInputFormatter(80)],
-                  validator: FormValidators.optionalFamilyName,
-                  enabled: !_saving,
-                ),
-              ),
-              Padding(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: AppSpacing.lg,
-                  vertical: AppSpacing.md,
-                ),
+                padding: const EdgeInsets.only(bottom: AppSpacing.lg),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    AppTextField(
-                      controller: _email,
-                      label: 'Email address',
-                      hint: 'you@example.com',
-                      keyboardType: TextInputType.emailAddress,
-                      autocorrect: false,
-                      validator: FormValidators.email,
-                      enabled: !_saving,
+                    const SizedBox(height: AppSpacing.md),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: AppSpacing.lg,
+                      ),
+                      child: _buildProfileHeader(),
                     ),
-                    const SizedBox(height: AppSpacing.xs),
-                    Text(
-                      'If you change your email, we will send a confirmation code to the new address. Your sign-in email updates only after you enter that code.',
-                      style: AppTypography.caption.copyWith(
-                        color: AppColors.textSecondary,
+                    const SizedBox(height: AppSpacing.lg),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: AppSpacing.lg,
+                        vertical: AppSpacing.md,
+                      ),
+                      child: AppTextField(
+                        controller: _firstName,
+                        label: 'First name',
+                        hint: 'Alex',
+                        textCapitalization: TextCapitalization.words,
+                        inputFormatters: [LengthLimitingTextInputFormatter(60)],
+                        validator: FormValidators.firstName,
+                        enabled: !_saving,
                       ),
                     ),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: AppSpacing.lg,
+                        vertical: AppSpacing.md,
+                      ),
+                      child: AppTextField(
+                        controller: _lastName,
+                        label: 'Last name',
+                        hint: 'Smith-Jones',
+                        textCapitalization: TextCapitalization.words,
+                        inputFormatters: [LengthLimitingTextInputFormatter(80)],
+                        validator: FormValidators.optionalFamilyName,
+                        enabled: !_saving,
+                      ),
+                    ),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: AppSpacing.lg,
+                        vertical: AppSpacing.md,
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          AppTextField(
+                            controller: _email,
+                            label: 'Email address',
+                            hint: 'you@example.com',
+                            keyboardType: TextInputType.emailAddress,
+                            autocorrect: false,
+                            validator: FormValidators.email,
+                            enabled: !_saving,
+                          ),
+                          const SizedBox(height: AppSpacing.xs),
+                          Text(
+                            'If you change your email, we will send a confirmation code to the new address. Your sign-in email updates only after you enter that code.',
+                            style: AppTypography.caption.copyWith(
+                              color: AppColors.textSecondary,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: AppSpacing.lg,
+                        vertical: AppSpacing.md,
+                      ),
+                      child: AppIntlPhoneField(
+                        controller: _phone,
+                        enabled: !_saving,
+                        initialCountryCode: _phoneCountryCode,
+                        phoneRequired: false,
+                        labelText: 'Phone number (optional)',
+                        autovalidateMode: AutovalidateMode.onUserInteraction,
+                        onPhoneChanged: (phone) {
+                          setState(() {
+                            _phoneE164 = phone.completeNumber;
+                          });
+                        },
+                      ),
+                    ),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: AppSpacing.lg,
+                        vertical: AppSpacing.md,
+                      ),
+                      child: AppTextField(
+                        readOnly: true,
+                        onTap: _saving ? null : _pickBirthDate,
+                        controller: _birthDateDisplay,
+                        label: 'Date of birth',
+                        hint: 'Select date',
+                        suffixIcon: const Icon(
+                          Icons.calendar_today_outlined,
+                          size: 20,
+                          color: AppColors.iconGrey,
+                        ),
+                        enabled: !_saving,
+                      ),
+                    ),
+                    if (_pendingNewEmail != null) ...[
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(
+                          AppSpacing.lg,
+                          AppSpacing.md,
+                          AppSpacing.lg,
+                          AppSpacing.sm,
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            Text(
+                              'Confirm new email',
+                              style: AppTypography.hubTitle,
+                            ),
+                            const SizedBox(height: AppSpacing.xs),
+                            Text(
+                              'Code sent to $_pendingNewEmail',
+                              style: AppTypography.caption.copyWith(
+                                color: AppColors.textSecondary,
+                              ),
+                            ),
+                            const SizedBox(height: AppSpacing.md),
+                            TextFormField(
+                              controller: _emailOtp,
+                              keyboardType: TextInputType.number,
+                              inputFormatters: [
+                                FilteringTextInputFormatter.digitsOnly,
+                                LengthLimitingTextInputFormatter(10),
+                              ],
+                              decoration: const InputDecoration(
+                                labelText: 'Confirmation code',
+                              ),
+                              onTapOutside: (_) {
+                                FocusManager.instance.primaryFocus?.unfocus();
+                              },
+                            ),
+                            const SizedBox(height: AppSpacing.md),
+                            AppPrimaryButton(
+                              label: 'Verify email',
+                              onPressed: _verifyingEmail
+                                  ? null
+                                  : _verifyEmailChange,
+                              loading: _verifyingEmail,
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
                   ],
                 ),
               ),
-              Padding(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: AppSpacing.lg,
-                  vertical: AppSpacing.md,
-                ),
-                child: AppIntlPhoneField(
-                  controller: _phone,
-                  enabled: !_saving,
-                  initialCountryCode: _phoneCountryCode,
-                  phoneRequired: false,
-                  labelText: 'Phone number (optional)',
-                  autovalidateMode: AutovalidateMode.onUserInteraction,
-                  onPhoneChanged: (phone) {
-                    setState(() {
-                      _phoneE164 = phone.completeNumber;
-                    });
-                  },
-                ),
+            ),
+            AppStickyFooter(
+              child: AppPrimaryButton(
+                label: 'Save changes',
+                onPressed: _saving ? null : _save,
+                loading: _saving,
               ),
-              Padding(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: AppSpacing.lg,
-                  vertical: AppSpacing.md,
-                ),
-                child: AppTextField(
-                  readOnly: true,
-                  onTap: _saving ? null : _pickBirthDate,
-                  controller: _birthDateDisplay,
-                  label: 'Date of birth',
-                  hint: 'Select date',
-                  suffixIcon: const Icon(
-                    Icons.calendar_today_outlined,
-                    size: 20,
-                    color: AppColors.iconGrey,
-                  ),
-                  enabled: !_saving,
-                ),
-              ),
-              if (_pendingNewEmail != null) ...[
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(
-                    AppSpacing.lg,
-                    AppSpacing.md,
-                    AppSpacing.lg,
-                    AppSpacing.sm,
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      Text(
-                        'Confirm new email',
-                        style: AppTypography.hubTitle,
-                      ),
-                      const SizedBox(height: AppSpacing.xs),
-                      Text(
-                        'Code sent to $_pendingNewEmail',
-                        style: AppTypography.caption.copyWith(
-                          color: AppColors.textSecondary,
-                        ),
-                      ),
-                      const SizedBox(height: AppSpacing.md),
-                      AppTextField(
-                        controller: _emailOtp,
-                        label: 'Confirmation code',
-                        keyboardType: TextInputType.number,
-                        inputFormatters: [
-                          FilteringTextInputFormatter.digitsOnly,
-                          LengthLimitingTextInputFormatter(10),
-                        ],
-                      ),
-                      const SizedBox(height: AppSpacing.md),
-                      AppPrimaryButton(
-                        label: 'Verify email',
-                        onPressed:
-                            _verifyingEmail ? null : _verifyEmailChange,
-                        loading: _verifyingEmail,
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-              SizedBox(height: AppSpacing.xl),
-              Padding(
-                padding: EdgeInsets.fromLTRB(
-                  AppSpacing.lg,
-                  0,
-                  AppSpacing.lg,
-                  AppSpacing.lg + bottomInset,
-                ),
-                child: AppPrimaryButton(
-                  label: 'Save changes',
-                  onPressed: _saving ? null : _save,
-                  loading: _saving,
-                ),
-              ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );

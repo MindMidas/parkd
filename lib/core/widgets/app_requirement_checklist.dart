@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_typography.dart';
 
-// password rule line (icon + label)
+// Password rule line (icon + label)
 class AppRequirementCheckRow extends StatelessWidget {
   const AppRequirementCheckRow({
     super.key,
@@ -16,6 +16,7 @@ class AppRequirementCheckRow extends StatelessWidget {
   final String label;
   final RequirementRowState state;
 
+  // Custom left icon instead of default state icon
   final Widget? leading;
   final Widget? trailing;
 
@@ -32,20 +33,20 @@ class AppRequirementCheckRow extends StatelessWidget {
 
     final icon = switch (state) {
       RequirementRowState.met => const Icon(
-          Icons.check_circle_rounded,
-          size: 18,
-          color: AppColors.success,
-        ),
+        Icons.check_circle_rounded,
+        size: 18,
+        color: AppColors.success,
+      ),
       RequirementRowState.unmet => const Icon(
-          Icons.cancel_rounded,
-          size: 18,
-          color: AppColors.error,
-        ),
+        Icons.cancel_rounded,
+        size: 18,
+        color: AppColors.error,
+      ),
       RequirementRowState.neutral => Icon(
-          Icons.circle_outlined,
-          size: 18,
-          color: AppColors.textSecondary.withValues(alpha: 0.55),
-        ),
+        Icons.circle_outlined,
+        size: 18,
+        color: AppColors.textSecondary.withValues(alpha: 0.55),
+      ),
     };
 
     final lead = leading ?? icon;
@@ -58,14 +59,9 @@ class AppRequirementCheckRow extends StatelessWidget {
           SizedBox(
             width: 22,
             height: 18,
-            child: Align(
-              alignment: Alignment.centerLeft,
-              child: lead,
-            ),
+            child: Align(alignment: Alignment.centerLeft, child: lead),
           ),
-          Expanded(
-            child: Text(label, style: textStyle),
-          ),
+          Expanded(child: Text(label, style: textStyle)),
           ?trailing,
         ],
       ),
