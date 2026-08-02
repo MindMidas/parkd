@@ -244,7 +244,7 @@ export function errorResponse(
 ): Response {
   const httpError = error instanceof HttpError
     ? error
-    : new HttpError(500, "internal_error", "The payment service could not complete the request.");
+    : mapUnknownPaymentError(error);
 
   safeLog(httpError.status >= 500 ? "error" : "warn", "request_failed", {
     request_id: requestId,
@@ -262,6 +262,95 @@ export function errorResponse(
     httpError.status,
     requestId,
   );
+}
+
+/** Prefer actionable Stripe messages over a generic 500 when possible. */
+export function mapUnknownPaymentError(error: unknown): HttpError {
+  const message = stripeLikeMessage(error);
+  const code = stripeLikeCode(error);
+  const lower = message.toLowerCase();
+
+  if (
+    lower.includes("signed up for connect") ||
+    lower.includes("responsible for negative balances") ||
+    (lower.includes("connect") && lower.includes("not been set up")) ||
+    code === "platform_account_required"
+  ) {
+    return new HttpError(
+      503,
+      "connect_not_enabled",
+      "Stripe Connect is not enabled for this Stripe account yet. In the Stripe Dashboard (test mode), open Connect settings, complete platform setup, then try Set up payouts again.",
+      { stripe_message: message.slice(0, 240), stripe_code: code },
+    );
+  }
+
+  if (
+    lower.includes("overlap_reservation") ||
+    lower.includes("reservations_no_checkout_overlap") ||
+    code === "23P01"
+  ) {
+    return new HttpError(
+      409,
+      "overlap_reservation",
+      "That time overlaps another booking for this spot. Pick a free time and try again.",
+      { stripe_message: message.slice(0, 240), stripe_code: code },
+    );
+  }
+
+  if (
+    lower.includes("account links") &&
+    (lower.includes("invalid") || lower.includes("url"))
+  ) {
+    return new HttpError(
+      502,
+      "connect_return_url",
+      "Payout setup could not open Stripe onboarding. Check STRIPE_CONNECT_RETURN_URL / REFRESH_URL secrets.",
+      { stripe_message: message.slice(0, 240), stripe_code: code },
+    );
+  }
+
+  if (message) {
+    return new HttpError(
+      502,
+      "payment_provider_error",
+      "The payment service could not complete the request. Try again.",
+      { stripe_message: message.slice(0, 240), stripe_code: code },
+    );
+  }
+
+  return new HttpError(
+    500,
+    "internal_error",
+    "The payment service could not complete the request.",
+    {
+      cause: error instanceof Error ? error.name : typeof error,
+    },
+  );
+}
+
+function stripeLikeMessage(error: unknown): string {
+  if (error instanceof Error && error.message.trim()) return error.message.trim();
+  if (error && typeof error === "object") {
+    const raw = (error as { raw?: { message?: unknown } }).raw;
+    if (typeof raw?.message === "string" && raw.message.trim()) {
+      return raw.message.trim();
+    }
+    const msg = (error as { message?: unknown }).message;
+    if (typeof msg === "string" && msg.trim()) return msg.trim();
+  }
+  return "";
+}
+
+function stripeLikeCode(error: unknown): string | null {
+  if (!error || typeof error !== "object") return null;
+  const code = (error as { code?: unknown }).code;
+  if (typeof code === "string" && code.trim()) return code.trim();
+  // PostgREST / supabase-js often nests Postgres codes under `details` or `hint`.
+  const details = (error as { details?: unknown }).details;
+  if (typeof details === "string" && /^[0-9A-Z]{5}$/.test(details.trim())) {
+    return details.trim();
+  }
+  return null;
 }
 
 export function safeLog(

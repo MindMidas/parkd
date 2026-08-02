@@ -6,11 +6,10 @@ import '../theme/app_radius.dart';
 import '../theme/app_spacing.dart';
 import '../theme/app_typography.dart';
 import '../utils/app_feedback.dart';
-import '../utils/display_formatting.dart';
 import 'app_divider.dart';
 import 'app_notification_badge.dart';
 
-/// Sole settings / hub navigation row API.
+// Sole settings / hub navigation row API.
 class AppNavTile extends StatelessWidget {
   const AppNavTile({
     super.key,
@@ -63,7 +62,7 @@ class AppNavTile extends StatelessWidget {
                 )
               : null,
           title: Text(
-            formatTitleCaseWords(label),
+            label,
             style: AppTypography.bodyStrong,
           ),
           subtitle: subtitle != null
@@ -72,19 +71,21 @@ class AppNavTile extends StatelessWidget {
                   child: Text(subtitle!, style: AppTypography.caption),
                 )
               : null,
-          trailing: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              if (badgeCount > 0) ...[
-                AppNotificationBadge(count: badgeCount, compact: true),
-                const SizedBox(width: AppSpacing.xs),
+          trailing: UnconstrainedBox(
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (badgeCount > 0) ...[
+                  AppNotificationBadge(count: badgeCount, compact: true),
+                  const SizedBox(width: AppSpacing.xs),
+                ],
+                const Icon(
+                  Icons.keyboard_arrow_right_rounded,
+                  size: 22,
+                  color: AppColors.iconGrey,
+                ),
               ],
-              const Icon(
-                Icons.keyboard_arrow_right_rounded,
-                size: 22,
-                color: AppColors.iconGrey,
-              ),
-            ],
+            ),
           ),
           onTap: onTap == null
               ? null

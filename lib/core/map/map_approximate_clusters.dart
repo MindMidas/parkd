@@ -1,8 +1,6 @@
 import '../models/listing.dart';
 import 'map_geo.dart';
 
-/// Groups approximate public listings that share the same privacy grid cell.
-/// Exact (unlocked) listings are omitted — they render as individual pins.
 Map<String, List<Listing>> clusterApproximateListingsByCell(
   Iterable<Listing> listings,
 ) {

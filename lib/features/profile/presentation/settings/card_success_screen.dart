@@ -22,7 +22,6 @@ class CardSuccessScreen extends StatelessWidget {
           title: 'Success',
           message: message,
           buttonLabel: 'Close',
-          primaryButtonIcon: Icons.close_rounded,
           markSize: 64,
           gapAfterMark: AppSpacing.md,
           titleStyle: AppTypography.navTitle,

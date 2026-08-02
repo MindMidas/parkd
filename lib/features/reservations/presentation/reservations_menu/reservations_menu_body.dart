@@ -29,7 +29,7 @@ class ReservationsMenuBody extends ConsumerWidget {
           children: [
             AppNavTile(
               icon: Icons.directions_car_outlined,
-              label: 'Active Reservations',
+              label: 'Active reservations',
               subtitle: 'Upcoming and in progress',
               badgeCount: unread,
               showDividerAbove: true,
@@ -43,7 +43,7 @@ class ReservationsMenuBody extends ConsumerWidget {
             ),
             AppNavTile(
               icon: Icons.history_rounded,
-              label: 'Past Reservations',
+              label: 'Past reservations',
               subtitle: 'Completed trips',
               showDividerAbove: true,
               showDividerBelow: true,

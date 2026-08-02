@@ -6,7 +6,7 @@ import '../../../core/theme/app_spacing.dart';
 import '../../../core/theme/app_typography.dart';
 import '../../../core/widgets/widgets.dart';
 
-/// Picker when an approximate map area contains more than one listing.
+// Picker when an approximate map area contains more than one listing.
 Future<Listing?> showApproximateAreaListingsSheet(
   BuildContext context, {
   required List<Listing> listings,

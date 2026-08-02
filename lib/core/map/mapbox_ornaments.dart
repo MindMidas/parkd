@@ -2,7 +2,6 @@ import 'package:mapbox_maps_flutter/mapbox_maps_flutter.dart';
 
 import 'map_constants.dart';
 
-/// hide scale/logo/attribution; compass via [applyParkdMapCompass] — follow Mapbox ToS for attribution
 Future<void> hideDefaultMapboxOrnaments(MapboxMap mapboxMap) async {
   await mapboxMap.scaleBar.updateSettings(ScaleBarSettings(enabled: false));
   await mapboxMap.logo.updateSettings(LogoSettings(enabled: false));
@@ -11,8 +10,6 @@ Future<void> hideDefaultMapboxOrnaments(MapboxMap mapboxMap) async {
   );
 }
 
-/// Compass in the bottom-right; [marginBottom] should clear any Flutter controls
-/// (e.g. re-center FAB) above it. Stays visible when north-up (`fadeWhenFacingNorth: false`)
 Future<void> applyParkdMapCompass(
   MapboxMap mapboxMap, {
   double marginBottom = 16,
@@ -30,7 +27,7 @@ Future<void> applyParkdMapCompass(
   );
 }
 
-/// turn off stock POI/transit/airport symbol layers so app pins read cleaner
+// turn off stock POI/transit/airport symbol layers so app pins read cleaner
 Future<void> hideStreetStylePoiLayers(MapboxMap mapboxMap) async {
   final style = mapboxMap.style;
   try {

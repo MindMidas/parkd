@@ -5,7 +5,7 @@ import '../theme/app_motion.dart';
 import '../theme/app_radius.dart';
 import '../utils/app_feedback.dart';
 
-/// Solid elevated shell for map/list search — quiet focus ring, always opaque.
+// Solid elevated shell for map/list search — quiet focus ring, always opaque.
 class AppMapSearchCard extends StatefulWidget {
   const AppMapSearchCard({super.key, required this.child});
 

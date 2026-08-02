@@ -1,10 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:mapbox_maps_flutter/mapbox_maps_flutter.dart';
 
-/// Whether Parkd can use Mapbox's native platform view on this platform.
-///
-/// `mapbox_maps_flutter` supports Android and iOS. Web and desktop builds use
-/// Parkd's responsive, non-interactive map fallback instead.
+// native Mapbox only on Android / iOS
 bool get supportsNativeMapboxMaps =>
     supportsNativeMapboxMapsFor(isWeb: kIsWeb, platform: defaultTargetPlatform);
 
@@ -17,10 +14,7 @@ bool supportsNativeMapboxMapsFor({
   return platform == TargetPlatform.android || platform == TargetPlatform.iOS;
 }
 
-/// Configures Mapbox only when the current runtime supports its native view.
-///
-/// Keeping [tokenProvider] lazy is important: web and desktop builds do
-/// not require a Mapbox token and never call [MapboxOptions.setAccessToken].
+// lazy token — skip on web/desktop
 bool initializeNativeMapbox({
   required String Function() tokenProvider,
   @visibleForTesting void Function(String token)? accessTokenSetter,

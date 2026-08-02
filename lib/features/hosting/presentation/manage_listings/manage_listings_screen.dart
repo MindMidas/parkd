@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../core/map/listing_next_available.dart';
 import '../../../../core/models/listing.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_spacing.dart';
@@ -36,7 +37,16 @@ class _ManageListingsScreenState extends ConsumerState<ManageListingsScreen> {
   }
 
   List<Listing> _filtered(List<Listing> listings) {
-    return listings.where((l) => listingMatchesSearchQuery(l, _query)).toList();
+    final filtered =
+        listings.where((l) => listingMatchesSearchQuery(l, _query)).toList();
+    // Keep live listings first; expired date-specific ones sink to the bottom.
+    filtered.sort((a, b) {
+      final aExpired = listingIsExpiredSpecific(a);
+      final bExpired = listingIsExpiredSpecific(b);
+      if (aExpired != bExpired) return aExpired ? 1 : -1;
+      return 0;
+    });
+    return filtered;
   }
 
   @override
@@ -44,7 +54,7 @@ class _ManageListingsScreenState extends ConsumerState<ManageListingsScreen> {
     final listingsAsync = ref.watch(myListingsForCurrentUserProvider);
     return Scaffold(
       backgroundColor: AppColors.surface,
-      appBar: const AppTopBar(title: 'Manage Listings', showBack: true),
+      appBar: const AppTopBar(title: 'Manage listings', showBack: true),
       body: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
@@ -125,6 +135,18 @@ class _ManageListingRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final hero = listing.heroPhotoUrl;
+    final expired = listingIsExpiredSpecific(listing);
+    final spot = listing.spotLabel;
+    final String? tertiary;
+    final Color? tertiaryColor;
+    if (expired) {
+      tertiary = spot == null ? 'Expired' : 'Expired, $spot';
+      tertiaryColor = AppColors.error;
+    } else {
+      tertiary = spot;
+      tertiaryColor = null;
+    }
+
     return AppMenuRow(
       leadingType: AppMenuLeadingType.parking,
       leadingImageProvider: hero != null && hero.isNotEmpty
@@ -132,7 +154,8 @@ class _ManageListingRow extends StatelessWidget {
           : null,
       title: listing.addressLine,
       subtitle: listing.localityLine.isNotEmpty ? listing.localityLine : null,
-      tertiary: listing.spotLabel,
+      tertiary: tertiary,
+      tertiaryColor: tertiaryColor,
       rightKind: AppMenuRightKind.icon,
       rightIcon: Icons.edit_outlined,
       onTap: onEdit,

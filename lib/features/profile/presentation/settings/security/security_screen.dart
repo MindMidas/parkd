@@ -25,6 +25,7 @@ class _SecuritySettingsScreenState
     extends ConsumerState<SecuritySettingsScreen> {
   bool _loadingFactors = true;
   String? _factorsError;
+  String? _actionError;
   String? _enrollFactorId;
   bool _enrolling = false;
 
@@ -68,7 +69,7 @@ class _SecuritySettingsScreenState
     setState(clear);
   }
 
-  /// Drops the in-progress TOTP factor on the server (if any), then clears UI
+  // Drops the in-progress TOTP factor on the server (if any), then clears UI
   Future<void> _cancelEnroll() async {
     final factorId = _enrollFactorId;
     _resetEnrollUi();
@@ -165,9 +166,9 @@ class _SecuritySettingsScreenState
       await _refreshFactors();
     } on Exception catch (e) {
       if (!mounted) return;
-      AppMessenger.showError(context, userFacingAuthMessage(e));
       setState(() {
         _verifying = false;
+        _actionError = userFacingAuthMessage(e);
       });
     }
     if (mounted) {
@@ -213,17 +214,30 @@ class _SecuritySettingsScreenState
       if (!mounted) return;
       setState(() {
         _unenrolling = false;
+        _actionError = userFacingAuthMessage(e);
       });
-      AppMessenger.showError(context, userFacingAuthMessage(e));
     }
   }
 
   Widget _buildTwoStepBody(BuildContext context, bool hasTotp) {
     if (_loadingFactors) {
-      return const Center(child: CircularProgressIndicator());
+      return const AppPageStatus.loading();
     }
     if (_factorsError != null) {
-      return Text(_factorsError!, style: AppTypography.bodyDanger);
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          AppInlineError(
+            message: _factorsError!,
+            onDismiss: () => setState(() => _factorsError = null),
+          ),
+          const SizedBox(height: AppSpacing.md),
+          AppSecondaryButton(
+            label: 'Try again',
+            onPressed: _refreshFactors,
+          ),
+        ],
+      );
     }
     if (hasTotp) {
       return Column(
@@ -232,11 +246,22 @@ class _SecuritySettingsScreenState
           const AppFormHelperText(
             'Authenticator app enabled for your account.',
           ),
+          if (_actionError != null) ...[
+            const SizedBox(height: AppSpacing.md),
+            AppInlineError(
+              message: _actionError!,
+              onDismiss: () => setState(() => _actionError = null),
+            ),
+          ],
           const SizedBox(height: AppSpacing.lg),
           AppPrimaryButton(
             label: 'Disable 2FA',
-            icon: Icons.lock_reset_rounded,
-            onPressed: _unenrolling ? null : _disableTotp,
+            onPressed: _unenrolling
+                ? null
+                : () {
+                    setState(() => _actionError = null);
+                    _disableTotp();
+                  },
             applyTitleCase: false,
           ),
         ],
@@ -250,7 +275,6 @@ class _SecuritySettingsScreenState
         if (_qrDataUri == null)
           AppPrimaryButton(
             label: 'Set up authenticator',
-            icon: Icons.qr_code_rounded,
             onPressed: _enrolling ? null : _startEnrollTotp,
           )
         else ...[
@@ -295,18 +319,16 @@ class _SecuritySettingsScreenState
           const SizedBox(height: AppSpacing.lg),
           const AppDivider(),
           const SizedBox(height: AppSpacing.md),
-          TextFormField(
+          AppTextField(
+            label: 'Authenticator code',
             controller: _codeController,
             keyboardType: TextInputType.number,
             inputFormatters: [
               FilteringTextInputFormatter.digitsOnly,
               LengthLimitingTextInputFormatter(6),
             ],
-            decoration: const InputDecoration(labelText: 'Authenticator code'),
             validator: FormValidators.totpCode,
-            onTapOutside: (_) {
-              FocusManager.instance.primaryFocus?.unfocus();
-            },
+            autocorrect: false,
           ),
         ],
       ],
@@ -351,10 +373,24 @@ class _SecuritySettingsScreenState
             if (showEnrollFooter)
               AppStickyFooter(
                 child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  mainAxisSize: MainAxisSize.min,
                   children: [
+                    if (_actionError != null) ...[
+                      AppInlineError(
+                        message: _actionError!,
+                        onDismiss: () => setState(() => _actionError = null),
+                      ),
+                      const SizedBox(height: AppSpacing.sm),
+                    ],
                     AppPrimaryButton(
                       label: 'Verify & enable',
-                      onPressed: _verifying ? null : _verifyEnroll,
+                      onPressed: _verifying
+                          ? null
+                          : () {
+                              setState(() => _actionError = null);
+                              _verifyEnroll();
+                            },
                       loading: _verifying,
                       applyTitleCase: false,
                     ),

@@ -2,7 +2,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'auth_error_messages.dart';
 
-/// Short user-facing copy for list/load failures (and auth when applicable).
+// Short user-facing copy for list/load failures (and auth when applicable).
 String userFacingErrorMessage(Object error) {
   if (error is AuthException || error is AuthWeakPasswordException) {
     return userFacingAuthMessage(error);

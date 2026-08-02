@@ -45,7 +45,7 @@ class _PastBookingsScreenState extends ConsumerState<PastBookingsScreen> {
 
     return Scaffold(
       backgroundColor: AppColors.surface,
-      appBar: const AppTopBar(title: 'Past Bookings', showBack: true),
+      appBar: const AppTopBar(title: 'Past bookings', showBack: true),
       body: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [

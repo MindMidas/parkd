@@ -1,7 +1,5 @@
 import '../utils/time_step_minutes.dart';
 
-/// Mirrors public.availability_weekly. day_of_week: 0 = Sunday … 6 = Saturday
-/// Schema: supabase/schema.sql
 class AvailabilityWeekly {
   const AvailabilityWeekly({
     required this.id,
@@ -35,7 +33,7 @@ class AvailabilityWeekly {
 
   String get dayLabel => _dayNames[dayOfWeek.clamp(0, 6)];
 
-  /// For UI: "9:15 AM – 1:00 PM" (DB stores "HH:mm"; drafts may already be AM/PM)
+  // For UI: "9:15 AM – 1:00 PM" (DB stores "HH:mm"; drafts may already be AM/PM)
   String get timeRangeDisplay =>
       '${TimeStepMinutes.formatHhMmOrAmPmToDisplay(startTime)} – '
       '${TimeStepMinutes.formatHhMmOrAmPmToDisplay(endTime)}';

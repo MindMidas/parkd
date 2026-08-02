@@ -25,7 +25,7 @@ class AllCardsScreen extends ConsumerWidget {
 
     return Scaffold(
       backgroundColor: AppColors.surface,
-      appBar: const AppTopBar(title: 'All Cards', showBack: true),
+      appBar: const AppTopBar(title: 'All cards', showBack: true),
       body: AppAsyncBody(
         value: methodsAsync,
         errorTitle: 'Could not load cards.',
@@ -108,7 +108,6 @@ class AllCardsScreen extends ConsumerWidget {
       bottomNavigationBar: AppStickyFooter(
         child: AppPrimaryButton(
           label: 'Add card',
-          icon: Icons.add_rounded,
           onPressed: () {
             Navigator.of(context).push<void>(
               AppPageRoute<void>(

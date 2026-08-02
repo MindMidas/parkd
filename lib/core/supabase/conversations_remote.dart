@@ -3,7 +3,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/chat_message_row.dart';
 import '../models/conversation_row.dart';
 
-/// conversations + messages — participants set by trigger on insert
+// conversations + messages — participants set by trigger on insert
 class ConversationsRemote {
   ConversationsRemote(this._client);
 
@@ -54,7 +54,7 @@ class ConversationsRemote {
         .toList();
   }
 
-  /// Latest message text per conversation (one query)
+  // Latest message text per conversation (one query)
   Future<Map<String, String>> lastMessagePreviewByConversationId(
     Iterable<String> conversationIds,
   ) async {
@@ -95,14 +95,18 @@ class ConversationsRemote {
         .stream(primaryKey: ['id'])
         .eq('conversation_id', conversationId)
         .order('created_at', ascending: true)
-        .map(
-          (rows) => rows
-              .map(
-                (row) =>
-                    ChatMessageRow.fromJson(Map<String, dynamic>.from(row)),
-              )
-              .toList(growable: false),
-        );
+        .map((rows) {
+          // The realtime cache can hold the same row twice when a snapshot
+          // refetch overlaps an insert event, so key by id and keep order
+          final byId = <String, ChatMessageRow>{};
+          for (final row in rows) {
+            final message = ChatMessageRow.fromJson(
+              Map<String, dynamic>.from(row),
+            );
+            byId[message.id] = message;
+          }
+          return byId.values.toList(growable: false);
+        });
   }
 
   Future<ChatMessageRow> sendMessage({

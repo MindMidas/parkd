@@ -21,6 +21,7 @@ function prepared(overrides: Partial<PreparedCheckout> = {}): PreparedCheckout {
     stripePaymentIntentId: null,
     stripeCheckoutSessionId: null,
     stripePaymentMethodId: null,
+    hostConnectAccountId: null,
     ...overrides,
   };
 }
@@ -139,6 +140,26 @@ Deno.test("mobile checkout sends only trusted RPC amount to Stripe", async () =>
   assertEquals(body.subtotal_cents, 1000);
   assertEquals(body.service_fee_cents, 150);
   assertEquals(body.amount_cents, 1150);
+});
+
+Deno.test("mobile checkout uses Connect destination charge when host is ready", async () => {
+  let fee: number | undefined;
+  let destination: string | undefined;
+  const handler = createPaymentIntentHandler(
+    dependencies({
+      prepareCheckout: async () =>
+        prepared({ hostConnectAccountId: "acct_host_ready_1" }),
+      createPaymentIntent: async (input) => {
+        fee = input.applicationFeeAmount;
+        destination = input.transferDestination;
+        return paymentIntent();
+      },
+    }),
+  );
+  const response = await handler(request({ platform: "mobile" }));
+  assertEquals(response.status, 200);
+  assertEquals(fee, 150);
+  assertEquals(destination, "acct_host_ready_1");
 });
 
 Deno.test("existing payment intent is reused instead of duplicated", async () => {

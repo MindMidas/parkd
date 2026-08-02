@@ -67,6 +67,19 @@ values (
   'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
   '11111111-1111-4111-8111-111111111111/aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa/hero.jpg'
 );
+-- Publish requires terms, media, and availability (Connect optional for publish).
+reset role;
+select set_config('parkd.trusted_write', 'on', true);
+update public.profiles
+set
+  stripe_connect_account_id = 'acct_securitycontract1',
+  stripe_connect_charges_enabled = true,
+  stripe_connect_details_submitted = true
+where id = '11111111-1111-4111-8111-111111111111';
+select set_config('parkd.trusted_write', 'off', true);
+set local role authenticated;
+select set_config('request.jwt.claim.role', 'authenticated', true);
+select set_config('request.jwt.claim.sub', '11111111-1111-4111-8111-111111111111', true);
 update public.listings set terms_accepted = true, terms_accepted_at = now(),
   is_active = true, is_published = true
 where id = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';

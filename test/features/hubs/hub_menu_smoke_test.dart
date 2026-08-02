@@ -21,15 +21,17 @@ void main() {
         ],
         child: MaterialApp(
           theme: AppTheme.light(),
-          home: const Scaffold(body: HostingMenuBody()),
+          home: const Scaffold(
+            body: SingleChildScrollView(child: HostingMenuBody()),
+          ),
         ),
       ),
     );
     await tester.pumpAndSettle();
 
-    expect(find.text('Create Listing'), findsOneWidget);
-    expect(find.text('Manage Listings'), findsOneWidget);
-    expect(find.text('Active Bookings'), findsOneWidget);
+    expect(find.text('Create listing'), findsOneWidget);
+    expect(find.text('Manage listings'), findsOneWidget);
+    expect(find.text('Active bookings'), findsOneWidget);
     expect(find.text('Earnings'), findsOneWidget);
   });
 
@@ -41,14 +43,16 @@ void main() {
         ],
         child: MaterialApp(
           theme: AppTheme.light(),
-          home: const Scaffold(body: ReservationsMenuBody()),
+          home: const Scaffold(
+            body: SingleChildScrollView(child: ReservationsMenuBody()),
+          ),
         ),
       ),
     );
     await tester.pumpAndSettle();
 
-    expect(find.text('Active Reservations'), findsOneWidget);
-    expect(find.text('Past Reservations'), findsOneWidget);
+    expect(find.text('Active reservations'), findsOneWidget);
+    expect(find.text('Past reservations'), findsOneWidget);
   });
 
   testWidgets('account hub shows titles and sign out', (tester) async {
@@ -73,7 +77,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Account'), findsOneWidget);
-    expect(find.text('Personal Information'), findsOneWidget);
-    expect(find.text('Sign Out'), findsOneWidget);
+    expect(find.text('Personal information'), findsOneWidget);
+    expect(find.text('Sign out'), findsOneWidget);
   });
 }

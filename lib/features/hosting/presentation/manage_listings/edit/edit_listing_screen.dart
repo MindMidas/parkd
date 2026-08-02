@@ -7,70 +7,273 @@ import '../../../../../core/models/listing.dart';
 import '../../../../../core/models/listing_photo.dart';
 import '../../../../../core/theme/app_colors.dart';
 import '../../../../../core/theme/app_spacing.dart';
+import '../../../../../core/theme/app_typography.dart';
 import '../../../../../core/widgets/widgets.dart';
 import '../../../../profile/providers/listing_invalidation.dart';
 import '../../../../profile/providers/profile_providers.dart';
 import 'confirmation_success_screen.dart';
-import 'set_availability_dates_screen.dart';
-import 'set_availability_weekly_screen.dart';
+import 'set_availability_chooser_screen.dart';
 import 'upload_listing_photo_screen.dart';
 
 // Hero + edit cards for one listing id from Supabase
-class EditListingScreen extends ConsumerWidget {
+class EditListingScreen extends ConsumerStatefulWidget {
   const EditListingScreen({super.key, required this.listingId});
 
   final String listingId;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<EditListingScreen> createState() => _EditListingScreenState();
+}
+
+class _EditListingScreenState extends ConsumerState<EditListingScreen> {
+  ListingLocationSharing? _pendingLocationSharing;
+  bool _saving = false;
+  String? _actionError;
+  String? _deleteError;
+
+  ListingLocationSharing _selectedSharing(Listing listing) =>
+      _pendingLocationSharing ?? listing.locationSharing;
+
+  bool _isDirty(Listing listing) =>
+      _pendingLocationSharing != null &&
+      _pendingLocationSharing != listing.locationSharing;
+
+  void _onLocationSharingChanged(
+    Listing listing,
+    ListingLocationSharing next,
+  ) {
+    if (_saving || next == _selectedSharing(listing)) return;
+    setState(() {
+      _actionError = null;
+      _pendingLocationSharing =
+          next == listing.locationSharing ? null : next;
+    });
+  }
+
+  Future<void> _save(Listing listing) async {
+    if (_saving || !_isDirty(listing)) return;
+    final next = _pendingLocationSharing!;
+    setState(() {
+      _saving = true;
+      _actionError = null;
+    });
+    try {
+      await ref.read(listingsRepositoryProvider).patchListing(
+            listingId: widget.listingId,
+            locationSharing: next,
+          );
+      invalidateListingSurfaces(ref, widget.listingId);
+      if (!mounted) return;
+      setState(() {
+        _pendingLocationSharing = null;
+        _saving = false;
+      });
+      AppMessenger.showSuccess(
+        context,
+        next.isGeneral
+            ? 'Map shows an approximate area.'
+            : 'Map shows a specific pin.',
+      );
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _saving = false;
+        _actionError = 'Could not save changes. Try again.';
+      });
+    }
+  }
+
+  Future<bool> _confirmDiscardIfNeeded(Listing listing) async {
+    if (!_isDirty(listing)) return true;
+    final discard = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AppConfirmDialog(
+        title: 'Discard changes?',
+        message: 'You have unsaved map sharing changes.',
+        cancelLabel: 'Keep editing',
+        confirmLabel: 'Discard',
+        confirmDestructive: true,
+        onCancel: () => Navigator.of(ctx).pop(false),
+        onConfirm: () => Navigator.of(ctx).pop(true),
+      ),
+    );
+    if (discard == true && mounted) {
+      setState(() {
+        _pendingLocationSharing = null;
+        _actionError = null;
+      });
+      return true;
+    }
+    return false;
+  }
+
+  Future<void> _onBack(Listing listing) async {
+    if (!await _confirmDiscardIfNeeded(listing)) return;
+    if (!mounted) return;
+    Navigator.of(context).maybePop();
+  }
+
+  Future<void> _confirmDeleteListing() async {
+    setState(() => _deleteError = null);
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AppConfirmDialog(
+        title: 'Delete listing',
+        message:
+            'This takes your spot off the map and stops new bookings. Trips that '
+            'already started stay in place until they finish. Listing photos and '
+            'saved availability are removed. This cannot be undone.',
+        cancelLabel: 'Cancel',
+        confirmLabel: 'Delete',
+        confirmDestructive: true,
+        onCancel: () => Navigator.of(ctx).pop(false),
+        onConfirm: () => Navigator.of(ctx).pop(true),
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+
+    try {
+      await ref
+          .read(listingsRepositoryProvider)
+          .deleteListing(widget.listingId);
+      invalidateListingSurfaces(ref, widget.listingId);
+      if (!mounted) return;
+      await Navigator.of(context).push<void>(
+        AppPageRoute<void>(
+          builder: (_) => ConfirmationSuccessScreen(
+            message: 'Listing has been deleted',
+            onClose: () {},
+            popsOnClose: 2,
+          ),
+        ),
+      );
+    } catch (_) {
+      if (!mounted) return;
+      setState(
+        () => _deleteError =
+            'Could not delete this listing. Try again or check your connection.',
+      );
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final listingId = widget.listingId;
     final listingAsync = ref.watch(listingByIdProvider(listingId));
     final photosAsync = ref.watch(listingPhotosProvider(listingId));
     final weeklyAsync = ref.watch(listingAvailabilityWeeklyProvider(listingId));
     final specificAsync = ref.watch(
       listingAvailabilitySpecificProvider(listingId),
     );
-    return Scaffold(
-      backgroundColor: AppColors.surface,
-      appBar: AppTopBar(title: 'Edit Listing', showBack: true),
-      body: listingAsync.when(
-        data: (listing) {
-          if (listing == null) {
-            return const AppPageStatus.empty(
+
+    return listingAsync.when(
+      loading: () => Scaffold(
+        backgroundColor: AppColors.surface,
+        appBar: const AppTopBar(title: 'Edit listing', showBack: true),
+        body: const AppPageStatus.loading(),
+      ),
+      error: (e, st) => Scaffold(
+        backgroundColor: AppColors.surface,
+        appBar: const AppTopBar(title: 'Edit listing', showBack: true),
+        body: const AppPageStatus.error(),
+      ),
+      data: (listing) {
+        if (listing == null) {
+          return Scaffold(
+            backgroundColor: AppColors.surface,
+            appBar: const AppTopBar(title: 'Edit listing', showBack: true),
+            body: const AppPageStatus.empty(
               title: 'Listing not found',
-            );
-          }
-          return SingleChildScrollView(
-            physics: const BouncingScrollPhysics(
-              parent: AlwaysScrollableScrollPhysics(),
             ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
+          );
+        }
+
+        final dirty = _isDirty(listing);
+        return PopScope(
+          canPop: !dirty,
+          onPopInvokedWithResult: (didPop, result) async {
+            if (didPop) return;
+            final nav = Navigator.of(context);
+            if (await _confirmDiscardIfNeeded(listing) && mounted) {
+              nav.pop();
+            }
+          },
+          child: Scaffold(
+            backgroundColor: AppColors.surface,
+            appBar: AppTopBar(
+              title: 'Edit listing',
+              showBack: true,
+              onBack: _saving ? null : () => _onBack(listing),
+            ),
+            body: Column(
               children: [
-                _HeroPhotoSection(
-                  listingId: listingId,
-                  photosAsync: photosAsync,
-                  onEditPhoto: () {
-                    Navigator.of(context).push(
-                      AppPageRoute<void>(
-                        builder: (_) =>
-                            UploadListingPhotoScreen(listingId: listingId),
-                      ),
-                    );
-                  },
+                Expanded(
+                  child: SingleChildScrollView(
+                    physics: const BouncingScrollPhysics(
+                      parent: AlwaysScrollableScrollPhysics(),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        _HeroPhotoSection(
+                          listingId: listingId,
+                          photosAsync: photosAsync,
+                          onEditPhoto: () {
+                            Navigator.of(context).push(
+                              AppPageRoute<void>(
+                                builder: (_) => UploadListingPhotoScreen(
+                                  listingId: listingId,
+                                ),
+                              ),
+                            );
+                          },
+                        ),
+                        _EditListingDetails(
+                          listingId: listingId,
+                          listing: listing,
+                          weeklyAsync: weeklyAsync,
+                          specificAsync: specificAsync,
+                          locationSharing: _selectedSharing(listing),
+                          locationSharingEnabled: !_saving,
+                          onLocationSharingChanged: (next) =>
+                              _onLocationSharingChanged(listing, next),
+                          deleteError: _deleteError,
+                          onDismissDeleteError: () =>
+                              setState(() => _deleteError = null),
+                          onDelete: _confirmDeleteListing,
+                        ),
+                      ],
+                    ),
+                  ),
                 ),
-                _EditListingDetails(
-                  listingId: listingId,
-                  listing: listing,
-                  weeklyAsync: weeklyAsync,
-                  specificAsync: specificAsync,
+                AppStickyFooter(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      if (_actionError != null) ...[
+                        AppInlineError(
+                          message: _actionError!,
+                          onDismiss: () =>
+                              setState(() => _actionError = null),
+                        ),
+                        const SizedBox(height: AppSpacing.sm),
+                      ],
+                      AppPrimaryButton(
+                        label: 'Save changes',
+                        onPressed: dirty && !_saving
+                            ? () => _save(listing)
+                            : null,
+                        loading: _saving,
+                      ),
+                    ],
+                  ),
                 ),
               ],
             ),
-          );
-        },
-        loading: () => const AppPageStatus.loading(),
-        error: (e, st) => const AppPageStatus.error(),
-      ),
+          ),
+        );
+      },
     );
   }
 }
@@ -156,21 +359,33 @@ class _HeroPhotoSection extends StatelessWidget {
   }
 }
 
-class _EditListingDetails extends ConsumerWidget {
+class _EditListingDetails extends StatelessWidget {
   const _EditListingDetails({
     required this.listingId,
     required this.listing,
     required this.weeklyAsync,
     required this.specificAsync,
+    required this.locationSharing,
+    required this.locationSharingEnabled,
+    required this.onLocationSharingChanged,
+    required this.deleteError,
+    required this.onDismissDeleteError,
+    required this.onDelete,
   });
 
   final String listingId;
   final Listing listing;
   final AsyncValue<List<AvailabilityWeekly>> weeklyAsync;
   final AsyncValue<List<AvailabilitySpecific>> specificAsync;
+  final ListingLocationSharing locationSharing;
+  final bool locationSharingEnabled;
+  final ValueChanged<ListingLocationSharing> onLocationSharingChanged;
+  final String? deleteError;
+  final VoidCallback onDismissDeleteError;
+  final VoidCallback onDelete;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  Widget build(BuildContext context) {
     final dateRangeSlots = specificAsync.when(
       data: (list) => list
           .map(
@@ -209,6 +424,8 @@ class _EditListingDetails extends ConsumerWidget {
 
     final showSpecific =
         effectiveAvailabilityMode == ListingAvailabilityMode.specific;
+    final availabilityLoading =
+        weeklyAsync.isLoading || specificAsync.isLoading;
 
     return Padding(
       padding: const EdgeInsets.all(AppSpacing.lg),
@@ -225,22 +442,44 @@ class _EditListingDetails extends ConsumerWidget {
             usePrimaryColorForSecondaryLines: true,
           ),
           const SizedBox(height: AppSpacing.md),
-          AppListingEditAvailabilityCard(
-            dateRangeSlots: showSpecific ? dateRangeSlots : const [],
-            weeklySlots: showSpecific ? const [] : weeklySlots,
-            onEdit: () {
-              Navigator.of(context).push(
-                AppPageRoute<void>(
-                  builder: (_) => showSpecific
-                      ? SetAvailabilityDatesScreen(listingId: listingId)
-                      : SetAvailabilityWeeklyScreen(listingId: listingId),
-                ),
-              );
-            },
+          _LocationSharingCard(
+            locationSharing: locationSharing,
+            enabled: locationSharingEnabled,
+            onChanged: onLocationSharingChanged,
           ),
           const SizedBox(height: AppSpacing.md),
+          if (availabilityLoading)
+            const AppDisplayTitledOutlineCard(
+              title: 'Availability and price',
+              child: Padding(
+                padding: EdgeInsets.symmetric(vertical: AppSpacing.lg),
+                child: AppPageStatus.loading(),
+              ),
+            )
+          else
+            AppListingEditAvailabilityCard(
+              title: 'Availability and price',
+              dateRangeSlots: showSpecific ? dateRangeSlots : const [],
+              weeklySlots: showSpecific ? const [] : weeklySlots,
+              onEdit: () {
+                Navigator.of(context).push(
+                  AppPageRoute<void>(
+                    builder: (_) =>
+                        SetAvailabilityChooserScreen(listingId: listingId),
+                  ),
+                );
+              },
+            ),
+          const SizedBox(height: AppSpacing.md),
+          if (deleteError != null) ...[
+            AppInlineError(
+              message: deleteError!,
+              onDismiss: onDismissDeleteError,
+            ),
+            const SizedBox(height: AppSpacing.sm),
+          ],
           AppListingDeleteCard(
-            onDelete: () => _confirmDeleteListing(context, ref, listingId),
+            onDelete: onDelete,
           ),
           const SizedBox(height: AppSpacing.xl),
         ],
@@ -249,47 +488,57 @@ class _EditListingDetails extends ConsumerWidget {
   }
 }
 
-Future<void> _confirmDeleteListing(
-  BuildContext context,
-  WidgetRef ref,
-  String listingId,
-) async {
-  final confirmed = await showDialog<bool>(
-    context: context,
-    builder: (ctx) => AppConfirmDialog(
-      title: 'Delete listing',
-      message:
-          'This takes your spot off the map and stops new bookings. Trips that '
-          'already started stay in place until they finish. Listing photos and '
-          'saved availability are removed. This cannot be undone.',
-      cancelLabel: 'Cancel',
-      confirmLabel: 'Delete',
-      confirmDestructive: true,
-      onCancel: () => Navigator.of(ctx).pop(false),
-      onConfirm: () => Navigator.of(ctx).pop(true),
-    ),
-  );
-  if (confirmed != true || !context.mounted) return;
+class _LocationSharingCard extends StatelessWidget {
+  const _LocationSharingCard({
+    required this.locationSharing,
+    required this.enabled,
+    required this.onChanged,
+  });
 
-  try {
-    await ref.read(listingsRepositoryProvider).deleteListing(listingId);
-    invalidateListingSurfaces(ref, listingId);
-    if (!context.mounted) return;
-    await Navigator.of(context).push<void>(
-      AppPageRoute<void>(
-        builder: (_) => ConfirmationSuccessScreen(
-          message: 'Listing has been deleted',
-          onClose: () {},
-          popsOnClose: 2,
-        ),
+  final ListingLocationSharing locationSharing;
+  final bool enabled;
+  final ValueChanged<ListingLocationSharing> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return AppDisplayTitledOutlineCard(
+      title: 'Map location sharing',
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Text(
+            'Street address stays private until a reservation is confirmed.',
+            style: AppTypography.caption.copyWith(height: 1.4),
+          ),
+          const SizedBox(height: AppSpacing.sm),
+          AppSegmentControl<ListingLocationSharing>(
+            options: const [
+              AppSegmentOption(
+                value: ListingLocationSharing.general,
+                label: 'General',
+                icon: Icons.blur_circular_rounded,
+              ),
+              AppSegmentOption(
+                value: ListingLocationSharing.specific,
+                label: 'Specific',
+                icon: Icons.location_on_rounded,
+              ),
+            ],
+            selected: locationSharing,
+            onChanged: (next) {
+              if (enabled) onChanged(next);
+            },
+          ),
+          const SizedBox(height: AppSpacing.sm),
+          Text(
+            locationSharing.isGeneral
+                ? 'Show only an approximate area (~2–3 short blocks).'
+                : 'Show a pin on the map. Still hides the street address '
+                    'until booking.',
+            style: AppTypography.caption.copyWith(height: 1.4),
+          ),
+        ],
       ),
     );
-  } catch (_) {
-    if (context.mounted) {
-      AppMessenger.showError(
-        context,
-        'Could not delete this listing. Try again or check your connection.',
-      );
-    }
   }
 }

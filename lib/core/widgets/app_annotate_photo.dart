@@ -117,15 +117,17 @@ class _AppAnnotatePhotoState extends State<AppAnnotatePhoto> {
   }
 }
 
-// Hint under the annotate box
+// Hint under the annotate / photo box
 class AppAnnotatePhotoInstruction extends StatelessWidget {
   const AppAnnotatePhotoInstruction({
     super.key,
     this.text =
         'Place the marker on the parking space. Drivers will park at this exact location.',
+    this.textAlign = TextAlign.start,
   });
 
   final String text;
+  final TextAlign textAlign;
 
   @override
   Widget build(BuildContext context) {
@@ -134,7 +136,7 @@ class AppAnnotatePhotoInstruction extends StatelessWidget {
       child: Text(
         text,
         style: AppTypography.caption.copyWith(color: AppColors.textSecondary),
-        textAlign: TextAlign.center,
+        textAlign: textAlign,
       ),
     );
   }

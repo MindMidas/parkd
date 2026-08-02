@@ -7,7 +7,7 @@ import '../../../core/theme/app_spacing.dart';
 import '../../../core/theme/app_typography.dart';
 import '../../../core/widgets/widgets.dart';
 
-/// Responsive discovery experience used where Mapbox has no native SDK.
+// Responsive discovery experience used where Mapbox has no native SDK.
 class MapPlatformFallback extends StatelessWidget {
   const MapPlatformFallback({
     super.key,

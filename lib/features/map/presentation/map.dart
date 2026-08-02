@@ -52,16 +52,16 @@ class MapView extends StatefulWidget {
   final bool useListingPinForDraft;
   final bool recenterCameraOnDraftPinChange;
 
-  /// Listing currently open in the preview sheet (highlights its price pill).
+  // Listing currently open in the preview sheet (highlights its price pill).
   final String? selectedListingId;
 
-  /// Exact / specific-location listing pins.
+  // Exact / specific-location listing pins.
   final ValueChanged<Listing>? onListingTap;
 
-  /// One approximate privacy cell — may contain many listings.
+  // One approximate privacy cell — may contain many listings.
   final ValueChanged<List<Listing>>? onApproximateAreaTap;
 
-  /// Shaded area + center badge while an approximate listing preview is open.
+  // Shaded area + center badge while an approximate listing preview is open.
   final ({double latitude, double longitude})? approximatePrivacyHalo;
 
   final ValueChanged<MapboxMap>? onMapReady;
@@ -119,8 +119,7 @@ class _MapViewState extends State<MapView> {
   Map<String, List<Listing>> _approximateClusters = {};
   final Map<String, Uint8List> _priceMarkerCache = {};
 
-  /// Stable instance — a new [CameraViewportState] each build makes Mapbox
-  /// re-apply the initial camera (pin drag / setState felt like a snap-back).
+  // Stable instance — a new CameraViewportState each build makes Mapbox
   late final ViewportState _initialViewport = CameraViewportState(
     center: Point(
       coordinates: Position(widget.initialLongitude, widget.initialLatitude),

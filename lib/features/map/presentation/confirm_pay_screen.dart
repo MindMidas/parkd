@@ -101,8 +101,16 @@ class ConfirmPayScreen extends ConsumerWidget {
                             const SizedBox(width: AppSpacing.sm),
                             Expanded(
                               child: Text(
-                                'Enter a Stripe test card on the secure hosted checkout page. '
-                                'Parkd never receives or stores the card number.',
+                                Stripe.publishableKey.trim().startsWith(
+                                      'pk_test_',
+                                    )
+                                    ? 'Enter a Stripe test card on the secure '
+                                          'hosted checkout page. Parkd never '
+                                          'receives or stores the card number.'
+                                    : 'You’ll enter your card on Stripe’s '
+                                          'secure hosted checkout page. Parkd '
+                                          'never receives or stores the card '
+                                          'number.',
                                 style: AppTypography.bodyMuted,
                               ),
                             ),
@@ -125,8 +133,10 @@ class ConfirmPayScreen extends ConsumerWidget {
                             crossAxisAlignment: CrossAxisAlignment.stretch,
                             children: [
                               AppCheckoutPaymentMethodField(
-                                brand: method?.brand ?? 'Add a card',
-                                lastFour: method?.last4 ?? '—',
+                                brand: method == null
+                                    ? 'Add a card'
+                                    : (method.brand ?? 'Card'),
+                                lastFour: method?.last4,
                                 onChangePressed: () {
                                   Navigator.of(context).push<void>(
                                     AppPageRoute<void>(

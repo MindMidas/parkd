@@ -5,14 +5,27 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/notification_row.dart';
 
 class NotificationFeedSnapshot {
-  const NotificationFeedSnapshot({required this.latest, required this.unread});
+  const NotificationFeedSnapshot({
+    required this.latest,
+    required this.unread,
+    this.unreadBookingEventsByReservation = const <String, int>{},
+    this.mutedReservationIds = const <String>{},
+  });
 
   const NotificationFeedSnapshot.empty()
     : latest = const <NotificationRow>[],
-      unread = const NotificationHubCounts.empty();
+      unread = const NotificationHubCounts.empty(),
+      unreadBookingEventsByReservation = const <String, int>{},
+      mutedReservationIds = const <String>{};
 
   final List<NotificationRow> latest;
   final NotificationHubCounts unread;
+
+  // message_received + reservation_confirmed, keyed by reservation. Every row
+  // that drills down to a booking thread badges off this same map so parent and
+  // child counts always agree.
+  final Map<String, int> unreadBookingEventsByReservation;
+  final Set<String> mutedReservationIds;
 }
 
 class NotificationsRemote {
@@ -69,6 +82,34 @@ class NotificationsRemote {
         .eq('is_read', false)
         .eq('type', ParkdNotificationType.reviewReceived.databaseValue)
         .contains('data_json', const {'hub': 'hosting'});
+    final unreadBookingRows = await _client
+        .from('notifications')
+        .select('data_json')
+        .eq('user_id', userId)
+        .eq('is_read', false)
+        .inFilter('type', [
+          ParkdNotificationType.messageReceived.databaseValue,
+          ParkdNotificationType.reservationConfirmed.databaseValue,
+        ]);
+    final unreadBookingEventsByReservation = <String, int>{};
+    for (final row in unreadBookingRows as List) {
+      final map = Map<String, dynamic>.from(row as Map);
+      final data = map['data_json'];
+      if (data is! Map) continue;
+      final reservationId = data['reservation_id'];
+      if (reservationId is! String || reservationId.trim().isEmpty) continue;
+      final id = reservationId.trim();
+      unreadBookingEventsByReservation[id] =
+          (unreadBookingEventsByReservation[id] ?? 0) + 1;
+    }
+    final muteRows = await _client
+        .from('reservation_message_mutes')
+        .select('reservation_id')
+        .eq('user_id', userId);
+    final mutedReservationIds = <String>{
+      for (final row in muteRows as List)
+        if ((row as Map)['reservation_id'] case final String id) id,
+    };
     return NotificationFeedSnapshot(
       latest: latest,
       unread: NotificationHubCounts(
@@ -79,6 +120,8 @@ class NotificationsRemote {
         hostingBookings: (hosting - hostingReviews).clamp(0, hosting),
         hostingReviews: hostingReviews,
       ),
+      unreadBookingEventsByReservation: unreadBookingEventsByReservation,
+      mutedReservationIds: mutedReservationIds,
     );
   }
 
@@ -179,11 +222,33 @@ class NotificationsRemote {
     return result == true;
   }
 
-  Future<int> markMessageNotificationsRead(String reservationId) async {
+  Future<int> markReservationNotificationsRead(String reservationId) async {
     final result = await _client.rpc(
-      'mark_message_notifications_read',
+      'mark_reservation_notifications_read',
       params: {'p_reservation_id': reservationId},
     );
     return (result as num?)?.toInt() ?? 0;
+  }
+
+  Future<bool> markReservationNotificationsUnread(String reservationId) async {
+    final result = await _client.rpc(
+      'mark_reservation_notifications_unread',
+      params: {'p_reservation_id': reservationId},
+    );
+    return result == true;
+  }
+
+  Future<bool> setReservationMessagesMuted({
+    required String reservationId,
+    required bool muted,
+  }) async {
+    final result = await _client.rpc(
+      'set_reservation_messages_muted',
+      params: {
+        'p_reservation_id': reservationId,
+        'p_muted': muted,
+      },
+    );
+    return result == true;
   }
 }

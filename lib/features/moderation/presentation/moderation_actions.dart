@@ -28,6 +28,7 @@ Future<void> showParkdReportDialog({
   var reason = _reportReasons.keys.first;
   final detailsController = TextEditingController();
   var submitting = false;
+  String? submitError;
   try {
     await showDialog<void>(
       context: context,
@@ -80,6 +81,13 @@ Future<void> showParkdReportDialog({
                   ),
                 ),
                 const SizedBox(height: AppSpacing.xl),
+                if (submitError != null) ...[
+                  AppInlineError(
+                    message: submitError!,
+                    onDismiss: () => setDialogState(() => submitError = null),
+                  ),
+                  const SizedBox(height: AppSpacing.md),
+                ],
                 Row(
                   children: [
                     Expanded(
@@ -98,7 +106,10 @@ Future<void> showParkdReportDialog({
                         onPressed: submitting
                             ? null
                             : () async {
-                                setDialogState(() => submitting = true);
+                                setDialogState(() {
+                                  submitting = true;
+                                  submitError = null;
+                                });
                                 try {
                                   await ref
                                       .read(moderationRepositoryProvider)
@@ -118,11 +129,11 @@ Future<void> showParkdReportDialog({
                                   }
                                 } catch (_) {
                                   if (!dialogContext.mounted) return;
-                                  setDialogState(() => submitting = false);
-                                  AppMessenger.showError(
-                                    dialogContext,
-                                    'Could not submit the report. Try again.',
-                                  );
+                                  setDialogState(() {
+                                    submitting = false;
+                                    submitError =
+                                        'Could not submit the report. Try again.';
+                                  });
                                 }
                               },
                       ),
@@ -198,31 +209,86 @@ Future<bool> confirmAndBlockParkdUser({
   required String userId,
   required String displayName,
 }) async {
+  var blocking = false;
+  String? blockError;
   final confirmed = await showDialog<bool>(
     context: context,
-    builder: (dialogContext) => AppConfirmDialog(
-      title: 'Block $displayName?',
-      message:
-          'You will no longer see each other’s public listings or profiles, '
-          'and messaging will stop. You can contact support to reverse this.',
-      confirmLabel: 'Block user',
-      onCancel: () => Navigator.of(dialogContext).pop(false),
-      onConfirm: () => Navigator.of(dialogContext).pop(true),
+    barrierDismissible: !blocking,
+    builder: (dialogContext) => StatefulBuilder(
+      builder: (context, setDialogState) => AppDialogSurface(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Text(
+              'Block $displayName?',
+              style: AppTypography.hubTitle,
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: AppSpacing.md),
+            Text(
+              'You will no longer see each other’s public listings or profiles, '
+              'and messaging will stop. You can contact support to reverse this.',
+              style: AppTypography.bodyMuted,
+            ),
+            if (blockError != null) ...[
+              const SizedBox(height: AppSpacing.md),
+              AppInlineError(
+                message: blockError!,
+                onDismiss: () => setDialogState(() => blockError = null),
+              ),
+            ],
+            const SizedBox(height: AppSpacing.xl),
+            Row(
+              children: [
+                Expanded(
+                  child: AppSecondaryButton(
+                    label: 'Cancel',
+                    onPressed: blocking
+                        ? null
+                        : () => Navigator.of(dialogContext).pop(false),
+                  ),
+                ),
+                const SizedBox(width: AppSpacing.md),
+                Expanded(
+                  child: AppPrimaryButton(
+                    label: 'Block user',
+                    loading: blocking,
+                    onPressed: blocking
+                        ? null
+                        : () async {
+                            setDialogState(() {
+                              blocking = true;
+                              blockError = null;
+                            });
+                            try {
+                              await ref
+                                  .read(moderationRepositoryProvider)
+                                  .setUserBlocked(
+                                    userId: userId,
+                                    blocked: true,
+                                  );
+                              if (!dialogContext.mounted) return;
+                              Navigator.of(dialogContext).pop(true);
+                            } catch (_) {
+                              if (!dialogContext.mounted) return;
+                              setDialogState(() {
+                                blocking = false;
+                                blockError =
+                                    'Could not block this user. Try again.';
+                              });
+                            }
+                          },
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
     ),
   );
   if (confirmed != true || !context.mounted) return false;
-  try {
-    await ref
-        .read(moderationRepositoryProvider)
-        .setUserBlocked(userId: userId, blocked: true);
-    if (context.mounted) {
-      AppMessenger.showSuccess(context, '$displayName has been blocked.');
-    }
-    return true;
-  } catch (_) {
-    if (context.mounted) {
-      AppMessenger.showError(context, 'Could not block this user. Try again.');
-    }
-    return false;
-  }
+  AppMessenger.showSuccess(context, '$displayName has been blocked.');
+  return true;
 }

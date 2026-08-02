@@ -1,4 +1,4 @@
-// Checkout payment row inside the same titled outline card as price breakdown. README.md
+// Checkout payment row inside the same titled outline card as price breakdown.
 import 'package:flutter/material.dart';
 
 import '../theme/app_colors.dart';
@@ -10,19 +10,23 @@ class AppCheckoutPaymentMethodField extends StatelessWidget {
   const AppCheckoutPaymentMethodField({
     super.key,
     required this.brand,
-    required this.lastFour,
+    this.lastFour,
     required this.onChangePressed,
     this.title = 'Payment method',
   });
 
   final String brand;
-  final String lastFour;
+  // When null/empty, only [brand] is shown (e.g. "Add a card").
+  final String? lastFour;
   final VoidCallback onChangePressed;
   final String title;
 
   @override
   Widget build(BuildContext context) {
     final t = title.trim().isEmpty ? 'Payment method' : title.trim();
+    final four = lastFour?.trim() ?? '';
+    final showLastFour = four.isNotEmpty;
+
     return AppDisplayTitledOutlineCard(
       title: t,
       child: Material(
@@ -35,18 +39,26 @@ class AppCheckoutPaymentMethodField extends StatelessWidget {
             child: Row(
               children: [
                 Expanded(
-                  child: Text.rich(
-                    TextSpan(
-                      style: AppTypography.body,
-                      children: [
-                        TextSpan(text: brand, style: AppTypography.bodyStrong),
-                        TextSpan(
-                          text: ' •••• $lastFour',
-                          style: AppTypography.bodyMuted,
+                  child: showLastFour
+                      ? Text.rich(
+                          TextSpan(
+                            style: AppTypography.body,
+                            children: [
+                              TextSpan(
+                                text: brand,
+                                style: AppTypography.bodyStrong,
+                              ),
+                              TextSpan(
+                                text: ' •••• $four',
+                                style: AppTypography.bodyMuted,
+                              ),
+                            ],
+                          ),
+                        )
+                      : Text(
+                          brand,
+                          style: AppTypography.bodyStrong,
                         ),
-                      ],
-                    ),
-                  ),
                 ),
                 Icon(
                   Icons.chevron_right_rounded,

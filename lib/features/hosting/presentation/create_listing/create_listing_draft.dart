@@ -1,7 +1,7 @@
 import '../../../../core/models/listing.dart';
 import '../../../../core/models/search_result.dart';
 
-/// One row in the create-listing specific-date schedule UI
+// One row in the create-listing specific-date schedule UI
 typedef CreateListingSpecificSlot = ({
   DateTime fromDate,
   DateTime toDate,
@@ -11,7 +11,7 @@ typedef CreateListingSpecificSlot = ({
   double? dailyPrice,
 });
 
-/// One row in the create-listing weekly schedule UI
+// One row in the create-listing weekly schedule UI
 typedef CreateListingWeeklySlot = ({
   String day,
   String timeRange,
@@ -21,7 +21,7 @@ typedef CreateListingWeeklySlot = ({
 
 enum CreateListingAvailabilityKind { specific, weekly }
 
-/// In-memory wizard state; committed on [TermsAndConditionsScreen] → publish
+// In-memory wizard state; committed on TermsAndConditionsScreen → publish
 class CreateListingDraft {
   SearchResult? picked;
   double? pinLat;
@@ -31,20 +31,20 @@ class CreateListingDraft {
   double? markerX;
   double? markerY;
 
-  /// Optional label (e.g. stall B2) so multiple spots at one address can coexist in DB
+  // Optional label (e.g. stall B2) so multiple spots at one address can coexist in DB
   String? spotNumber;
 
-  /// Airbnb-style map privacy for drivers before booking.
+  // Airbnb-style map privacy for drivers before booking.
   ListingLocationSharing locationSharing = ListingLocationSharing.general;
 
   CreateListingAvailabilityKind? availabilityKind;
   final List<CreateListingSpecificSlot> specificSlots = [];
   final List<CreateListingWeeklySlot> weeklySlots = [];
 
-  /// Prevents overlapping [CreateListingPublish.submit] calls on the same draft
+  // Prevents overlapping CreateListingPublish.submit calls on the same draft
   bool publishInProgress = false;
 
-  /// Set after a successful publish so Terms cannot submit twice
+  // Set after a successful publish so Terms cannot submit twice
   bool publishedSuccessfully = false;
 
   String get addressLine {

@@ -39,6 +39,6 @@ class AppListingPhotoFrame extends StatelessWidget {
 // Shared 4:3 for listing photos
 const appListingPhotoFrameAspectRatio = 4 / 3;
 
-/// Car marker on listing photos (annotate + read-only overlay); ~20% smaller than 42 / 20
+// Car marker on listing photos (annotate + read-only overlay); ~20% smaller than 42 / 20
 const appListingSpotMarkerDiameter = 34.0;
 const appListingSpotMarkerIconSize = 16.0;

@@ -190,6 +190,7 @@ class FakeListingsRepository implements ListingsRepository {
     bool? termsAccepted,
     DateTime? termsAcceptedAt,
     String? availabilityMode,
+    ListingLocationSharing? locationSharing,
   }) async {
     final current = listings[listingId];
     if (current == null) return;
@@ -204,6 +205,7 @@ class FakeListingsRepository implements ListingsRepository {
       latitude: latitude ?? current.latitude,
       longitude: longitude ?? current.longitude,
       availabilityMode: availabilityMode ?? current.availabilityMode,
+      locationSharing: locationSharing ?? current.locationSharing,
       isActive: isActive ?? current.isActive,
       isPublished: isPublished ?? current.isPublished,
       termsAccepted: termsAccepted ?? current.termsAccepted,

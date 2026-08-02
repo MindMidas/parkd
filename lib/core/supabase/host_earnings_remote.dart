@@ -2,7 +2,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../models/host_earnings_row.dart';
 
-/// Read-only public.host_earnings
+// Read-only public.host_earnings
 class HostEarningsRemote {
   HostEarningsRemote(this._client);
 

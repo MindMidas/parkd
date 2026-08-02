@@ -5,7 +5,7 @@ import '../theme/app_typography.dart';
 import '../utils/app_feedback.dart';
 import 'app_search_field_decoration.dart';
 
-/// List/menu search. Use [embeddedInChrome] when wrapped in [AppMapSearchCard].
+// List/menu search. Use embeddedInChrome when wrapped in AppMapSearchCard.
 class AppSearchField extends StatefulWidget {
   const AppSearchField({
     super.key,

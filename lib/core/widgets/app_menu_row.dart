@@ -8,6 +8,7 @@ import '../theme/app_typography.dart';
 import 'app_display_fields.dart';
 import 'app_divider.dart';
 import 'app_listing_photo_frame.dart';
+import 'app_notification_badge.dart';
 
 enum AppMenuLeadingType { profile, parking }
 
@@ -19,14 +20,18 @@ class AppMenuRow extends StatelessWidget {
     required this.title,
     this.subtitle,
     this.tertiary,
+    this.tertiaryColor,
     this.leading,
     this.leadingIcon,
     this.trailing,
     this.onTap,
+    this.onLongPress,
+    this.badgeCount = 0,
     this.showTopDivider = false,
     this.showBottomDivider = false,
     this.rightKind = AppMenuRightKind.chevron,
     this.rightIcon = Icons.keyboard_arrow_right_rounded,
+    this.isMuted = false,
     this.rightAmount,
     this.rightAmountPrefix = '',
     this.rightAmountColor,
@@ -38,14 +43,19 @@ class AppMenuRow extends StatelessWidget {
   final String title;
   final String? subtitle;
   final String? tertiary;
+  final Color? tertiaryColor;
   final Widget? leading;
   final IconData? leadingIcon;
   final Widget? trailing;
   final VoidCallback? onTap;
+  final VoidCallback? onLongPress;
+  final int badgeCount;
   final bool showTopDivider;
   final bool showBottomDivider;
   final AppMenuRightKind rightKind;
   final IconData rightIcon;
+  // When true, shows a mute glyph beside the trailing icon (chat rows).
+  final bool isMuted;
   final double? rightAmount;
   final String rightAmountPrefix;
   final Color? rightAmountColor;
@@ -86,7 +96,20 @@ class AppMenuRow extends StatelessWidget {
       case AppMenuRightKind.chevron:
         return Icon(rightIcon, size: 22, color: AppColors.iconGrey);
       case AppMenuRightKind.icon:
-        return Icon(rightIcon, size: 22, color: AppColors.iconGrey);
+        final icon = Icon(rightIcon, size: 22, color: AppColors.iconGrey);
+        if (!isMuted) return icon;
+        return Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              Icons.notifications_off_outlined,
+              size: 20,
+              color: AppColors.iconGrey,
+            ),
+            const SizedBox(width: AppSpacing.xs),
+            icon,
+          ],
+        );
       case AppMenuRightKind.pillIcon:
         return AppMenuPillIconButton(
           onPressed: onTap ?? () {},
@@ -151,7 +174,7 @@ class AppMenuRow extends StatelessWidget {
                         Text(
                           tertiary!,
                           style: AppTypography.caption.copyWith(
-                            color: AppColors.iconGrey,
+                            color: tertiaryColor ?? AppColors.iconGrey,
                           ),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
@@ -161,8 +184,28 @@ class AppMenuRow extends StatelessWidget {
                   ),
                 )
               : null,
-          trailing:
-              rightKind == AppMenuRightKind.amount && trailingWidget != null
+          trailing: _wrapTrailing(trailingWidget),
+          onTap: onTap,
+          onLongPress: onLongPress,
+        ),
+        if (showBottomDivider) const AppDividerWide(),
+      ],
+    );
+  }
+
+  Widget? _wrapTrailing(Widget? trailingWidget) {
+    if (trailingWidget == null && badgeCount <= 0) return null;
+    final amountFixed =
+        rightKind == AppMenuRightKind.amount && trailingWidget != null;
+    final row = Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        if (badgeCount > 0) ...[
+          AppNotificationBadge(count: badgeCount, compact: true),
+          const SizedBox(width: AppSpacing.xs),
+        ],
+        if (trailingWidget != null)
+          amountFixed
               ? SizedBox(
                   width: 84,
                   child: Align(
@@ -171,11 +214,9 @@ class AppMenuRow extends StatelessWidget {
                   ),
                 )
               : trailingWidget,
-          onTap: onTap,
-        ),
-        if (showBottomDivider) const AppDividerWide(),
       ],
     );
+    return UnconstrainedBox(child: row);
   }
 }
 
@@ -220,7 +261,7 @@ class AppMenuProfileAvatar extends StatelessWidget {
     this.hostListingSolidPlaceholder = false,
   });
 
-  /// Solid blue circle used on listing cards when there is no host photo (40dp or 36dp compact)
+  // Solid blue circle used on listing cards when there is no host photo (40dp or 36dp compact)
   factory AppMenuProfileAvatar.hostListingPlaceholder({
     Key? key,
     bool compact = false,
@@ -295,7 +336,7 @@ class AppMenuParkingAvatar extends StatelessWidget {
     super.key,
     required this.imageProvider,
 
-    /// Height of the 4:3 thumbnail; width follows [appListingPhotoFrameAspectRatio]
+    // Height of the 4:3 thumbnail; width follows appListingPhotoFrameAspectRatio
     this.size = 48,
   });
 

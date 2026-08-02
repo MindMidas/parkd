@@ -11,7 +11,7 @@ import 'app_notification_badge.dart';
 
 const double _kNavIconSize = 22;
 
-/// Icon + label strip height (home-indicator inset is separate).
+// Icon + label strip height (home-indicator inset is separate).
 const double _kNavStripHeight = 68;
 
 class AppBottomNav extends StatelessWidget {

@@ -5,9 +5,8 @@ import '../theme/app_ink.dart';
 import '../theme/app_motion.dart';
 import '../theme/app_typography.dart';
 import '../utils/app_feedback.dart';
-import '../utils/display_formatting.dart';
 
-/// Circular app-bar control — soft blue splash + light press scale.
+// Circular app-bar control — soft blue splash + light press scale.
 class AppTopBarIconButton extends StatefulWidget {
   const AppTopBarIconButton({
     super.key,
@@ -88,7 +87,7 @@ class _AppTopBarIconButtonState extends State<AppTopBarIconButton> {
   }
 }
 
-// Top bar + optional back; title wraps 2 lines; title case via formatTitleCaseWords
+// Top bar + optional back; title wraps 2 lines (pass sentence case from call sites)
 class AppTopBar extends StatelessWidget implements PreferredSizeWidget {
   const AppTopBar({
     super.key,
@@ -107,7 +106,7 @@ class AppTopBar extends StatelessWidget implements PreferredSizeWidget {
   final VoidCallback? onBack;
   final List<Widget>? actions;
 
-  /// Match hub washes (Reservations / Hosting) so the top reads as one field.
+  // Match hub washes (Reservations / Hosting) so the top reads as one field.
   final Color backgroundColor;
 
   // Same toolbar height as step bar — slightly tighter with softer navTitle
@@ -116,11 +115,11 @@ class AppTopBar extends StatelessWidget implements PreferredSizeWidget {
   static const double _leadingWidthWhenBack = 56;
 
   // Alias for app_step_top_bar and older call sites
-  static String formatTitle(String text) => formatTitleCaseWords(text);
+  static String formatTitle(String text) => text;
 
   @override
   Widget build(BuildContext context) {
-    final displayTitle = formatTitleCaseWords(title);
+    final displayTitle = title;
     final transparent = backgroundColor.a == 0;
     return AppBar(
       backgroundColor: backgroundColor,

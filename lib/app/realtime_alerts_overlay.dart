@@ -2,7 +2,6 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 
 import '../core/models/notification_row.dart';
 import '../core/theme/app_colors.dart';
@@ -12,9 +11,10 @@ import '../core/theme/app_typography.dart';
 import '../core/utils/app_feedback.dart';
 import '../features/auth/providers/auth_providers.dart';
 import '../features/profile/providers/notifications_providers.dart';
-import '../features/reservations/presentation/notification_conversation_route_screen.dart';
 import 'active_trip_chat_provider.dart';
+import 'go_router_provider.dart';
 import 'notification_preferences_provider.dart';
+import 'shell_deep_link_provider.dart';
 
 class RealtimeAlertsOverlay extends ConsumerStatefulWidget {
   const RealtimeAlertsOverlay({super.key, required this.child});
@@ -81,21 +81,30 @@ class _RealtimeAlertsOverlayState extends ConsumerState<RealtimeAlertsOverlay> {
   }
 
   Future<void> _open(NotificationRow row) async {
+    // Banner lives in MaterialApp.router's builder (above the Navigator), so
+    // Shell deep links instead of context.push from the MaterialApp builder.
+    final router = ref.read(goRouterProvider);
+    final reservationId = row.reservationId;
     _hide();
+    if (row.type == ParkdNotificationType.messageReceived &&
+        reservationId != null &&
+        reservationId.isNotEmpty) {
+      // Stay inside /home so bottom nav remains; nested stack handles Back.
+      if (router.state.matchedLocation != '/home') {
+        router.go('/home');
+      }
+      ref
+          .read(shellDeepLinkProvider.notifier)
+          .openReservationMessages(reservationId);
+    } else {
+      final tab = row.hub == NotificationHub.reservations
+          ? 'reservations'
+          : 'hosting';
+      router.go('/home?tab=$tab');
+    }
     try {
       await ref.read(notificationsRemoteProvider).markRead(row.id);
     } catch (_) {}
-    if (!mounted) return;
-    final reservationId = row.reservationId;
-    if (row.type == ParkdNotificationType.messageReceived &&
-        reservationId != null) {
-      context.push(reservationMessagesLocation(reservationId));
-      return;
-    }
-    final tab = row.hub == NotificationHub.reservations
-        ? 'reservations'
-        : 'hosting';
-    context.go('/home?tab=$tab');
   }
 
   @override

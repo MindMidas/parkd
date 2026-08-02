@@ -1,13 +1,13 @@
 import 'availability_specific.dart';
 import 'availability_weekly.dart';
 
-/// public.listings (+ embed hero url); rates on availability rows — supabase/schema.sql
+// public.listings (+ embed hero url); rates on availability rows.
 class ListingAvailabilityMode {
   static const weekly = 'weekly';
   static const specific = 'specific';
 }
 
-/// Airbnb-style map sharing. Street address stays private until booking either way.
+// Airbnb-style map sharing. Street address stays private until booking either way.
 enum ListingLocationSharing {
   general,
   specific;
@@ -49,14 +49,14 @@ class Listing {
     this.createdAt,
     this.updatedAt,
 
-    /// Public discovery + general sharing: coarse/obfuscated map location.
+    // Public discovery + general sharing: coarse/obfuscated map location.
     this.isApproximateLocation = false,
     this.minHourlyPrice,
     this.minDailyPrice,
     this.publicWeeklyAvailability = const [],
     this.publicSpecificAvailability = const [],
 
-    /// Hero image URL for list rows (from embedded `listing_photos`, not a DB column)
+    // Hero image URL for list rows (from embedded `listing_photos`, not a DB column)
     this.heroPhotoUrl,
   });
 
@@ -87,7 +87,7 @@ class Listing {
 
   String get addressLine => address;
 
-  /// Town + country for driver-facing location (no postal / “Near …” fluff).
+  // Town + country for driver-facing location (no postal / “Near …” fluff).
   String get townCountryLine {
     final parts = <String>[];
     final c = city.trim();
@@ -97,14 +97,14 @@ class Listing {
     return parts.join(', ');
   }
 
-  /// Driver-facing label when only the privacy-safe public card is available.
+  // Driver-facing label when only the privacy-safe public card is available.
   String get approximateAreaHeadline {
     final line = townCountryLine;
     if (line.isEmpty) return 'Approximate parking area';
     return line;
   }
 
-  /// Public cards use "Parking in {city}" instead of the street address.
+  // Public cards use "Parking in {city}" instead of the street address.
   bool get revealsExactStreetAddress {
     final a = address.trim().toLowerCase();
     return a.isNotEmpty && !a.startsWith('parking in ');

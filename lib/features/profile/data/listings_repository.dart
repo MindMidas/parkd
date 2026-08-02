@@ -5,7 +5,7 @@ import '../../../core/models/booking_time_window.dart';
 import '../../../core/models/listing.dart';
 import '../../../core/models/listing_photo.dart';
 
-/// host listing + availability + photos (Supabase impl in feature data/)
+// host listing + availability + photos (Supabase impl in feature data/)
 abstract class ListingsRepository {
   Future<List<Listing>> getMyListings(String userId);
 
@@ -87,6 +87,7 @@ abstract class ListingsRepository {
     bool? termsAccepted,
     DateTime? termsAcceptedAt,
     String? availabilityMode,
+    ListingLocationSharing? locationSharing,
   });
 
   Future<ListingPhoto> addListingPhotoFromLocalPath({

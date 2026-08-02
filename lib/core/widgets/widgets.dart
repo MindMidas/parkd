@@ -1,4 +1,4 @@
-// Barrel: shared UI (exports A–Z by file name); see README in this folder
+// shared UI barrel (A–Z); see README
 export '../utils/display_formatting.dart';
 export '../utils/app_feedback.dart';
 export '../utils/scroll_view_bottom_inset.dart';
@@ -29,6 +29,7 @@ export 'app_form_scroll_body.dart';
 export 'app_hub_menu_intro.dart';
 export 'app_hub_menu_section.dart';
 export 'app_info_text.dart';
+export 'app_inline_error.dart';
 export 'app_intl_phone_field.dart';
 export 'app_list_item.dart';
 export 'app_list_screen_search_panel.dart';
@@ -72,7 +73,6 @@ export 'app_slot_card_remove.dart';
 export 'app_step_top_bar.dart';
 export 'app_static_map_preview.dart';
 export 'app_sticky_footer.dart';
-export 'app_surface_footer_pad.dart';
 export 'app_terms_gate_widgets.dart';
 export 'app_text_field.dart';
 export 'app_time_picker_row.dart';

@@ -174,19 +174,6 @@ abstract final class AppButtonStyleTokens {
     );
   }
 
-  /// @deprecated Prefer [filledSecondary] — kept for any remaining outline call sites.
-  static ButtonStyle outlined({
-    required Size minimumSize,
-    required bool enabled,
-    required bool destructive,
-  }) {
-    return filledSecondary(
-      minimumSize: minimumSize,
-      padding: symmetricPadding,
-      textStyle: AppTypography.button,
-      destructive: destructive,
-    );
-  }
 }
 
 VoidCallback? _withLightHaptic(BuildContext context, VoidCallback? onPressed) {
@@ -197,7 +184,7 @@ VoidCallback? _withLightHaptic(BuildContext context, VoidCallback? onPressed) {
   };
 }
 
-/// CTA-only press scale (0.97). Not for list rows or chips.
+// CTA-only press scale (0.97). Not for list rows or chips.
 class _CtaPressScale extends StatefulWidget {
   const _CtaPressScale({
     required this.enabled,
@@ -245,7 +232,7 @@ class AppPrimaryButton extends StatelessWidget {
     required this.label,
     required this.onPressed,
     this.icon,
-    this.applyTitleCase = true,
+    this.applyTitleCase = false,
     this.loading = false,
     this.iconTrailing = false,
     this.fullWidth = true,
@@ -365,7 +352,7 @@ class AppSecondaryButton extends StatelessWidget {
     required this.label,
     required this.onPressed,
     this.icon,
-    this.applyTitleCase = true,
+    this.applyTitleCase = false,
     this.loading = false,
     this.fullWidth = true,
     this.compact = false,

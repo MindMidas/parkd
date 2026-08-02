@@ -23,6 +23,8 @@ class _UpdatePasswordScreenState extends ConsumerState<UpdatePasswordScreen> {
   final _confirmationController = TextEditingController();
   bool _busy = false;
   bool _complete = false;
+  String? _actionError;
+  AutovalidateMode _autovalidateMode = AutovalidateMode.disabled;
 
   @override
   void dispose() {
@@ -32,7 +34,12 @@ class _UpdatePasswordScreenState extends ConsumerState<UpdatePasswordScreen> {
   }
 
   Future<void> _submit() async {
-    if (_busy || !(_formKey.currentState?.validate() ?? false)) return;
+    if (_busy) return;
+    setState(() {
+      _actionError = null;
+      _autovalidateMode = AutovalidateMode.onUserInteraction;
+    });
+    if (!(_formKey.currentState?.validate() ?? false)) return;
     setState(() => _busy = true);
     try {
       final auth = ref.read(authRepositoryProvider);
@@ -42,7 +49,7 @@ class _UpdatePasswordScreenState extends ConsumerState<UpdatePasswordScreen> {
       setState(() => _complete = true);
     } on Exception catch (error) {
       if (mounted) {
-        AppMessenger.showError(context, userFacingAuthMessage(error));
+        setState(() => _actionError = userFacingAuthMessage(error));
       }
     } finally {
       if (mounted) setState(() => _busy = false);
@@ -90,7 +97,7 @@ class _UpdatePasswordScreenState extends ConsumerState<UpdatePasswordScreen> {
       appBar: const AppTopBar(title: 'Choose a new password'),
       body: Form(
         key: _formKey,
-        autovalidateMode: AutovalidateMode.onUserInteraction,
+        autovalidateMode: _autovalidateMode,
         child: Column(
           children: [
             Expanded(
@@ -109,7 +116,11 @@ class _UpdatePasswordScreenState extends ConsumerState<UpdatePasswordScreen> {
                       showPasswordToggle: true,
                       enabled: !_busy,
                       validator: FormValidators.signupPassword,
-                      onChanged: (_) => setState(() {}),
+                      onChanged: (_) {
+                        setState(() {
+                          _actionError = null;
+                        });
+                      },
                     ),
                     if (_passwordController.text.isNotEmpty) ...[
                       const SizedBox(height: AppSpacing.xs),
@@ -132,16 +143,34 @@ class _UpdatePasswordScreenState extends ConsumerState<UpdatePasswordScreen> {
                       enabled: !_busy,
                       validator:
                           FormValidators.matchPassword(_passwordController),
+                      onChanged: (_) {
+                        if (_actionError != null) {
+                          setState(() => _actionError = null);
+                        }
+                      },
                     ),
                   ],
                 ),
               ),
             ),
             AppStickyFooter(
-              child: AppPrimaryButton(
-                label: 'Update password',
-                loading: _busy,
-                onPressed: _busy ? null : _submit,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  if (_actionError != null) ...[
+                    AppInlineError(
+                      message: _actionError!,
+                      onDismiss: () => setState(() => _actionError = null),
+                    ),
+                    const SizedBox(height: AppSpacing.sm),
+                  ],
+                  AppPrimaryButton(
+                    label: 'Update password',
+                    loading: _busy,
+                    onPressed: _busy ? null : _submit,
+                  ),
+                ],
               ),
             ),
           ],

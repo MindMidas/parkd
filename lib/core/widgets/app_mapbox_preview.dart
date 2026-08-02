@@ -37,10 +37,10 @@ class AppMapboxPreview extends StatefulWidget {
   // Mapbox icon-size for the pin asset
   final double pinIconSize;
 
-  /// Exact/specific location marker (pin asset). Ignored when [showApproximateHalo].
+  // Exact/specific location marker (pin asset). Ignored when showApproximateHalo.
   final bool showPin;
 
-  /// Soft radius + parking badge (Airbnb approximate area).
+  // Soft radius + parking badge (Airbnb approximate area).
   final bool showApproximateHalo;
 
   @override
@@ -163,7 +163,7 @@ class _AppMapboxPreviewState extends State<AppMapboxPreview> {
   }
 }
 
-/// Listing sheet / detail map: halo for general sharing, pin for specific.
+// Listing sheet / detail map: halo for general sharing, pin for specific.
 class AppApproximateLocationMap extends StatelessWidget {
   const AppApproximateLocationMap({
     super.key,

@@ -1,7 +1,6 @@
 import '../utils/time_step_minutes.dart';
 
-/// Mirrors public.availability_specific (date-range slots)
-/// Schema: supabase/schema.sql
+// Mirrors public.availability_specific (date-range slots)
 class AvailabilitySpecific {
   const AvailabilitySpecific({
     required this.id,
@@ -21,7 +20,7 @@ class AvailabilitySpecific {
   final double? priceDay;
   final DateTime? createdAt;
 
-  /// For UI: "Sep 15, 2026 • 9:00 AM" (same time style as [TimeStepMinutes.formatAmPm])
+  // For UI: "Sep 15, 2026 • 9:00 AM" (same time style as TimeStepMinutes.formatAmPm)
   static String formatDateTime(DateTime dt) {
     const months = 'JanFebMarAprMayJunJulAugSepOctNovDec';
     final m = months.substring((dt.month - 1) * 3, dt.month * 3);

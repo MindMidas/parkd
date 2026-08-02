@@ -2,7 +2,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../models/payment_method_row.dart';
 
-/// CRUD for public.payment_methods — Stripe ID is optional while card setup runs.
+// CRUD for public.payment_methods — Stripe ID is optional while card setup runs.
 class PaymentMethodsRemote {
   PaymentMethodsRemote(this._client);
 

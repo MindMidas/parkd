@@ -42,12 +42,12 @@ class EditProfileScreen extends ConsumerWidget {
     return profileAsync.when(
       loading: () => Scaffold(
         backgroundColor: AppColors.surface,
-        appBar: const AppTopBar(title: 'Edit Account', showBack: true),
+        appBar: const AppTopBar(title: 'Edit profile', showBack: true),
         body: const AppPageStatus.loading(),
       ),
       error: (_, _) => Scaffold(
         backgroundColor: AppColors.surface,
-        appBar: const AppTopBar(title: 'Edit Account', showBack: true),
+        appBar: const AppTopBar(title: 'Edit profile', showBack: true),
         body: const AppPageStatus.error(
           title: 'Could not load your profile.',
         ),
@@ -56,7 +56,7 @@ class EditProfileScreen extends ConsumerWidget {
         if (profile == null) {
           return Scaffold(
             backgroundColor: AppColors.surface,
-            appBar: const AppTopBar(title: 'Edit Profile', showBack: true),
+            appBar: const AppTopBar(title: 'Edit profile', showBack: true),
             body: const AppPageStatus.empty(title: 'No profile found.'),
           );
         }
@@ -89,7 +89,7 @@ class _EditProfileScaffoldState extends ConsumerState<_EditProfileScaffold> {
   late String _sessionEmail;
   late String _phoneCountryCode;
 
-  /// Latest E.164-style value from [AppIntlPhoneField] (`+[country][national]`)
+  // Latest E.164-style value from AppIntlPhoneField (`+countrynational`)
   String _phoneE164 = '';
 
   DateTime? _birthDate;
@@ -97,6 +97,9 @@ class _EditProfileScaffoldState extends ConsumerState<_EditProfileScaffold> {
   bool _saving = false;
   bool _verifyingEmail = false;
   String? _pendingNewEmail;
+  String? _actionError;
+  bool _verifyOtpAttempted = false;
+  AutovalidateMode _autovalidateMode = AutovalidateMode.disabled;
 
   @override
   void initState() {
@@ -165,6 +168,10 @@ class _EditProfileScaffoldState extends ConsumerState<_EditProfileScaffold> {
   }
 
   Future<void> _save() async {
+    setState(() {
+      _actionError = null;
+      _autovalidateMode = AutovalidateMode.onUserInteraction;
+    });
     if (!_formKey.currentState!.validate()) return;
     FocusScope.of(context).unfocus();
     setState(() => _saving = true);
@@ -220,8 +227,10 @@ class _EditProfileScaffoldState extends ConsumerState<_EditProfileScaffold> {
       invalidateProfileSurfaces(ref, widget.profile.id);
     } catch (e) {
       if (!mounted) return;
-      setState(() => _saving = false);
-      AppMessenger.showErrorFor(messenger, userFacingAuthMessage(e));
+      setState(() {
+        _saving = false;
+        _actionError = userFacingAuthMessage(e);
+      });
     }
   }
 
@@ -229,13 +238,11 @@ class _EditProfileScaffoldState extends ConsumerState<_EditProfileScaffold> {
     final pending = _pendingNewEmail;
     if (pending == null) return;
     final code = _emailOtp.text.trim();
-    if (code.length < 6) {
-      AppMessenger.showError(
-        context,
-        'Enter the code from your email.',
-      );
-      return;
-    }
+    setState(() {
+      _actionError = null;
+      _verifyOtpAttempted = true;
+    });
+    if (code.length < 6) return;
     setState(() => _verifyingEmail = true);
     final messenger = ScaffoldMessenger.of(context);
     try {
@@ -253,8 +260,10 @@ class _EditProfileScaffoldState extends ConsumerState<_EditProfileScaffold> {
       AppMessenger.showSuccessFor(messenger, 'Email address confirmed.');
     } catch (e) {
       if (!mounted) return;
-      setState(() => _verifyingEmail = false);
-      AppMessenger.showErrorFor(messenger, userFacingAuthMessage(e));
+      setState(() {
+        _verifyingEmail = false;
+        _actionError = userFacingAuthMessage(e);
+      });
     }
   }
 
@@ -345,9 +354,10 @@ class _EditProfileScaffoldState extends ConsumerState<_EditProfileScaffold> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.surface,
-      appBar: const AppTopBar(title: 'Edit Profile', showBack: true),
+      appBar: const AppTopBar(title: 'Edit profile', showBack: true),
       body: Form(
         key: _formKey,
+        autovalidateMode: _autovalidateMode,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
@@ -486,18 +496,30 @@ class _EditProfileScaffoldState extends ConsumerState<_EditProfileScaffold> {
                               ),
                             ),
                             const SizedBox(height: AppSpacing.md),
-                            TextFormField(
+                            AppTextField(
+                              label: 'Confirmation code',
                               controller: _emailOtp,
                               keyboardType: TextInputType.number,
                               inputFormatters: [
                                 FilteringTextInputFormatter.digitsOnly,
                                 LengthLimitingTextInputFormatter(10),
                               ],
-                              decoration: const InputDecoration(
-                                labelText: 'Confirmation code',
-                              ),
-                              onTapOutside: (_) {
-                                FocusManager.instance.primaryFocus?.unfocus();
+                              autocorrect: false,
+                              onChanged: (_) {
+                                if (_actionError != null || _verifyOtpAttempted) {
+                                  setState(() {
+                                    _actionError = null;
+                                    _verifyOtpAttempted = false;
+                                  });
+                                }
+                              },
+                              validator: (value) {
+                                if (!_verifyOtpAttempted) return null;
+                                final code = value?.trim() ?? '';
+                                if (code.length < 6) {
+                                  return 'Enter the code from your email.';
+                                }
+                                return null;
                               },
                             ),
                             const SizedBox(height: AppSpacing.md),
@@ -517,10 +539,23 @@ class _EditProfileScaffoldState extends ConsumerState<_EditProfileScaffold> {
               ),
             ),
             AppStickyFooter(
-              child: AppPrimaryButton(
-                label: 'Save changes',
-                onPressed: _saving ? null : _save,
-                loading: _saving,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  if (_actionError != null) ...[
+                    AppInlineError(
+                      message: _actionError!,
+                      onDismiss: () => setState(() => _actionError = null),
+                    ),
+                    const SizedBox(height: AppSpacing.sm),
+                  ],
+                  AppPrimaryButton(
+                    label: 'Save changes',
+                    onPressed: _saving ? null : _save,
+                    loading: _saving,
+                  ),
+                ],
               ),
             ),
           ],

@@ -30,7 +30,6 @@ class _PendingWeeklySlot {
   double? priceDay;
 }
 
-/// Set availability using weekly schedule: days + start/end time, add slots, list with remove, confirm
 class SetAvailabilityWeeklyScreen extends ConsumerStatefulWidget {
   const SetAvailabilityWeeklyScreen({
     super.key,
@@ -440,7 +439,6 @@ class _SetAvailabilityWeeklyScreenState
                 AppStickyFooter(
                   child: AppPrimaryButton(
                     label: 'Confirm',
-                    icon: Icons.check_rounded,
                     onPressed: canConfirm ? () => _onConfirm(slots) : null,
                   ),
                 ),

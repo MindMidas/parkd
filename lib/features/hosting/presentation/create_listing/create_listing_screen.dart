@@ -39,7 +39,7 @@ class CreateListingScreen extends StatelessWidget {
             ),
             AppStickyFooter(
               child: AppPrimaryButton(
-                label: 'Get Started',
+                label: 'Continue',
                 onPressed: () {
                   Navigator.of(context).push(
                     AppPageRoute<void>(

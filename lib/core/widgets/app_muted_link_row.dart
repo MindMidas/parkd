@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import '../theme/app_typography.dart';
 import 'app_compact_primary_text_button.dart';
 
-// "Already have an account? Sign in" style centered row
+// "New User? Sign Up" style row — flush with form fields
 class AppMutedLinkRow extends StatelessWidget {
   const AppMutedLinkRow({
     super.key,
@@ -21,7 +21,7 @@ class AppMutedLinkRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Row(
-      mainAxisAlignment: MainAxisAlignment.center,
+      mainAxisAlignment: MainAxisAlignment.start,
       children: [
         Text(leadingText, style: AppTypography.caption),
         AppCompactPrimaryTextButton(

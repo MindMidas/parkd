@@ -16,7 +16,7 @@ LocalStorage createSupabaseSessionStorage() =>
 GotrueAsyncStorage createSupabasePkceStorage() =>
     const SecureSupabasePkceStorage();
 
-/// Stores the serialized Supabase session in Keychain/Keystore-backed storage.
+// Stores the serialized Supabase session in Keychain/Keystore-backed storage.
 class SecureSupabaseSessionStorage extends LocalStorage {
   const SecureSupabaseSessionStorage({
     FlutterSecureStorage storage = _secureStorage,
@@ -41,7 +41,7 @@ class SecureSupabaseSessionStorage extends LocalStorage {
   Future<void> removePersistedSession() => _storage.delete(key: _sessionKey);
 }
 
-/// Protects PKCE verifiers with the same native secure-storage boundary.
+// Protects PKCE verifiers with the same native secure-storage boundary.
 class SecureSupabasePkceStorage extends GotrueAsyncStorage {
   const SecureSupabasePkceStorage({
     FlutterSecureStorage storage = _secureStorage,

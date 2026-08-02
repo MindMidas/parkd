@@ -39,3 +39,17 @@ final hostingReviewNotificationsCountProvider = Provider<int>((ref) {
 final reservationNotificationsCountProvider = Provider<int>((ref) {
   return ref.watch(myNotificationHubCountsProvider).reservations;
 });
+
+final unreadBookingEventCountByReservationProvider =
+    Provider<Map<String, int>>((ref) {
+      return ref
+              .watch(myNotificationFeedProvider)
+              .value
+              ?.unreadBookingEventsByReservation ??
+          const <String, int>{};
+    });
+
+final mutedReservationMessagesProvider = Provider<Set<String>>((ref) {
+  return ref.watch(myNotificationFeedProvider).value?.mutedReservationIds ??
+      const <String>{};
+});

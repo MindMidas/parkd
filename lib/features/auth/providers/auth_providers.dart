@@ -29,8 +29,6 @@ final needsMfaChallengeProvider = Provider<bool>((ref) {
   return authRepository.needsMfaChallenge();
 });
 
-/// Supabase emits this event after a valid password-reset link establishes a
-/// short-lived recovery session.
 final passwordRecoverySessionProvider = Provider<bool>((ref) {
   final authState = ref.watch(authStateChangesProvider).value;
   return authState?.event == AuthChangeEvent.passwordRecovery;

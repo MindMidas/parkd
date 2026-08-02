@@ -32,7 +32,7 @@ class SetAvailabilityScreen extends StatefulWidget {
 }
 
 class _SetAvailabilityScreenState extends State<SetAvailabilityScreen> {
-  /// Until true, only the type picker is shown
+  // Until true, only the type picker is shown
   bool _typeChosen = false;
 
   DateTime _currentMonth = DateTime(DateTime.now().year, DateTime.now().month);
@@ -53,7 +53,7 @@ class _SetAvailabilityScreenState extends State<SetAvailabilityScreen> {
     DateTime.now().day,
   );
 
-  /// Minutes from midnight, 5-minute steps (see [TimeStepMinutes])
+  // Minutes from midnight, 5-minute steps (see TimeStepMinutes)
   int _startMinutes = 9 * 60 + 15;
   int _endMinutes = 15 * 60;
 
@@ -72,7 +72,7 @@ class _SetAvailabilityScreenState extends State<SetAvailabilityScreen> {
 
   bool get _hasValidListing => _hasSlots && _allSlotsPriced;
 
-  /// Inclusive calendar days for the in-progress range (start → end).
+  // Inclusive calendar days for the in-progress range (start → end).
   Set<DateTime> get _selectedDatesForCalendar {
     if (_rangeStart == null) return {};
     if (_rangeEnd == null) {
@@ -285,8 +285,6 @@ class _SetAvailabilityScreenState extends State<SetAvailabilityScreen> {
     _rangeEnd = null;
   }
 
-  /// From the form: back returns to the type picker and clears draft. From the
-  /// picker: back leaves this screen (e.g. to annotate)
   void _handleBack() {
     if (_typeChosen) {
       setState(() {
@@ -621,7 +619,6 @@ class _SetAvailabilityScreenState extends State<SetAvailabilityScreen> {
                     AppStickyFooter(
                       child: AppPrimaryButton(
                         label: 'Confirm',
-                        icon: Icons.check_rounded,
                         onPressed: _hasValidListing ? _onConfirm : null,
                       ),
                     ),

@@ -1,6 +1,6 @@
 import 'dart:math' as math;
 
-/// Haversine distance between two latitude/longitude points, in kilometres.
+// Haversine distance between two latitude/longitude points, in kilometres.
 double distanceKmBetween(
   double latitudeA,
   double longitudeA,
@@ -18,24 +18,18 @@ double distanceKmBetween(
   return 12742 * math.asin(math.sqrt(haversine));
 }
 
-/// Parkd approximate area: ~250 m (~2–3 short blocks). Airbnb housing uses
-/// ~½ mile; parking needs a shorter walk while still hiding the curb.
 const double kApproximateListingAreaRadiusMeters = 250;
 
-/// Small inner marker used with the shaded halo (Airbnb “circle in a circle”).
+// Small inner marker used with the shaded halo (Airbnb “circle in a circle”).
 const double kApproximateListingCoreRadiusMeters = 22;
 
-/// How far the public map marker is pushed from the rounded public coord so it
-/// never sits on the driveway (Airbnb approximate ≠ pin-on-house).
 const double kApproximateMarkerOffsetMeters = 110;
 
-/// Privacy grid key used to cluster listings that would otherwise stack.
+// Privacy grid key used to cluster listings that would otherwise stack.
 String approximateLocationCellKey(double latitude, double longitude) {
   return '${latitude.toStringAsFixed(3)},${longitude.toStringAsFixed(3)}';
 }
 
-/// Deterministic Airbnb-style display center: same listing always lands in the
-/// same offset spot, but not on the true curb.
 ({double latitude, double longitude}) obfuscateApproximateMapCenter({
   required String listingId,
   required double latitude,
@@ -70,7 +64,7 @@ String approximateLocationCellKey(double latitude, double longitude) {
   );
 }
 
-/// Closed WGS84 ring (lng/lat) approximating a circle for Mapbox polygons.
+// Closed WGS84 ring (lng/lat) approximating a circle for Mapbox polygons.
 List<List<double>> approximateListingAreaRing({
   required double latitude,
   required double longitude,

@@ -27,11 +27,6 @@ Desktop.ini
 .idea/
 .vscode/
 
-# The .vscode folder contains launch configuration and tasks you configure in
-# VS Code which you may wish to be included in version control, so this line
-# is commented out by default.
-#.vscode/
-
 # Flutter/Dart/Pub related
 **/doc/api/
 **/ios/Flutter/.last_build_id
@@ -60,16 +55,23 @@ app.*.map.json
 *.keystore
 /ios/Flutter/Signing.xcconfig
 
-# Local environment secrets
+# Local env
 .env
 dart_defines.local.json
 
-# Supabase CLI local cache (not source)
+# Supabase CLI cache
 supabase/.temp/
 supabase/.branches/
 
-# Local IDE/editor context (do not commit)
+# Local temp
 CONTEXT.md
+.deploy_chunks/
+.deploy_*.json
+.mcp_*.json
+.tmp_*/
+.tmp_*
+.venv_shots/
+assets/demo/
 
 # Golden test failure dumps
 **/failures/

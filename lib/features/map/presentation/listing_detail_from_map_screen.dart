@@ -1,12 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/map/listing_next_available.dart';
 import '../../../core/models/availability_specific.dart';
 import '../../../core/models/availability_weekly.dart';
 import '../../../core/models/booking_time_window.dart';
 import '../../../core/models/listing.dart';
 import '../../../core/models/listing_photo.dart';
 import '../../../core/models/profile.dart';
+import '../../../core/models/review_row.dart';
 import '../../../core/models/slot_pricing_summary.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_radius.dart';
@@ -83,14 +85,14 @@ bool _noPublishedAvailability(
   })
   data,
 ) {
-  return data.weekly.isEmpty && data.specific.isEmpty;
+  if (data.weekly.isNotEmpty) return false;
+  final now = DateTime.now();
+  return !listingHasFutureSpecificWindow(data.specific, now: now);
 }
 
-/// Pops with result `'full'` when the user drags the sheet handle up so the map can
-/// push [ListingDetailFromMapScreen] as a separate route
 const String kListingDetailSheetResultFull = 'full';
 
-/// Fixed ~70% height; only the top handle expands to full detail — body scrolls independently
+// Fixed ~70% height; only the top handle expands to full detail — body scrolls independently
 // Map listing detail sheet — drag handle + embedded detail body over the map
 class ListingDetailFromMapSheet extends StatefulWidget {
   const ListingDetailFromMapSheet({super.key, required this.listing});
@@ -336,6 +338,12 @@ class _ListingDetailFromMapScreenState
           displayName: displayName,
           handle: _hostHandle(profile, displayName),
           avatarImageProvider: profileAvatarImageProvider(profile),
+          ratingLabel: profile == null
+              ? null
+              : profileRatingLabel(
+                  rating: profile.rating,
+                  ratingCount: profile.ratingCount,
+                ),
         ),
         const SizedBox(height: AppSpacing.sm),
         AppListingPhotoFrame(
@@ -438,47 +446,74 @@ class _ListingDetailFromMapScreenState
     data, {
     required bool isOwnListing,
   }) {
-    return AppPrimaryButton(
-      label: 'Make a reservation',
-      icon: Icons.chevron_right_rounded,
-      onPressed: isOwnListing || data == null || _noPublishedAvailability(data)
-          ? null
-          : () {
-              final w = data.weekly;
-              final weekdays = _weekdaysFromWeekly(w);
-              final minH = SlotPricingSummary.minHourly(w, data.specific);
-              final minD = SlotPricingSummary.minDailyWhereSet(
-                w,
-                data.specific,
-              );
-              final hr = minH ?? 0;
-              final heat = _heatmapSchedule(
-                data.weekly,
-                data.specific,
-                data.bookings,
-              );
-              Navigator.of(context).push<void>(
-                AppPageRoute<void>(
-                  builder: (_) => ReservationScreen(
-                    listing: listing,
-                    weekly: heat.weekly,
-                    specific: heat.specific,
-                    bookings: heat.bookings,
-                    heatmapLoading: false,
-                    hourlyRate: hr,
-                    dailyRate: minD ?? hr * 8,
-                    streetAddress: listing.addressLine,
-                    localityLine: listing.townCountryLine.isNotEmpty
-                        ? listing.townCountryLine
-                        : listing.localityLine,
-                    spotLabel: listing.spotLabel,
-                    latitude: listing.latitude,
-                    longitude: listing.longitude,
-                    availableWeekdays: weekdays,
-                  ),
-                ),
-              );
-            },
+    final noAvailability =
+        data != null && _noPublishedAvailability(data);
+    final disabled = isOwnListing || data == null || noAvailability;
+    final String? helper;
+    if (isOwnListing) {
+      helper = 'This is your listing.';
+    } else if (noAvailability) {
+      helper = 'No availability to book right now.';
+    } else {
+      helper = null;
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        if (helper != null) ...[
+          Text(
+            helper,
+            textAlign: TextAlign.center,
+            style: AppTypography.caption.copyWith(
+              color: AppColors.textSecondary,
+            ),
+          ),
+          const SizedBox(height: AppSpacing.sm),
+        ],
+        AppPrimaryButton(
+          label: 'Reserve',
+          onPressed: disabled
+              ? null
+              : () {
+                  final w = data.weekly;
+                  final weekdays = _weekdaysFromWeekly(w);
+                  final minH = SlotPricingSummary.minHourly(w, data.specific);
+                  final minD = SlotPricingSummary.minDailyWhereSet(
+                    w,
+                    data.specific,
+                  );
+                  final hr = minH ?? 0;
+                  final heat = _heatmapSchedule(
+                    data.weekly,
+                    data.specific,
+                    data.bookings,
+                  );
+                  Navigator.of(context).push<void>(
+                    AppPageRoute<void>(
+                      builder: (_) => ReservationScreen(
+                        listing: listing,
+                        weekly: heat.weekly,
+                        specific: heat.specific,
+                        bookings: heat.bookings,
+                        heatmapLoading: false,
+                        hourlyRate: hr,
+                        dailyRate: minD ?? hr * 8,
+                        streetAddress: listing.addressLine,
+                        localityLine: listing.townCountryLine.isNotEmpty
+                            ? listing.townCountryLine
+                            : listing.localityLine,
+                        spotLabel: listing.spotLabel,
+                        latitude: listing.latitude,
+                        longitude: listing.longitude,
+                        availableWeekdays: weekdays,
+                      ),
+                    ),
+                  );
+                },
+        ),
+      ],
     );
   }
 
@@ -574,7 +609,6 @@ class _ListingDetailFromMapScreenState
     );
   }
 
-  /// Uses Supabase [photos] when loaded; until then [Listing.heroPhotoUrl] from the map query embed
   Widget _heroPhoto({
     required Listing listing,
     required List<ListingPhoto>? photos,

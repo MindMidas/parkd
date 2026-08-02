@@ -70,7 +70,7 @@ void main() {
       _goldenSurface(
         const Padding(
           padding: EdgeInsets.all(24),
-          child: AppPrimaryButton(label: 'Make a reservation', onPressed: null),
+          child: AppPrimaryButton(label: 'Reserve', onPressed: null),
         ),
       ),
     );

@@ -67,7 +67,7 @@ class _ReservationScreenState extends State<ReservationScreen> {
       day.month == _today.month &&
       day.day == _today.day;
 
-  /// Slot start on [dayOnly] must be strictly after "now" to be bookable
+  // Slot start on dayOnly must be strictly after "now" to be bookable
   bool _minuteSlotStillBookable(DateTime dayOnly, int minutesFromMidnight) {
     final slotStart = DateTime(
       dayOnly.year,
@@ -245,8 +245,6 @@ class _ReservationScreenState extends State<ReservationScreen> {
   static bool _sameCalendarDay(DateTime a, DateTime b) =>
       a.year == b.year && a.month == b.month && a.day == b.day;
 
-  /// Latest day `<= desiredEnd` such that every calendar day from [rangeStart]
-  /// through that day is selectable (no gaps through unavailable / booked days)
   DateTime _lastContiguousSelectableEnd(
     DateTime rangeStart,
     DateTime desiredEnd,
@@ -355,7 +353,7 @@ class _ReservationScreenState extends State<ReservationScreen> {
     _reconcileStartEndAfterClamp();
   }
 
-  /// After clamping to host grid, ensure end is after start when start/end share a calendar day
+  // After clamping to host grid, ensure end is after start when start/end share a calendar day
   void _reconcileStartEndAfterClamp() {
     if (_rangeStart == null || _rangeEnd == null) return;
     if (!_sameCalendarDay(_rangeStart!, _rangeEnd!)) return;
@@ -519,7 +517,6 @@ class _ReservationScreenState extends State<ReservationScreen> {
             AppStickyFooter(
               child: AppPrimaryButton(
                 label: 'Confirm',
-                icon: Icons.check_rounded,
                 onPressed: _canConfirm ? _onConfirm : null,
               ),
             ),

@@ -1,6 +1,6 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
 
-/// Maps Supabase / GoTrue errors to short UI copy
+// Maps Supabase / GoTrue errors to short UI copy
 String userFacingAuthMessage(Object error) {
   if (error is AuthWeakPasswordException) {
     if (error.reasons.isNotEmpty) {
@@ -77,8 +77,15 @@ String userFacingAuthMessage(Object error) {
       return error.message;
     }
     if (lower.contains('database error saving new user') ||
-        lower.contains('saving new user')) {
-      return 'Could not finish sign-up with those details.';
+        lower.contains('database error updating user') ||
+        lower.contains('saving new user') ||
+        lower.contains('updating user')) {
+      return 'Could not finish sign-up with those details. '
+          'Try a different username or email.';
+    }
+    if (lower.contains('profiles_username_key') ||
+        (lower.contains('duplicate key') && lower.contains('username'))) {
+      return 'That username is already taken. Choose another.';
     }
     if (lower.contains('profiles_phone_unique') ||
         (lower.contains('duplicate key') && lower.contains('phone'))) {

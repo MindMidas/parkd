@@ -3,18 +3,20 @@ import 'package:flutter/material.dart';
 import '../../../../core/widgets/widgets.dart';
 import '../../providers/reservations_providers.dart';
 
-/// List row for a driver trip: square parking photo, address lines, reservation time
+// List row for a driver trip: square parking photo, address lines, reservation time
 class DriverReservationMenuRow extends StatelessWidget {
   const DriverReservationMenuRow({
     super.key,
     required this.trip,
     required this.whenLabel,
     required this.onTap,
+    this.badgeCount = 0,
   });
 
   final DriverTripRow trip;
   final String whenLabel;
   final VoidCallback onTap;
+  final int badgeCount;
 
   @override
   Widget build(BuildContext context) {
@@ -31,6 +33,7 @@ class DriverReservationMenuRow extends StatelessWidget {
       subtitle: l != null && l.localityLine.isNotEmpty ? l.localityLine : null,
       tertiary: whenLabel,
       rightKind: AppMenuRightKind.chevron,
+      badgeCount: badgeCount,
       onTap: onTap,
     );
   }

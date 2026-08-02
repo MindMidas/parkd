@@ -121,7 +121,7 @@ final hostListingPastThreadsProvider =
           );
     });
 
-/// Driver: your active trips with listing rows for address search
+// Driver: your active trips with listing rows for address search
 typedef DriverTripRow = ({ReservationRow reservation, Listing? listing});
 
 final driverActiveTripsProvider = FutureProvider<List<DriverTripRow>>((

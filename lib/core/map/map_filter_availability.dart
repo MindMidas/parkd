@@ -5,8 +5,6 @@ import '../models/listing.dart';
 import 'availability_heatmap_logic.dart';
 import 'listing_next_available.dart' show mergeBookingWindows;
 
-/// Whether [listing] is open for the complete requested window and has no
-/// overlapping pending, confirmed, or active reservation.
 bool listingMatchesMapAvailabilityWindow({
   required Listing listing,
   required List<AvailabilityWeekly> weekly,

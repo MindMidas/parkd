@@ -7,8 +7,6 @@ import '../utils/app_feedback.dart';
 import 'app_map_search_card.dart';
 import 'app_search_field_decoration.dart';
 
-/// Map overlay search — one solid bar; optional filter control inside the bar.
-/// Suggestions live in [AppMapAddressSearchPanel], not here.
 class AppMapSearchField extends StatefulWidget {
   const AppMapSearchField({
     super.key,
@@ -26,7 +24,7 @@ class AppMapSearchField extends StatefulWidget {
   final bool showFilterButton;
   final VoidCallback? onFilterTap;
 
-  /// Compact trailing spinner while geocoding / address search runs.
+  // Compact trailing spinner while geocoding / address search runs.
   final bool isLoading;
 
   @override

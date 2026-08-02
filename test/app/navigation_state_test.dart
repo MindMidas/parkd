@@ -8,8 +8,8 @@ void main() {
   group('MainTab', () {
     test('maps stable route query values in both directions', () {
       expect(MainTab.fromQuery('map'), MainTab.map);
-      expect(MainTab.fromQuery('listings'), MainTab.hosting);
-      expect(MainTab.fromQuery('profile'), MainTab.account);
+      expect(MainTab.fromQuery('hosting'), MainTab.hosting);
+      expect(MainTab.fromQuery('account'), MainTab.account);
       expect(MainTab.fromQuery('unknown'), MainTab.map);
       expect(MainTab.toQuery(MainTab.reservations), 'reservations');
       expect(MainTab.toQuery(99), 'map');

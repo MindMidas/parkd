@@ -2,7 +2,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../models/payment_row.dart';
 
-/// One row per reservation on public.payments
+// One row per reservation on public.payments
 class PaymentsRemote {
   PaymentsRemote(this._client);
 
@@ -18,7 +18,7 @@ class PaymentsRemote {
     return PaymentRow.fromJson(Map<String, dynamic>.from(row));
   }
 
-  /// Succeeded payments where the linked reservation’s host is [hostId]
+  // Succeeded payments where the linked reservation’s host is hostId
   Future<List<Map<String, dynamic>>> fetchSucceededForHost(
     String hostId,
   ) async {

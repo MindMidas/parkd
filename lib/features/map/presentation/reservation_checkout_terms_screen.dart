@@ -33,6 +33,8 @@ class _ReservationCheckoutTermsScreenState
   bool _preparingCheckout = true;
   String? _pendingReservationId;
   String? _checkoutError;
+  String? _actionError;
+  bool _termsError = false;
   TrustedCheckoutSession? _trustedCheckout;
   late final String _idempotencyKey;
 
@@ -109,16 +111,27 @@ class _ReservationCheckoutTermsScreenState
       _pendingReservationId = null;
     }
     ref.invalidate(driverActiveReservationsProvider);
+    ref.invalidate(driverPastReservationsProvider);
+    ref.invalidate(driverActiveTripsProvider);
+    ref.invalidate(driverPastTripsProvider);
     ref.invalidate(mapPublishedListingsProvider);
   }
 
   Future<void> _onPayAndReserve() async {
-    if (!_agreed || _paying) return;
+    if (_paying) return;
+    setState(() {
+      _actionError = null;
+      _termsError = false;
+    });
+    if (!_agreed) {
+      setState(() => _termsError = true);
+      return;
+    }
 
     if (!kIsWeb && Stripe.publishableKey.trim().isEmpty) {
-      AppMessenger.showError(
-        context,
-        'Add STRIPE_PUBLISHABLE_KEY with --dart-define and rebuild.',
+      setState(
+        () => _actionError =
+            'Add STRIPE_PUBLISHABLE_KEY with --dart-define and rebuild.',
       );
       return;
     }
@@ -126,7 +139,7 @@ class _ReservationCheckoutTermsScreenState
     final args = widget.checkout;
     final checkout = _trustedCheckout;
     if (checkout == null) {
-      AppMessenger.showError(context, 'Secure checkout is not ready yet.');
+      setState(() => _actionError = 'Secure checkout is not ready yet.');
       return;
     }
 
@@ -216,27 +229,33 @@ class _ReservationCheckoutTermsScreenState
 
       ref.invalidate(driverActiveReservationsProvider);
       ref.invalidate(driverPastReservationsProvider);
+      ref.invalidate(driverActiveTripsProvider);
+      ref.invalidate(driverPastTripsProvider);
+
+      final reservationId = checkout.reservationId;
+      ref.invalidate(reservationByIdProvider(reservationId));
 
       if (!mounted) return;
       await Navigator.of(context).pushReplacement(
-        AppPageRoute<void>(builder: (_) => const PaymentSuccessScreen()),
+        AppPageRoute<void>(
+          builder: (_) => PaymentSuccessScreen(reservationId: reservationId),
+        ),
       );
     } on StripeException catch (e) {
       if (e.error.code == FailureCode.Canceled) {
         return;
       }
       if (mounted) {
-        AppMessenger.showError(
-          context,
-          e.error.localizedMessage ?? 'Payment failed',
+        setState(
+          () => _actionError = e.error.localizedMessage ?? 'Payment failed',
         );
       }
     } catch (e) {
       if (mounted) {
         final msg = e is StripeCheckoutRemoteException
             ? e.message
-            : e.toString();
-        AppMessenger.showError(context, msg);
+            : userFacingErrorMessage(e);
+        setState(() => _actionError = msg);
       }
     } finally {
       if (mounted) setState(() => _paying = false);
@@ -247,7 +266,7 @@ class _ReservationCheckoutTermsScreenState
     final checkout = _trustedCheckout;
     if (_preparingCheckout) {
       return const AppDisplayTitledOutlineCard(
-        title: 'Server-verified total',
+        title: 'Price breakdown',
         child: Padding(
           padding: EdgeInsets.symmetric(vertical: AppSpacing.md),
           child: Center(child: CircularProgressIndicator()),
@@ -272,22 +291,10 @@ class _ReservationCheckoutTermsScreenState
       );
     }
     if (checkout == null) return const SizedBox.shrink();
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        AppCheckoutPriceBreakdownCard(
-          subtotal: checkout.subtotal,
-          serviceFee: checkout.serviceFee,
-          total: checkout.total,
-        ),
-        const SizedBox(height: AppSpacing.xs),
-        Text(
-          '${checkout.currency} · Recalculated securely from the listing availability. '
-          'Only Stripe test payments are accepted.',
-          style: AppTypography.caption,
-          textAlign: TextAlign.center,
-        ),
-      ],
+    return AppCheckoutPriceBreakdownCard(
+      subtotal: checkout.subtotal,
+      serviceFee: checkout.serviceFee,
+      total: checkout.total,
     );
   }
 
@@ -369,8 +376,10 @@ class _ReservationCheckoutTermsScreenState
                         number: '2',
                         title: 'Cancellations and refunds',
                         body:
-                            'Cancellation and refund eligibility follow Parkd’s cancellation '
-                            'policy, which may depend on how far in advance you cancel. '
+                            'You can cancel a confirmed reservation from Reservation '
+                            'details before it starts. Full refunds are issued when you '
+                            'cancel more than 2 hours before the start time. Cancellations '
+                            'inside that window still free the spot but are not refunded. '
                             'Repeated late cancellations or no-shows may affect your account.',
                       ),
                       const SizedBox(height: AppSpacing.md),
@@ -421,27 +430,40 @@ class _ReservationCheckoutTermsScreenState
               ),
               AppStickyFooter(
                 child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
+                    if (_actionError != null) ...[
+                      AppInlineError(
+                        message: _actionError!,
+                        onDismiss: () => setState(() => _actionError = null),
+                      ),
+                      const SizedBox(height: AppSpacing.sm),
+                    ],
                     AppTermsAgreementCheckboxRow(
                       value: _agreed,
                       onChanged: _paying || _trustedCheckout == null
                           ? (_) {}
-                          : (v) => setState(() => _agreed = v),
+                          : (v) => setState(() {
+                              _agreed = v;
+                              if (v) _termsError = false;
+                            }),
                       label: 'I agree to the Parkd Terms and Conditions',
                     ),
+                    if (_termsError) ...[
+                      const SizedBox(height: AppSpacing.xs),
+                      const AppFormErrorCaption(
+                        'Please accept Terms and Conditions to continue.',
+                      ),
+                    ],
                     const SizedBox(height: AppSpacing.sm),
                     AppPrimaryButton(
                       label: kIsWeb
-                          ? 'Continue to Stripe test checkout'
+                          ? 'Continue to Stripe checkout'
                           : 'Pay and reserve',
                       loading: _paying || _preparingCheckout,
-                      onPressed:
-                          _agreed &&
-                              !_paying &&
-                              !_preparingCheckout &&
-                              _trustedCheckout != null
-                          ? _onPayAndReserve
-                          : null,
+                      onPressed: _paying || _preparingCheckout || _trustedCheckout == null
+                          ? null
+                          : _onPayAndReserve,
                     ),
                   ],
                 ),

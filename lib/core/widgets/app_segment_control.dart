@@ -18,7 +18,7 @@ class AppSegmentOption<T> {
   final IconData? icon;
 }
 
-/// Soft track + selected surface pill (heatmap / card brand / similar).
+// Soft track + selected surface pill (heatmap / card brand / similar).
 class AppSegmentControl<T> extends StatelessWidget {
   const AppSegmentControl({
     super.key,

@@ -60,7 +60,7 @@ class _SetAvailabilityDatesScreenState
     _currentMonth = DateTime(DateTime.now().year, DateTime.now().month, 1);
   }
 
-  /// All dates in the selected range for calendar highlighting (start through end inclusive)
+  // All dates in the selected range for calendar highlighting (start through end inclusive)
   Set<DateTime> get _selectedDatesForCalendar {
     if (_rangeStart == null || _rangeEnd == null) {
       if (_rangeStart != null) {
@@ -330,7 +330,6 @@ class _SetAvailabilityDatesScreenState
             AppStickyFooter(
               child: AppPrimaryButton(
                 label: 'Confirm',
-                icon: Icons.check_rounded,
                 onPressed: _canConfirm ? _onConfirm : null,
               ),
             ),

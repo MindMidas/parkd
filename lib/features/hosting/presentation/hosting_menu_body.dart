@@ -34,7 +34,7 @@ class HostingMenuBody extends ConsumerWidget {
           children: [
             AppNavTile(
               icon: Icons.add_circle_outline_rounded,
-              label: 'Create Listing',
+              label: 'Create listing',
               subtitle: 'Add a new parking spot',
               showDividerAbove: true,
               onTap: () {
@@ -47,7 +47,7 @@ class HostingMenuBody extends ConsumerWidget {
             ),
             AppNavTile(
               icon: Icons.tune_rounded,
-              label: 'Manage Listings',
+              label: 'Manage listings',
               subtitle: 'Edit, pause, or review',
               badgeCount: reviewUnread,
               showDividerAbove: true,
@@ -67,7 +67,7 @@ class HostingMenuBody extends ConsumerWidget {
           children: [
             AppNavTile(
               icon: Icons.directions_car_outlined,
-              label: 'Active Bookings',
+              label: 'Active bookings',
               subtitle: 'Guests arriving soon',
               badgeCount: bookingUnread,
               showDividerAbove: true,
@@ -81,7 +81,7 @@ class HostingMenuBody extends ConsumerWidget {
             ),
             AppNavTile(
               icon: Icons.history_rounded,
-              label: 'Past Bookings',
+              label: 'Past bookings',
               subtitle: 'Completed stays',
               showDividerAbove: true,
               showDividerBelow: true,
@@ -101,7 +101,7 @@ class HostingMenuBody extends ConsumerWidget {
             AppNavTile(
               icon: Icons.payments_outlined,
               label: 'Earnings',
-              subtitle: 'Payouts and totals',
+              subtitle: 'Payouts, Stripe setup, and totals',
               showDividerAbove: true,
               showDividerBelow: true,
               onTap: () {

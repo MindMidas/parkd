@@ -3,10 +3,9 @@ import 'package:flutter/material.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_spacing.dart';
 import '../theme/app_typography.dart';
-import '../utils/display_formatting.dart';
 import 'app_divider.dart';
 
-// List row + chevron; optional borders; label gets title case
+// List row + chevron; optional borders
 class AppListItem extends StatelessWidget {
   const AppListItem({
     super.key,
@@ -37,7 +36,7 @@ class AppListItem extends StatelessWidget {
           leading: leadingIcon != null
               ? Icon(leadingIcon, size: 22, color: AppColors.iconGrey)
               : null,
-          title: Text(formatTitleCaseWords(label), style: AppTypography.body),
+          title: Text(label, style: AppTypography.body),
           trailing: const Icon(
             Icons.keyboard_arrow_right_rounded,
             size: 22,

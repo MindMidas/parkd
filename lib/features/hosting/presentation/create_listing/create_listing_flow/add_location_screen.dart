@@ -21,7 +21,7 @@ import '../create_listing_flow_constants.dart';
 
 enum _LocationPhase { search, adjustPin, sharing }
 
-/// Pin the spot, choose Airbnb-style map sharing, then continue the wizard.
+// pin + general/specific sharing, then continue
 class AddLocationScreen extends StatefulWidget {
   const AddLocationScreen({super.key});
 

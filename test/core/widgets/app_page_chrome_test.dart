@@ -76,7 +76,7 @@ void main() {
         ),
       ),
     );
-    await tester.tap(find.text('Manage Listings'));
+    await tester.tap(find.text('Manage listings'));
     expect(tapped, isTrue);
   });
 
@@ -110,9 +110,9 @@ void main() {
   testWidgets('AppPrimaryButton disabled still shows label', (tester) async {
     await tester.pumpWidget(
       buildTestApp(
-        const AppPrimaryButton(label: 'Make a reservation', onPressed: null),
+        const AppPrimaryButton(label: 'Reserve', onPressed: null),
       ),
     );
-    expect(find.text('Make A Reservation'), findsOneWidget);
+    expect(find.text('Reserve'), findsOneWidget);
   });
 }

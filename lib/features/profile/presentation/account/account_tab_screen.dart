@@ -87,7 +87,7 @@ class AccountTabScreen extends ConsumerWidget {
                   AppNavTile(
                     showDividerAbove: true,
                     icon: Icons.account_circle_outlined,
-                    label: 'Personal Information',
+                    label: 'Personal information',
                     onTap: () {
                       Navigator.of(context).push(
                         AppPageRoute<void>(
@@ -100,7 +100,7 @@ class AccountTabScreen extends ConsumerWidget {
                     showDividerAbove: true,
                     showDividerBelow: true,
                     icon: Icons.credit_card_outlined,
-                    label: 'Payment Preferences',
+                    label: 'Payment preferences',
                     onTap: () {
                       Navigator.of(context).push(
                         AppPageRoute<void>(
@@ -161,7 +161,7 @@ class AccountTabScreen extends ConsumerWidget {
                     showDividerAbove: true,
                     showDividerBelow: true,
                     icon: Icons.help_outline_rounded,
-                    label: 'Help & Support',
+                    label: 'Help & support',
                     onTap: () {
                       Navigator.of(context).push(
                         AppPageRoute<void>(
@@ -183,7 +183,6 @@ class AccountTabScreen extends ConsumerWidget {
                   children: [
                     AppPrimaryButton(
                       label: 'Sign out',
-                      icon: Icons.logout_rounded,
                       onPressed: () => _confirmAndSignOut(context, ref),
                     ),
                     const SizedBox(height: AppSpacing.sm),
@@ -210,6 +209,7 @@ class _DeleteAccountButton extends ConsumerStatefulWidget {
 
 class _DeleteAccountButtonState extends ConsumerState<_DeleteAccountButton> {
   bool _busy = false;
+  String? _actionError;
 
   Future<void> _delete() async {
     final confirmed = await showDialog<bool>(
@@ -228,7 +228,10 @@ class _DeleteAccountButtonState extends ConsumerState<_DeleteAccountButton> {
     );
     if (confirmed != true || !mounted) return;
 
-    setState(() => _busy = true);
+    setState(() {
+      _busy = true;
+      _actionError = null;
+    });
     final shellTab = ref.read(mainShellTabIndexProvider.notifier);
     try {
       await ref.read(authRepositoryProvider).deleteCurrentAccount();
@@ -236,9 +239,9 @@ class _DeleteAccountButtonState extends ConsumerState<_DeleteAccountButton> {
       if (mounted) context.go('/auth');
     } on Exception catch (_) {
       if (mounted) {
-        AppMessenger.showError(
-          context,
-          'Account deletion could not be completed. Please try again.',
+        setState(
+          () => _actionError =
+              'Account deletion could not be completed. Please try again.',
         );
       }
     } finally {
@@ -248,12 +251,23 @@ class _DeleteAccountButtonState extends ConsumerState<_DeleteAccountButton> {
 
   @override
   Widget build(BuildContext context) {
-    return AppPrimaryButton(
-      label: 'Delete account',
-      icon: Icons.delete_outline_rounded,
-      destructive: true,
-      loading: _busy,
-      onPressed: _busy ? null : _delete,
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        if (_actionError != null) ...[
+          AppInlineError(
+            message: _actionError!,
+            onDismiss: () => setState(() => _actionError = null),
+          ),
+          const SizedBox(height: AppSpacing.sm),
+        ],
+        AppPrimaryButton(
+          label: 'Delete account',
+          destructive: true,
+          loading: _busy,
+          onPressed: _busy ? null : _delete,
+        ),
+      ],
     );
   }
 }

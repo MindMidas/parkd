@@ -4,7 +4,7 @@ import '../models/booking_time_window.dart';
 import '../models/listing.dart';
 import '../utils/time_step_minutes.dart';
 
-/// Preset parking durations for the map listing preview (minutes)
+// Preset parking durations for the map listing preview (minutes)
 const List<int> kMapPreviewDurationPresetsMinutes = [15, 30, 60, 120, 300];
 
 String formatMapPreviewDurationLabel(int minutes) {
@@ -18,7 +18,7 @@ String formatMapPreviewDurationLabel(int minutes) {
 
 DateTime _dateOnlyLocal(DateTime t) => DateTime(t.year, t.month, t.day);
 
-/// Postgres `day_of_week`: 0 = Sunday … 6 = Saturday → Dart [DateTime.weekday]
+// Postgres `day_of_week`: 0 = Sunday … 6 = Saturday → Dart DateTime.weekday
 int _pgDayToDartWeekday(int pg) {
   final p = pg < 0 ? 0 : (pg > 6 ? 6 : pg);
   return p == 0 ? DateTime.sunday : p;
@@ -64,11 +64,6 @@ DateTime _alignStartUpToGrid(DateTime t, int gridMinutes) {
   return base.add(Duration(minutes: aligned));
 }
 
-/// Soonest local [DateTime] when a stay of [desiredDurationMinutes] fits inside
-/// posted availability and does not overlap [bookings] (merged first)
-/// Uses [listing.isWeeklyAvailability] to choose weekly vs specific rows only
-/// Weekly overnight slots (end ≤ start) are skipped. [gridMinutes] is the
-/// search step (default 5)
 DateTime? findSoonestAvailableStart({
   required DateTime now,
   required int desiredDurationMinutes,
@@ -137,7 +132,77 @@ DateTime? findSoonestAvailableStart({
   return null;
 }
 
-/// Single-line summary for the map preview, e.g. `Mon, Mar 31 · 9:15 AM – 10:15 AM`
+// True when a specific window still ends after [now] (any remaining date range).
+bool listingHasFutureSpecificWindow(
+  List<AvailabilitySpecific> specific, {
+  required DateTime now,
+}) {
+  final nowLocal = now.toLocal();
+  for (final s in specific) {
+    if (s.endDatetime.toLocal().isAfter(nowLocal)) return true;
+  }
+  return false;
+}
+
+// Host manage list: date-specific listing whose windows have all ended.
+bool listingIsExpiredSpecific(
+  Listing listing, {
+  DateTime? now,
+}) {
+  if (!listing.isSpecificAvailability) return false;
+  return !listingHasFutureSpecificWindow(
+    listing.publicSpecificAvailability,
+    now: now ?? DateTime.now(),
+  );
+}
+
+int specificAvailabilityHorizonDays(
+  List<AvailabilitySpecific> specific, {
+  required DateTime now,
+}) {
+  final nowLocal = now.toLocal();
+  DateTime? maxEnd;
+  for (final s in specific) {
+    final end = s.endDatetime.toLocal();
+    if (!end.isAfter(nowLocal)) continue;
+    if (maxEnd == null || end.isAfter(maxEnd)) maxEnd = end;
+  }
+  if (maxEnd == null) return 0;
+  final days = maxEnd.difference(nowLocal).inDays + 2;
+  if (days < 1) return 1;
+  if (days > 400) return 400;
+  return days;
+}
+
+// Map discovery: weekly stays while published; specific needs a future window
+// with at least one free slot of [minDurationMinutes] (bookings can hide/reopen).
+bool listingHasDiscoverableAvailability({
+  required Listing listing,
+  required DateTime now,
+  required List<BookingTimeWindow> bookings,
+  int minDurationMinutes = 15,
+}) {
+  if (listing.isWeeklyAvailability) {
+    return listing.publicWeeklyAvailability.isNotEmpty;
+  }
+  if (!listing.isSpecificAvailability) return false;
+  final specific = listing.publicSpecificAvailability;
+  if (!listingHasFutureSpecificWindow(specific, now: now)) return false;
+  final horizon = specificAvailabilityHorizonDays(specific, now: now);
+  if (horizon <= 0) return false;
+  return findSoonestAvailableStart(
+        now: now,
+        desiredDurationMinutes: minDurationMinutes,
+        listing: listing,
+        weekly: const [],
+        specific: specific,
+        bookings: bookings,
+        horizonDays: horizon,
+      ) !=
+      null;
+}
+
+// Single-line summary for the map preview, e.g. `Mon, Mar 31 · 9:15 AM – 10:15 AM`
 String formatNextAvailableSlotLine(DateTime start, int durationMinutes) {
   final end = start.add(Duration(minutes: durationMinutes));
   const dow = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
