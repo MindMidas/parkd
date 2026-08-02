@@ -7,10 +7,7 @@ Uri drivingDirectionsUri(String destination) =>
       'travelmode': 'driving',
     });
 
-/// Opens a platform-neutral HTTPS directions link.
-///
-/// Android/iOS can hand this URL to an installed maps app; browsers retain a
-/// fully functional web fallback without relying on platform-specific schemes.
+// Opens a platform-neutral HTTPS directions link.
 Future<bool> launchDrivingDirections(String destination) async {
   try {
     return await launchUrl(

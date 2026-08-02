@@ -16,14 +16,14 @@ class AppNotificationBadge extends StatelessWidget {
   Widget build(BuildContext context) {
     if (count <= 0) return const SizedBox.shrink();
     final label = count > 99 ? '99+' : '$count';
+    final size = compact ? 18.0 : 20.0;
     return Semantics(
       label: '$count unread notifications',
       excludeSemantics: true,
+      // Fixed height so ListTile trailing stretch cannot elongate the pill
       child: Container(
-        constraints: BoxConstraints(
-          minWidth: compact ? 18 : 20,
-          minHeight: compact ? 18 : 20,
-        ),
+        height: size,
+        constraints: BoxConstraints(minWidth: size),
         padding: const EdgeInsets.symmetric(horizontal: 5),
         alignment: Alignment.center,
         decoration: BoxDecoration(
@@ -33,6 +33,7 @@ class AppNotificationBadge extends StatelessWidget {
         ),
         child: Text(
           label,
+          textAlign: TextAlign.center,
           style: TextStyle(
             color: AppColors.onPrimary,
             fontSize: compact ? 10 : 11,

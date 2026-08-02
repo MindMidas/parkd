@@ -4,7 +4,7 @@ import '../theme/app_colors.dart';
 import '../theme/app_radius.dart';
 import '../theme/app_spacing.dart';
 
-/// Shared card chrome for Parkd dialogs (confirm, report, etc.).
+// Shared card chrome for Parkd dialogs (confirm, report, etc.).
 class AppDialogSurface extends StatelessWidget {
   const AppDialogSurface({
     super.key,

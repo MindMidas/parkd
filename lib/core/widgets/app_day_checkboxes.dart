@@ -7,7 +7,7 @@ import '../theme/app_spacing.dart';
 import '../theme/app_typography.dart';
 import '../utils/app_feedback.dart';
 
-// Mon–Sun short labels (weekly UI)
+// Mon-Sun short labels for weekly availability.
 const List<String> kWeekdayLabels = [
   'Mon',
   'Tue',
@@ -18,7 +18,7 @@ const List<String> kWeekdayLabels = [
   'Sun',
 ];
 
-// Day pills: row of 4 then 3; selectedIndices 0 = Mon … 6 = Sun
+// Day pills: row of 4 then 3; selectedIndices 0 = Mon through 6 = Sun.
 class AppDayCheckboxes extends StatelessWidget {
   const AppDayCheckboxes({
     super.key,
@@ -130,9 +130,7 @@ class _DayPill extends StatelessWidget {
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               style: AppTypography.captionStrong.copyWith(
-                color: selected
-                    ? AppColors.onPrimary
-                    : AppColors.textPrimary,
+                color: selected ? AppColors.onPrimary : AppColors.textPrimary,
               ),
             ),
           ),

@@ -20,8 +20,7 @@ class ReservationsMenuBody extends ConsumerWidget {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         const AppHubMenuIntro(
-          lead:
-              'See what\'s coming up, or look back at where you\'ve parked.',
+          lead: 'See what\'s coming up, or look back at where you\'ve parked.',
         ),
         AppHubMenuSection(
           title: 'Your trips',
@@ -29,7 +28,7 @@ class ReservationsMenuBody extends ConsumerWidget {
           children: [
             AppNavTile(
               icon: Icons.directions_car_outlined,
-              label: 'Active Reservations',
+              label: 'Active reservations',
               subtitle: 'Upcoming and in progress',
               badgeCount: unread,
               showDividerAbove: true,
@@ -43,7 +42,7 @@ class ReservationsMenuBody extends ConsumerWidget {
             ),
             AppNavTile(
               icon: Icons.history_rounded,
-              label: 'Past Reservations',
+              label: 'Past reservations',
               subtitle: 'Completed trips',
               showDividerAbove: true,
               showDividerBelow: true,

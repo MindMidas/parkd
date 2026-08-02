@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import 'app_map_search_card.dart';
 import 'app_search_field.dart';
 
-/// Solid search chrome for list screens (Manage Listings, bookings, etc.).
+// Solid search chrome for list screens (Manage Listings, bookings, etc.).
 class AppListScreenSearchPanel extends StatelessWidget {
   const AppListScreenSearchPanel({
     super.key,

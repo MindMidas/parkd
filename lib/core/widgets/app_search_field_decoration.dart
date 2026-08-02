@@ -12,7 +12,7 @@ abstract final class AppSearchFieldDecoration {
   static BorderSide get idleBorderSide =>
       const BorderSide(color: AppColors.secondaryGrey, width: 1);
 
-  /// Standalone outline field (list/hub search).
+  // Standalone outline field (list/hub search).
   static InputDecoration outline({
     required String hintText,
     Widget? suffixIcon,
@@ -58,7 +58,7 @@ abstract final class AppSearchFieldDecoration {
     );
   }
 
-  /// Field embedded inside [AppMapSearchCard] — card supplies chrome.
+  // Field embedded inside AppMapSearchCard.
   static InputDecoration mapEmbedded({
     required String hintText,
     Widget? suffixIcon,

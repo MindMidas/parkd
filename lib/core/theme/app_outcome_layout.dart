@@ -1,4 +1,4 @@
-/// Icon size vs circle diameter for outcome marks (check / X)
+// Icon size vs circle diameter for outcome marks (check / X)
 abstract final class AppOutcomeMarkLayout {
   static double iconSize({
     required bool success,

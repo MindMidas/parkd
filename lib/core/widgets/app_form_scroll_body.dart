@@ -36,7 +36,7 @@ class AppFormScrollBody extends StatelessWidget {
   }
 }
 
-// Vertical padding only — rows/dividers go full width; sections pad themselves
+// Vertical padding only; rows and dividers own their horizontal inset.
 class AppMenuScrollBody extends StatelessWidget {
   const AppMenuScrollBody({
     super.key,

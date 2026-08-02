@@ -1,4 +1,4 @@
-/// Mirrors public.message_status in supabase/schema.sql
+// Mirrors public.message_status in the database.
 enum MessageDeliveryStatus {
   sent,
   read;

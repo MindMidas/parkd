@@ -7,13 +7,14 @@ import '../../../core/theme/app_motion.dart';
 import '../../../core/theme/app_radius.dart';
 import '../../../core/theme/app_spacing.dart';
 import '../../../core/theme/app_typography.dart';
+import '../../../core/utils/chat_timeline.dart';
 import '../../../core/widgets/widgets.dart';
 import '../../auth/providers/auth_providers.dart';
 import '../../moderation/presentation/moderation_actions.dart';
 import '../../profile/providers/notifications_providers.dart';
 import '../providers/reservations_providers.dart';
 
-/// Live chat for one reservation (host or driver). Creates thread on first open if needed
+// Live chat for one reservation (host or driver). Creates thread on first open if needed
 class TripConversationScreen extends ConsumerStatefulWidget {
   const TripConversationScreen({
     super.key,
@@ -41,10 +42,12 @@ class TripConversationScreen extends ConsumerStatefulWidget {
 class _TripConversationScreenState
     extends ConsumerState<TripConversationScreen> {
   final _textController = TextEditingController();
+  late final ActiveTripChatNotifier _activeTripChat;
   String? _conversationId;
   bool _ensuring = false;
+  bool _sending = false;
   Object? _ensureError;
-  DateTime? _lastSentAt;
+  String? _actionError;
 
   List<Widget> get _viewTripActions {
     final label = widget.viewTripLabel?.trim();
@@ -112,6 +115,7 @@ class _TripConversationScreenState
   @override
   void initState() {
     super.initState();
+    _activeTripChat = ref.read(activeTripChatProvider.notifier);
     _conversationId = widget.initialConversationId;
     ref.listenManual(myNotificationFeedProvider, (previous, next) {
       final hasUnreadForTrip =
@@ -119,26 +123,27 @@ class _TripConversationScreenState
             (row) => !row.isRead && row.reservationId == widget.reservationId,
           ) ??
           false;
-      if (hasUnreadForTrip) _markMessageNotificationsRead();
+      if (hasUnreadForTrip) _markReservationNotificationsRead();
     });
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
-      ref.read(activeTripChatProvider.notifier).enter(widget.reservationId);
-      _markMessageNotificationsRead();
+      _activeTripChat.enter(widget.reservationId);
+      _markReservationNotificationsRead();
     });
   }
 
-  Future<void> _markMessageNotificationsRead() async {
+  Future<void> _markReservationNotificationsRead() async {
     try {
-      await ref
+      final cleared = await ref
           .read(notificationsRemoteProvider)
-          .markMessageNotificationsRead(widget.reservationId);
+          .markReservationNotificationsRead(widget.reservationId);
+      if (cleared > 0) ref.invalidate(myNotificationFeedProvider);
     } catch (_) {}
   }
 
   @override
   void dispose() {
-    ref.read(activeTripChatProvider.notifier).leave(widget.reservationId);
+    _activeTripChat.leave(widget.reservationId);
     _textController.dispose();
     super.dispose();
   }
@@ -158,7 +163,6 @@ class _TripConversationScreenState
         _conversationId = row.id;
         _ensuring = false;
       });
-      ref.invalidate(conversationMessagesProvider(row.id));
     } catch (e) {
       if (!mounted) return;
       setState(() {
@@ -169,25 +173,27 @@ class _TripConversationScreenState
   }
 
   Future<void> _send() async {
+    if (_sending) return;
     final text = _textController.text.trim();
     final cid = _conversationId;
     final uid = ref.read(currentSessionProvider)?.user.id;
     if (text.isEmpty || cid == null || uid == null) return;
-    final now = DateTime.now();
-    if (_lastSentAt != null &&
-        now.difference(_lastSentAt!) < const Duration(milliseconds: 750)) {
-      return;
-    }
-    _lastSentAt = now;
+    setState(() {
+      _sending = true;
+      _actionError = null;
+    });
+    _textController.clear();
     try {
+      // The realtime stream delivers the new row, so no refresh here
       await ref
           .read(messagingRepositoryProvider)
           .send(conversationId: cid, senderId: uid, text: text);
-      _textController.clear();
-      ref.invalidate(conversationMessagesProvider(cid));
     } catch (_) {
       if (!mounted) return;
-      AppMessenger.showError(context, 'Could not send message.');
+      _textController.text = text;
+      setState(() => _actionError = 'Could not send message.');
+    } finally {
+      if (mounted) setState(() => _sending = false);
     }
   }
 
@@ -267,24 +273,44 @@ class _TripConversationScreenState
                     itemCount: messages.length,
                     itemBuilder: (context, i) {
                       final m = messages[i];
+                      final previous = i == 0 ? null : messages[i - 1];
+                      final next = i == messages.length - 1
+                          ? null
+                          : messages[i + 1];
                       final mine = uid != null && m.senderId == uid;
-                      final name = mine ? 'You' : widget.peerDisplayName;
-                      return Padding(
-                        padding: const EdgeInsets.only(bottom: AppSpacing.sm),
-                        child: AppChatMessageBubble(
-                          senderName: name,
-                          message: m.message,
-                          isMine: mine,
-                          onLongPress: mine
-                              ? null
-                              : () => showParkdReportDialog(
-                                  context: context,
-                                  ref: ref,
-                                  targetType: 'message',
-                                  targetId: m.id,
-                                  targetLabel: 'message',
-                                ),
-                        ),
+                      final showTimestamp = shouldShowChatTimestamp(
+                        current: m.createdAt,
+                        previous: previous?.createdAt,
+                      );
+                      final isTail = isChatBubbleTail(
+                        senderId: m.senderId,
+                        sentAt: m.createdAt,
+                        nextSenderId: next?.senderId,
+                        nextSentAt: next?.createdAt,
+                      );
+                      return Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          if (showTimestamp && m.createdAt != null)
+                            AppChatTimestampDivider(
+                              label: chatTimestampLabel(m.createdAt!),
+                            ),
+                          AppChatMessageBubble(
+                            message: m.message,
+                            isMine: mine,
+                            isTail: isTail,
+                            onLongPress: mine
+                                ? null
+                                : () => showParkdReportDialog(
+                                    context: context,
+                                    ref: ref,
+                                    targetType: 'message',
+                                    targetId: m.id,
+                                    targetLabel: 'message',
+                                  ),
+                          ),
+                          SizedBox(height: isTail ? AppSpacing.sm : 2),
+                        ],
                       );
                     },
                   );
@@ -292,60 +318,73 @@ class _TripConversationScreenState
               ),
             ),
             AppStickyFooter(
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.end,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  Expanded(
-                    child: TextField(
-                      controller: _textController,
-                      minLines: 1,
-                      maxLines: 4,
-                      maxLength: 2000,
-                      buildCounter:
-                          (
-                            context, {
-                            required currentLength,
-                            required isFocused,
-                            required maxLength,
-                          }) => null,
-                      textCapitalization: TextCapitalization.sentences,
-                      style: AppTypography.body,
-                      decoration: InputDecoration(
-                        hintText: 'Message',
-                        hintStyle: AppTypography.body.copyWith(
-                          color: AppColors.textSecondary,
-                        ),
-                        filled: true,
-                        fillColor: AppColors.surface,
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(AppRadius.lg),
-                          borderSide: const BorderSide(
-                            color: AppColors.secondaryGrey,
+                  if (_actionError != null) ...[
+                    AppInlineError(
+                      message: _actionError!,
+                      onDismiss: () => setState(() => _actionError = null),
+                    ),
+                    const SizedBox(height: AppSpacing.sm),
+                  ],
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
+                      Expanded(
+                        child: TextField(
+                          controller: _textController,
+                          minLines: 1,
+                          maxLines: 4,
+                          maxLength: 2000,
+                          buildCounter:
+                              (
+                                context, {
+                                required currentLength,
+                                required isFocused,
+                                required maxLength,
+                              }) => null,
+                          textCapitalization: TextCapitalization.sentences,
+                          style: AppTypography.body,
+                          decoration: InputDecoration(
+                            hintText: 'Message',
+                            hintStyle: AppTypography.body.copyWith(
+                              color: AppColors.textSecondary,
+                            ),
+                            filled: true,
+                            fillColor: AppColors.surface,
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(AppRadius.lg),
+                              borderSide: const BorderSide(
+                                color: AppColors.secondaryGrey,
+                              ),
+                            ),
+                            enabledBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(AppRadius.lg),
+                              borderSide: const BorderSide(
+                                color: AppColors.secondaryGrey,
+                              ),
+                            ),
+                            focusedBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(AppRadius.lg),
+                              borderSide: const BorderSide(
+                                color: AppColors.primaryBlue,
+                                width: 1.5,
+                              ),
+                            ),
+                            contentPadding: const EdgeInsets.symmetric(
+                              horizontal: AppSpacing.md,
+                              vertical: AppSpacing.sm + 2,
+                            ),
                           ),
-                        ),
-                        enabledBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(AppRadius.lg),
-                          borderSide: const BorderSide(
-                            color: AppColors.secondaryGrey,
-                          ),
-                        ),
-                        focusedBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(AppRadius.lg),
-                          borderSide: const BorderSide(
-                            color: AppColors.primaryBlue,
-                            width: 1.5,
-                          ),
-                        ),
-                        contentPadding: const EdgeInsets.symmetric(
-                          horizontal: AppSpacing.md,
-                          vertical: AppSpacing.sm + 2,
                         ),
                       ),
-                    ),
-                  ),
-                  const SizedBox(width: AppSpacing.sm),
-                  _ChatSendButton(
-                    onPressed: uid == null ? null : _send,
+                      const SizedBox(width: AppSpacing.sm),
+                      _ChatSendButton(
+                        onPressed: (uid == null || _sending) ? null : _send,
+                      ),
+                    ],
                   ),
                 ],
               ),
@@ -378,8 +417,9 @@ class _ChatSendButtonState extends State<_ChatSendButton> {
   Widget build(BuildContext context) {
     final enabled = widget.onPressed != null;
     final reduceMotion = MediaQuery.disableAnimationsOf(context);
-    final scale =
-        (!reduceMotion && enabled && _pressed) ? AppMotion.pressScale : 1.0;
+    final scale = (!reduceMotion && enabled && _pressed)
+        ? AppMotion.pressScale
+        : 1.0;
 
     return Listener(
       behavior: HitTestBehavior.deferToChild,
@@ -391,9 +431,7 @@ class _ChatSendButtonState extends State<_ChatSendButton> {
         duration: AppMotion.press,
         curve: AppMotion.emphasized,
         child: Material(
-          color: enabled
-              ? AppColors.primaryBlue
-              : AppColors.primaryBlueMuted,
+          color: enabled ? AppColors.primaryBlue : AppColors.primaryBlueMuted,
           shape: const CircleBorder(),
           child: InkWell(
             customBorder: const CircleBorder(),

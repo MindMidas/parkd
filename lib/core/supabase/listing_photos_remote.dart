@@ -8,7 +8,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/listing_photo.dart';
 import '../security/image_upload_policy.dart';
 
-/// `listing_photos` rows backed exclusively by policy-protected Supabase Storage.
+// `listing_photos` rows backed exclusively by policy-protected Supabase Storage.
 class ListingPhotosRemote {
   ListingPhotosRemote(this._client);
 

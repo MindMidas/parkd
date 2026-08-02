@@ -113,7 +113,7 @@ class AppTheme {
         floatingLabelStyle: AppTypography.label,
         hintStyle: AppTypography.bodyMuted,
         labelStyle: AppTypography.label,
-        // Keeps placeholder (hint) in the input area when focused; label stays in the border gap (M3-style)
+        // Keep hints inside the field while the floating label is visible.
         floatingLabelBehavior: FloatingLabelBehavior.always,
         contentPadding: const EdgeInsets.symmetric(
           horizontal: 16,
@@ -136,33 +136,35 @@ class AppTheme {
         ),
       ),
       filledButtonTheme: FilledButtonThemeData(
-        style: FilledButton.styleFrom(
-          backgroundColor: AppColors.primaryBlue,
-          foregroundColor: AppColors.onPrimary,
-          minimumSize: Size(64, AppSpacing.primaryButtonMinHeight),
-          shape: RoundedRectangleBorder(borderRadius: radiusMd),
-          textStyle: AppTypography.button,
-          animationDuration: AppMotion.press,
-          splashFactory: InkRipple.splashFactory,
-        ).copyWith(
-          overlayColor: WidgetStateProperty.resolveWith(_filledOverlay),
-        ),
+        style:
+            FilledButton.styleFrom(
+              backgroundColor: AppColors.primaryBlue,
+              foregroundColor: AppColors.onPrimary,
+              minimumSize: Size(64, AppSpacing.primaryButtonMinHeight),
+              shape: RoundedRectangleBorder(borderRadius: radiusMd),
+              textStyle: AppTypography.button,
+              animationDuration: AppMotion.press,
+              splashFactory: InkRipple.splashFactory,
+            ).copyWith(
+              overlayColor: WidgetStateProperty.resolveWith(_filledOverlay),
+            ),
       ),
       outlinedButtonTheme: OutlinedButtonThemeData(
-        // Soft filled secondary — never white/surface CTA fills.
-        style: OutlinedButton.styleFrom(
-          minimumSize: Size(64, AppSpacing.primaryButtonMinHeight),
-          backgroundColor: AppColors.secondaryBlue,
-          foregroundColor: AppColors.primaryBlue,
-          disabledForegroundColor: AppColors.iconGrey,
-          side: BorderSide.none,
-          shape: RoundedRectangleBorder(borderRadius: radiusMd),
-          textStyle: AppTypography.button,
-          animationDuration: AppMotion.press,
-          splashFactory: InkRipple.splashFactory,
-        ).copyWith(
-          overlayColor: WidgetStateProperty.resolveWith(_outlinedOverlay),
-        ),
+        // Secondary CTAs use a filled style distinct from the surface.
+        style:
+            OutlinedButton.styleFrom(
+              minimumSize: Size(64, AppSpacing.primaryButtonMinHeight),
+              backgroundColor: AppColors.secondaryBlue,
+              foregroundColor: AppColors.primaryBlue,
+              disabledForegroundColor: AppColors.iconGrey,
+              side: BorderSide.none,
+              shape: RoundedRectangleBorder(borderRadius: radiusMd),
+              textStyle: AppTypography.button,
+              animationDuration: AppMotion.press,
+              splashFactory: InkRipple.splashFactory,
+            ).copyWith(
+              overlayColor: WidgetStateProperty.resolveWith(_outlinedOverlay),
+            ),
       ),
       textButtonTheme: TextButtonThemeData(
         style: TextButton.styleFrom(
@@ -170,9 +172,7 @@ class AppTheme {
           textStyle: AppTypography.textAction,
           animationDuration: AppMotion.press,
           splashFactory: InkRipple.splashFactory,
-        ).copyWith(
-          overlayColor: WidgetStateProperty.resolveWith(_textOverlay),
-        ),
+        ).copyWith(overlayColor: WidgetStateProperty.resolveWith(_textOverlay)),
       ),
       listTileTheme: ListTileThemeData(
         selectedTileColor: AppColors.secondaryBlue.withValues(alpha: 0.35),

@@ -26,6 +26,7 @@ class AddCardScreen extends ConsumerStatefulWidget {
 
 class _AddCardScreenState extends ConsumerState<AddCardScreen> {
   bool _stripeBusy = false;
+  String? _actionError;
   late final String _setupIdempotencyKey;
 
   @override
@@ -38,15 +39,16 @@ class _AddCardScreenState extends ConsumerState<AddCardScreen> {
 
   Future<void> _saveViaStripe() async {
     if (_stripeBusy) return;
+    setState(() => _actionError = null);
     final uid = ref.read(currentSessionProvider)?.user.id;
     if (uid == null) {
-      AppMessenger.showError(context, 'Sign in to manage cards.');
+      setState(() => _actionError = 'Sign in to manage cards.');
       return;
     }
     if (Stripe.publishableKey.trim().isEmpty) {
-      AppMessenger.showError(
-        context,
-        'Add STRIPE_PUBLISHABLE_KEY with --dart-define and rebuild.',
+      setState(
+        () => _actionError =
+            'Add STRIPE_PUBLISHABLE_KEY with --dart-define and rebuild.',
       );
       return;
     }
@@ -68,7 +70,7 @@ class _AddCardScreenState extends ConsumerState<AddCardScreen> {
       final si = await Stripe.instance.retrieveSetupIntent(clientSecret);
       if (si.status.toLowerCase() != 'succeeded') {
         if (!mounted) return;
-        AppMessenger.showError(context, 'Card setup did not complete.');
+        setState(() => _actionError = 'Card setup did not complete.');
         return;
       }
       final newId = await stripeRemote.completePaymentMethodSetup(
@@ -89,17 +91,17 @@ class _AddCardScreenState extends ConsumerState<AddCardScreen> {
         return;
       }
       if (mounted) {
-        AppMessenger.showError(
-          context,
-          e.error.localizedMessage ?? 'Could not save card',
+        setState(
+          () =>
+              _actionError = e.error.localizedMessage ?? 'Could not save card',
         );
       }
     } catch (e) {
       if (mounted) {
         final msg = e is StripeCheckoutRemoteException
             ? e.message
-            : e.toString();
-        AppMessenger.showError(context, msg);
+            : userFacingErrorMessage(e);
+        setState(() => _actionError = msg);
       }
     } finally {
       _stripeBusy = false;
@@ -121,6 +123,7 @@ class _AddCardScreenState extends ConsumerState<AddCardScreen> {
       ),
     );
     if (ok != true || !mounted) return;
+    setState(() => _actionError = null);
     final uid = ref.read(currentSessionProvider)?.user.id;
     if (uid == null) return;
     try {
@@ -130,7 +133,7 @@ class _AddCardScreenState extends ConsumerState<AddCardScreen> {
       ref.invalidate(paymentMethodsForCurrentUserProvider);
     } catch (_) {
       if (!mounted) return;
-      AppMessenger.showError(context, 'Could not remove card.');
+      setState(() => _actionError = 'Could not remove card.');
       return;
     }
     if (!mounted) return;
@@ -183,9 +186,17 @@ class _AddCardScreenState extends ConsumerState<AddCardScreen> {
                     ),
                     if (cardCount > 1) ...[
                       const SizedBox(height: AppSpacing.xl),
-                      AppListingDeleteCard(
-                        title: 'Remove card',
-                        onDelete: _confirmRemove,
+                      if (_actionError != null) ...[
+                        AppInlineError(
+                          message: _actionError!,
+                          onDismiss: () => setState(() => _actionError = null),
+                        ),
+                        const SizedBox(height: AppSpacing.sm),
+                      ],
+                      AppSecondaryButton(
+                        label: 'Remove card',
+                        destructive: true,
+                        onPressed: _confirmRemove,
                       ),
                     ],
                   ],
@@ -193,16 +204,24 @@ class _AddCardScreenState extends ConsumerState<AddCardScreen> {
               ),
             ),
             if (cardCount <= 1)
-              Padding(
-                padding: EdgeInsets.fromLTRB(
-                  AppSpacing.lg,
-                  0,
-                  AppSpacing.lg,
-                  AppSpacing.lg + bottom,
-                ),
-                child: AppListingDeleteCard(
-                  title: 'Remove card',
-                  onDelete: _confirmRemove,
+              AppStickyFooter(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    if (_actionError != null) ...[
+                      AppInlineError(
+                        message: _actionError!,
+                        onDismiss: () => setState(() => _actionError = null),
+                      ),
+                      const SizedBox(height: AppSpacing.sm),
+                    ],
+                    AppSecondaryButton(
+                      label: 'Remove card',
+                      destructive: true,
+                      onPressed: _confirmRemove,
+                    ),
+                  ],
                 ),
               ),
           ],
@@ -213,7 +232,7 @@ class _AddCardScreenState extends ConsumerState<AddCardScreen> {
     if (_useStripeSave && editing == null) {
       return Scaffold(
         backgroundColor: AppColors.surface,
-        appBar: const AppTopBar(title: 'Add New Card', showBack: true),
+        appBar: const AppTopBar(title: 'Add card', showBack: true),
         body: Column(
           children: [
             Expanded(
@@ -237,18 +256,24 @@ class _AddCardScreenState extends ConsumerState<AddCardScreen> {
                 ),
               ),
             ),
-            AppSurfaceFooterPad(
-              padding: EdgeInsets.fromLTRB(
-                AppSpacing.lg,
-                AppSpacing.sm,
-                AppSpacing.lg,
-                AppSpacing.md + bottom,
-              ),
-              child: AppPrimaryButton(
-                label: 'Add card',
-                icon: Icons.credit_card_rounded,
-                loading: _stripeBusy,
-                onPressed: _stripeBusy ? null : _saveViaStripe,
+            AppStickyFooter(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  if (_actionError != null) ...[
+                    AppInlineError(
+                      message: _actionError!,
+                      onDismiss: () => setState(() => _actionError = null),
+                    ),
+                    const SizedBox(height: AppSpacing.sm),
+                  ],
+                  AppPrimaryButton(
+                    label: 'Add card',
+                    loading: _stripeBusy,
+                    onPressed: _stripeBusy ? null : _saveViaStripe,
+                  ),
+                ],
               ),
             ),
           ],
@@ -258,7 +283,7 @@ class _AddCardScreenState extends ConsumerState<AddCardScreen> {
 
     final isLegacyDisplayOnlyCard = editing != null && !stripeLinkedEdit;
     if (isLegacyDisplayOnlyCard || editing == null) {
-      final title = editing == null ? 'Add New Card' : 'Saved card';
+      final title = editing == null ? 'Add card' : 'Saved card';
       final message = editing == null
           ? 'Card setup is only available in the iOS or Android app after '
                 'STRIPE_PUBLISHABLE_KEY is configured. Parkd does not store '
@@ -302,18 +327,24 @@ class _AddCardScreenState extends ConsumerState<AddCardScreen> {
               ),
             ),
             if (editing != null)
-              AppSurfaceFooterPad(
-                padding: EdgeInsets.fromLTRB(
-                  AppSpacing.lg,
-                  AppSpacing.sm,
-                  AppSpacing.lg,
-                  AppSpacing.md + bottom,
-                ),
-                child: AppPrimaryButton(
-                  label: 'Remove card',
-                  icon: Icons.delete_outline_rounded,
-                  destructive: true,
-                  onPressed: _confirmRemove,
+              AppStickyFooter(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    if (_actionError != null) ...[
+                      AppInlineError(
+                        message: _actionError!,
+                        onDismiss: () => setState(() => _actionError = null),
+                      ),
+                      const SizedBox(height: AppSpacing.sm),
+                    ],
+                    AppPrimaryButton(
+                      label: 'Remove card',
+                      destructive: true,
+                      onPressed: _confirmRemove,
+                    ),
+                  ],
                 ),
               ),
           ],
@@ -323,7 +354,11 @@ class _AddCardScreenState extends ConsumerState<AddCardScreen> {
 
     return Scaffold(
       backgroundColor: AppColors.surface,
-      body: const SizedBox.shrink(),
+      appBar: const AppTopBar(title: 'Payment methods', showBack: true),
+      body: const AppPageStatus.error(
+        title: 'Card unavailable',
+        message: 'This card could not be opened. Go back and try again.',
+      ),
     );
   }
 }

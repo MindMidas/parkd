@@ -22,7 +22,7 @@ class AppListingEditAvailabilityCard extends StatelessWidget {
     required this.onEdit,
     required this.dateRangeSlots,
     required this.weeklySlots,
-    this.title = 'Availability and Price',
+    this.title = 'Availability and price',
   });
 
   final VoidCallback onEdit;
@@ -47,11 +47,7 @@ class AppListingEditAvailabilityCard extends StatelessWidget {
             useOuterPadding: false,
           ),
           const SizedBox(height: AppSpacing.md),
-          AppPrimaryButton(
-            label: 'Edit',
-            icon: Icons.edit_outlined,
-            onPressed: onEdit,
-          ),
+          AppPrimaryButton(label: 'Edit', onPressed: onEdit),
         ],
       ),
     );

@@ -21,7 +21,7 @@ class AppOverflowMenuItem {
   final bool destructive;
 }
 
-/// App-bar overflow with Parkd row chrome (not stock ListTile menus).
+// App-bar overflow with Parkd row chrome (not stock ListTile menus).
 class AppOverflowMenuButton extends StatelessWidget {
   const AppOverflowMenuButton({
     super.key,

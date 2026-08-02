@@ -3,7 +3,7 @@ import 'dart:math';
 
 import 'package:supabase_flutter/supabase_flutter.dart';
 
-/// Edge Functions call Stripe; app only uses publishable key + client_secret
+// Edge Functions call Stripe; app only uses publishable key + client_secret
 class StripeCheckoutRemote {
   StripeCheckoutRemote(this._client);
 
@@ -11,13 +11,14 @@ class StripeCheckoutRemote {
 
   static const _createIntent = 'create-payment-intent';
   static const _finalize = 'finalize-reservation-payment';
+  static const _cancelReservation = 'cancel-reservation';
   static const _createSetupIntent = 'create-setup-intent';
   static const _completePaymentMethodSetup = 'complete-payment-method-setup';
 
   static const Duration _sessionRefreshTimeout = Duration(seconds: 25);
   static const Duration _edgeInvokeTimeout = Duration(seconds: 45);
 
-  /// Refresh session so Edge gets a valid JWT (don’t bypass client auth headers)
+  // Refresh the session so Edge receives a valid JWT.
   Future<void> _ensureSessionReadyForEdge() async {
     final auth = _client.auth;
     if (auth.currentSession == null) {
@@ -93,11 +94,7 @@ class StripeCheckoutRemote {
     return 'Payment service error (${e.status}). Try again.';
   }
 
-  /// Starts or resumes one server-authoritative checkout.
-  ///
-  /// The client deliberately sends no price or fee. The Edge Function validates
-  /// availability, calculates the total, creates the reservation/payment rows in
-  /// one transaction, and then creates the corresponding Stripe test object.
+  // Starts or resumes one server-authoritative checkout.
   Future<TrustedCheckoutSession> createCheckout({
     required String listingId,
     required DateTime startTime,
@@ -140,7 +137,7 @@ class StripeCheckoutRemote {
     return TrustedCheckoutSession.fromJson(Map<String, dynamic>.from(data));
   }
 
-  /// Creates a URL-safe key that is reused for every retry from one checkout UI.
+  // Creates a URL-safe key that is reused for every retry from one checkout UI.
   static String newIdempotencyKey() {
     final random = Random.secure();
     final entropy = List<int>.generate(16, (_) => random.nextInt(256));
@@ -174,7 +171,7 @@ class StripeCheckoutRemote {
     return secret;
   }
 
-  /// Returns new payment_methods id when present
+  // Returns new payment_methods id when present
   Future<String?> completePaymentMethodSetup({
     required String setupIntentId,
   }) async {
@@ -207,12 +204,48 @@ class StripeCheckoutRemote {
     }
   }
 
+  // Cancels a confirmed upcoming reservation. Refunds when policy allows.
+  Future<CancelReservationResult> cancelReservation({
+    required String reservationId,
+  }) async {
+    final res = await _invoke(
+      _cancelReservation,
+      body: {'reservation_id': reservationId},
+    );
+    if (res.status != 200) {
+      throw StripeCheckoutRemoteException(
+        _messageFromResponse(res.data, 'Could not cancel reservation'),
+      );
+    }
+    final data = res.data;
+    if (data is! Map) {
+      throw const StripeCheckoutRemoteException(
+        'Invalid cancel reservation response',
+      );
+    }
+    final map = Map<String, dynamic>.from(data);
+    return CancelReservationResult(
+      outcome: (map['outcome'] as String?) ?? 'cancelled',
+      refunded: map['refunded'] == true,
+    );
+  }
+
   static String _messageFromResponse(Object? data, String fallback) {
     if (data is Map && data['error'] is String) {
       return data['error'] as String;
     }
     return fallback;
   }
+}
+
+class CancelReservationResult {
+  const CancelReservationResult({
+    required this.outcome,
+    required this.refunded,
+  });
+
+  final String outcome;
+  final bool refunded;
 }
 
 class StripeCheckoutRemoteException implements Exception {
@@ -223,8 +256,6 @@ class StripeCheckoutRemoteException implements Exception {
   String toString() => message;
 }
 
-/// Values returned by the trusted Edge checkout. Monetary values are integer
-/// minor units so no floating-point amount crosses the security boundary.
 class TrustedCheckoutSession {
   const TrustedCheckoutSession({
     required this.reservationId,

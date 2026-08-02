@@ -4,7 +4,7 @@ import '../models/availability_specific.dart';
 import '../models/availability_weekly.dart';
 import '../models/listing.dart';
 
-/// availability_weekly + availability_specific tables
+// availability_weekly + availability_specific tables
 class ListingAvailabilityRemote {
   ListingAvailabilityRemote(this._client);
 

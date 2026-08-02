@@ -6,11 +6,6 @@ import '../theme/app_colors.dart';
 import '../theme/app_spacing.dart';
 import '../theme/app_typography.dart';
 
-/// A lightweight map-like preview for platforms without the native Mapbox SDK.
-///
-/// It intentionally makes no network requests and is non-interactive. The
-/// abstract street pattern avoids implying that exact host coordinates are
-/// exposed in public discovery.
 class AppStaticMapPreview extends StatelessWidget {
   const AppStaticMapPreview({
     super.key,

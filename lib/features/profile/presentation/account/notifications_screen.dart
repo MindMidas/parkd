@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 
+import '../../../../app/shell_deep_link_provider.dart';
 import '../../../../core/models/notification_row.dart';
 import '../../../../core/supabase/notifications_remote.dart';
 import '../../../../core/theme/app_colors.dart';
@@ -12,7 +13,6 @@ import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/theme/app_typography.dart';
 import '../../../../core/widgets/widgets.dart';
 import '../../../auth/providers/auth_providers.dart';
-import '../../../reservations/presentation/notification_conversation_route_screen.dart';
 import '../../providers/notifications_providers.dart';
 
 class NotificationsScreen extends ConsumerStatefulWidget {
@@ -27,6 +27,7 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
   final List<NotificationRow> _older = [];
   bool _loadingOlder = false;
   bool _hasMore = true;
+  String? _actionError;
 
   List<NotificationRow> _combined(List<NotificationRow> latest) {
     final byId = <String, NotificationRow>{
@@ -43,7 +44,10 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
     if (userId == null) return;
     final visible = _combined(latest);
     if (visible.isEmpty) return;
-    setState(() => _loadingOlder = true);
+    setState(() {
+      _loadingOlder = true;
+      _actionError = null;
+    });
     try {
       final page = await ref
           .read(notificationsRemoteProvider)
@@ -55,7 +59,7 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
       });
     } catch (_) {
       if (mounted) {
-        AppMessenger.showError(context, 'Could not load older notifications.');
+        setState(() => _actionError = 'Could not load older notifications.');
       }
     } finally {
       if (mounted) {
@@ -65,6 +69,7 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
   }
 
   Future<void> _markAllRead() async {
+    setState(() => _actionError = null);
     try {
       await ref.read(notificationsRemoteProvider).markAllRead();
       if (mounted) {
@@ -72,12 +77,13 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
       }
     } catch (_) {
       if (mounted) {
-        AppMessenger.showError(context, 'Could not update notifications.');
+        setState(() => _actionError = 'Could not update notifications.');
       }
     }
   }
 
   Future<void> _delete(NotificationRow row) async {
+    setState(() => _actionError = null);
     try {
       final deleted = await ref
           .read(notificationsRemoteProvider)
@@ -88,13 +94,27 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
       }
     } catch (_) {
       if (mounted) {
-        AppMessenger.showError(context, 'Could not delete notification.');
+        setState(() => _actionError = 'Could not delete notification.');
       }
       rethrow;
     }
   }
 
   Future<void> _open(NotificationRow row) async {
+    final reservationId = row.reservationId;
+    // Navigate first so a slow mark-read call can't leave the tap feeling dead.
+    if (row.type == ParkdNotificationType.messageReceived &&
+        reservationId != null &&
+        reservationId.isNotEmpty) {
+      ref
+          .read(shellDeepLinkProvider.notifier)
+          .openReservationMessages(reservationId);
+    } else {
+      final tab = row.hub == NotificationHub.reservations
+          ? 'reservations'
+          : 'hosting';
+      context.go('/home?tab=$tab');
+    }
     try {
       if (!row.isRead) {
         await ref.read(notificationsRemoteProvider).markRead(row.id);
@@ -102,18 +122,6 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
     } catch (_) {
       // Navigation remains useful if a transient read-receipt update fails.
     }
-    if (!mounted) return;
-
-    final reservationId = row.reservationId;
-    if (row.type == ParkdNotificationType.messageReceived &&
-        reservationId != null) {
-      context.push(reservationMessagesLocation(reservationId));
-      return;
-    }
-    final tab = row.hub == NotificationHub.reservations
-        ? 'reservations'
-        : 'hosting';
-    context.go('/home?tab=$tab');
   }
 
   @override
@@ -139,76 +147,101 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
         ],
       ),
       body: SafeArea(
-        child: feed.when(
-          loading: () => const AppPageStatus.loading(),
-          error: (_, _) => AppPageStatus.error(
-            title: 'Notifications unavailable',
-            message: 'Check your connection and try again.',
-            actionLabel: 'Try again',
-            onAction: () => ref.invalidate(myNotificationFeedProvider),
-          ),
-          data: (snapshot) {
-            final rows = _combined(snapshot.latest);
-            if (rows.isEmpty) {
-              return const AppPageStatus.empty(
-                title: 'No notifications yet',
-                message: 'Booking, review, and message updates appear here.',
-              );
-            }
-            return ListView.separated(
-              padding: const EdgeInsets.fromLTRB(
-                AppSpacing.md,
-                AppSpacing.sm,
-                AppSpacing.md,
-                AppSpacing.lg,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            if (_actionError != null)
+              Padding(
+                padding: const EdgeInsets.fromLTRB(
+                  AppSpacing.md,
+                  AppSpacing.sm,
+                  AppSpacing.md,
+                  0,
+                ),
+                child: AppInlineError(
+                  message: _actionError!,
+                  onDismiss: () => setState(() => _actionError = null),
+                ),
               ),
-              itemCount: rows.length + (_hasMore ? 1 : 0),
-              separatorBuilder: (_, _) => const SizedBox(height: AppSpacing.sm),
-              itemBuilder: (context, index) {
-                if (index == rows.length) {
-                  return Center(
-                    child: AppSecondaryButton(
-                      key: const Key('notifications_load_older'),
-                      label: 'Load older',
-                      icon: Icons.expand_more_rounded,
-                      fullWidth: false,
-                      compact: true,
-                      loading: _loadingOlder,
-                      onPressed: _loadingOlder
-                          ? null
-                          : () => _loadOlder(snapshot.latest),
+            Expanded(
+              child: feed.when(
+                loading: () => const AppPageStatus.loading(),
+                error: (_, _) => AppPageStatus.error(
+                  title: 'Notifications unavailable',
+                  message: 'Check your connection and try again.',
+                  actionLabel: 'Try again',
+                  onAction: () => ref.invalidate(myNotificationFeedProvider),
+                ),
+                data: (snapshot) {
+                  final rows = _combined(snapshot.latest);
+                  if (rows.isEmpty) {
+                    return const AppPageStatus.empty(
+                      title: 'No notifications yet',
+                      message:
+                          'Booking, review, and message updates appear here.',
+                    );
+                  }
+                  return ListView.separated(
+                    padding: const EdgeInsets.fromLTRB(
+                      AppSpacing.md,
+                      AppSpacing.sm,
+                      AppSpacing.md,
+                      AppSpacing.lg,
                     ),
+                    itemCount: rows.length + (_hasMore ? 1 : 0),
+                    separatorBuilder: (_, _) =>
+                        const SizedBox(height: AppSpacing.sm),
+                    itemBuilder: (context, index) {
+                      if (index == rows.length) {
+                        return Center(
+                          child: AppSecondaryButton(
+                            key: const Key('notifications_load_older'),
+                            label: 'Load older',
+                            icon: Icons.expand_more_rounded,
+                            fullWidth: false,
+                            compact: true,
+                            loading: _loadingOlder,
+                            onPressed: _loadingOlder
+                                ? null
+                                : () => _loadOlder(snapshot.latest),
+                          ),
+                        );
+                      }
+                      final row = rows[index];
+                      return Dismissible(
+                        key: ValueKey('notification_${row.id}'),
+                        direction: DismissDirection.endToStart,
+                        confirmDismiss: (_) async {
+                          try {
+                            await _delete(row);
+                            return true;
+                          } catch (_) {
+                            return false;
+                          }
+                        },
+                        background: Container(
+                          alignment: Alignment.centerRight,
+                          padding: const EdgeInsets.only(right: AppSpacing.lg),
+                          decoration: BoxDecoration(
+                            color: AppColors.error,
+                            borderRadius: BorderRadius.circular(AppRadius.md),
+                          ),
+                          child: const Icon(
+                            Icons.delete_outline_rounded,
+                            color: AppColors.onPrimary,
+                          ),
+                        ),
+                        child: _NotificationCard(
+                          row: row,
+                          onTap: () => _open(row),
+                        ),
+                      );
+                    },
                   );
-                }
-                final row = rows[index];
-                return Dismissible(
-                  key: ValueKey('notification_${row.id}'),
-                  direction: DismissDirection.endToStart,
-                  confirmDismiss: (_) async {
-                    try {
-                      await _delete(row);
-                      return true;
-                    } catch (_) {
-                      return false;
-                    }
-                  },
-                  background: Container(
-                    alignment: Alignment.centerRight,
-                    padding: const EdgeInsets.only(right: AppSpacing.lg),
-                    decoration: BoxDecoration(
-                      color: AppColors.error,
-                      borderRadius: BorderRadius.circular(AppRadius.md),
-                    ),
-                    child: const Icon(
-                      Icons.delete_outline_rounded,
-                      color: AppColors.onPrimary,
-                    ),
-                  ),
-                  child: _NotificationCard(row: row, onTap: () => _open(row)),
-                );
-              },
-            );
-          },
+                },
+              ),
+            ),
+          ],
         ),
       ),
     );

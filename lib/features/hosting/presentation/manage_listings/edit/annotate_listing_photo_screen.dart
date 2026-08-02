@@ -12,7 +12,7 @@ import '../../create_listing/create_listing_draft.dart';
 import 'confirmation_success_screen.dart';
 import '../../create_listing/create_listing_flow/set_availability_screen.dart';
 
-// Drag marker on the photo — [createDraft] continues wizard; [listingId] saves immediately
+// Drag marker on a listing photo; draft flow continues, edit flow saves immediately.
 class AnnotateListingPhotoScreen extends ConsumerStatefulWidget {
   const AnnotateListingPhotoScreen({
     super.key,
@@ -43,6 +43,7 @@ class _AnnotateListingPhotoScreenState
     extends ConsumerState<AnnotateListingPhotoScreen> {
   Offset _markerFraction = const Offset(0.5, 0.5);
   bool _saving = false;
+  String? _actionError;
 
   static void _noopClose() {}
 
@@ -68,7 +69,10 @@ class _AnnotateListingPhotoScreenState
     }
     final id = widget.listingId;
     if (id == null) return;
-    setState(() => _saving = true);
+    setState(() {
+      _saving = true;
+      _actionError = null;
+    });
     final repo = ref.read(listingsRepositoryProvider);
     try {
       final existing = await repo.getListingPhotos(id);
@@ -84,9 +88,9 @@ class _AnnotateListingPhotoScreenState
       invalidateListingSurfaces(ref, id);
     } catch (_) {
       if (mounted) {
-        AppMessenger.showError(
-          context,
-          'Could not update listing photo. Check your connection and try again.',
+        setState(
+          () => _actionError =
+              'Could not update listing photo. Check your connection and try again.',
         );
       }
       return;
@@ -164,18 +168,31 @@ class _AnnotateListingPhotoScreenState
               ),
             ),
             AppStickyFooter(
-              child: widget.currentStep != null
-                  ? AppPrimaryButton(
-                      label: 'Continue',
-                      onPressed: () => _continue(),
-                      applyTitleCase: false,
-                      loading: _saving,
-                    )
-                  : AppPrimaryButton(
-                      label: 'Confirm',
-                      onPressed: () => _continue(),
-                      loading: _saving,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  if (_actionError != null) ...[
+                    AppInlineError(
+                      message: _actionError!,
+                      onDismiss: () => setState(() => _actionError = null),
                     ),
+                    const SizedBox(height: AppSpacing.sm),
+                  ],
+                  widget.currentStep != null
+                      ? AppPrimaryButton(
+                          label: 'Continue',
+                          onPressed: () => _continue(),
+                          applyTitleCase: false,
+                          loading: _saving,
+                        )
+                      : AppPrimaryButton(
+                          label: 'Confirm',
+                          onPressed: () => _continue(),
+                          loading: _saving,
+                        ),
+                ],
+              ),
             ),
           ],
         ),

@@ -43,7 +43,7 @@ enum ParkdNotificationType {
   }
 }
 
-/// Privacy-minimized event row from `public.notifications`.
+// Privacy-minimized event row from `public.notifications`.
 class NotificationRow {
   const NotificationRow({
     required this.id,
@@ -78,6 +78,11 @@ class NotificationRow {
   String? get reservationId {
     final value = data['reservation_id'];
     if (value is String && value.trim().isNotEmpty) return value.trim();
+    // PostgREST occasionally surfaces uuid jsonb values as non-Strings.
+    if (value != null) {
+      final asText = value.toString().trim();
+      if (asText.isNotEmpty && asText != 'null') return asText;
+    }
     return sourceEntityType == 'reservation' ? sourceEntityId : null;
   }
 
@@ -89,7 +94,7 @@ class NotificationRow {
 
   String get body => switch (type) {
     ParkdNotificationType.reservationConfirmed =>
-      'A driver completed test checkout for your listing.',
+      'A driver completed checkout for your listing.',
     ParkdNotificationType.messageReceived =>
       'Open the conversation to read the message.',
     ParkdNotificationType.reviewReceived => 'You received a new rating.',

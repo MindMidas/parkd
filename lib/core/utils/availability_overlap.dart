@@ -1,7 +1,5 @@
 import 'time_step_minutes.dart';
 
-/// Overlap checks for host availability slots (matches DB trigger semantics:
-/// half-open intervals: `[start, end)` in time / datetime)
 abstract final class AvailabilityOverlap {
   static const weeklyCode = 'OVERLAP_AVAILABILITY_WEEKLY';
   static const specificCode = 'OVERLAP_AVAILABILITY_SPECIFIC';
@@ -11,7 +9,7 @@ abstract final class AvailabilityOverlap {
   static const userMessageSpecific =
       'This period overlaps another scheduled slot. Use different dates or times.';
 
-  /// `[a0,a1)` vs `[b0,b1)` in minutes from midnight (same calendar day)
+  // `[a0,a1)` vs `[b0,b1)` in minutes from midnight (same calendar day)
   static bool intervalsOverlapHalfOpenMinutes(int a0, int a1, int b0, int b1) {
     return a0 < b1 && b0 < a1;
   }
@@ -25,7 +23,7 @@ abstract final class AvailabilityOverlap {
     return aStart.isBefore(bEnd) && bStart.isBefore(aEnd);
   }
 
-  /// Parses `"9:15 AM – 1:00 PM"` (en dash, em dash, or hyphen) to minutes; null if invalid
+  // Parses display time ranges to minutes; returns null if invalid.
   static ({int startMin, int endMin})? tryParseAmPmTimeRange(String timeRange) {
     final normalized = timeRange.replaceAll(RegExp(r'[–—]'), '-').trim();
     final parts = normalized.split(RegExp(r'\s+-\s+'));
@@ -46,7 +44,7 @@ abstract final class AvailabilityOverlap {
     return (startMin: a, endMin: b);
   }
 
-  /// Any pair overlaps on the same Postgres `day_of_week` (0=Sun … 6=Sat)
+  // Any pair overlaps on the same Postgres day_of_week.
   static bool weeklyAnyPairOverlaps(
     List<({int dayPg, int startMin, int endMin})> slots,
   ) {

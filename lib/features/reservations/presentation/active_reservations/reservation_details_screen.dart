@@ -5,20 +5,26 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
 import '../../../../core/models/listing.dart';
-import '../../../../core/assets/parkd_assets.dart';
 import '../../../../core/models/payment_record_status.dart';
 import '../../../../core/models/reservation_row.dart';
 import '../../../../core/models/reservation_status.dart';
+import '../../../../core/stripe/stripe_checkout_provider.dart';
+import '../../../../core/stripe/stripe_checkout_remote.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/theme/app_typography.dart';
 import '../../../../core/utils/directions_launcher.dart';
 import '../../../../core/utils/profile_avatar_image_provider.dart';
+import '../../../../core/utils/reservation_cancel_policy.dart';
+import '../../../../core/models/review_row.dart';
 import '../../../../core/widgets/widgets.dart';
 import '../../../auth/providers/auth_providers.dart';
 import '../../../profile/providers/profile_providers.dart';
+import '../../../reviews/presentation/leave_review_screen.dart';
+import '../../../reviews/providers/reviews_providers.dart';
 import '../../providers/reservations_providers.dart';
 import '../trip_conversation_screen.dart';
+import '../widgets/listing_parking_hero.dart';
 
 String _handleFromDisplayName(String displayName) {
   final t = displayName.trim();
@@ -26,7 +32,7 @@ String _handleFromDisplayName(String displayName) {
   return '@${t.toLowerCase().replaceAll(' ', '')}';
 }
 
-/// Driver view of a trip they booked
+// Driver view of a trip they booked
 class ReservationDetailsScreen extends ConsumerStatefulWidget {
   const ReservationDetailsScreen({
     super.key,
@@ -46,6 +52,8 @@ class _ReservationDetailsScreenState
     extends ConsumerState<ReservationDetailsScreen> {
   Timer? _ticker;
   DateTime _now = DateTime.now();
+  bool _cancelling = false;
+  String? _actionError;
 
   ReservationRow get r => widget.reservation;
   Listing? get listing => widget.listing;
@@ -59,6 +67,15 @@ class _ReservationDetailsScreenState
         return true;
     }
   }
+
+  bool get _canCancel => reservationIsDriverCancellable(
+    r.startTime,
+    status: r.status.name,
+    now: _now,
+  );
+
+  bool get _cancelRefundable =>
+      reservationCancelIsRefundable(r.startTime, now: _now);
 
   String get _streetLine => listing?.addressLine ?? 'Parking spot';
   String get _localityLine => listing?.townCountryLine ?? '';
@@ -78,9 +95,67 @@ class _ReservationDetailsScreenState
   ].join(', ');
 
   Future<void> _openDirections(BuildContext context) async {
+    setState(() => _actionError = null);
     if (await launchDrivingDirections(_fullAddress)) return;
-    if (!context.mounted) return;
-    AppMessenger.showError(context, 'Could not open directions.');
+    if (!mounted) return;
+    setState(() => _actionError = 'Could not open directions.');
+  }
+
+  Future<void> _confirmCancel() async {
+    if (_cancelling || !_canCancel) return;
+    final refundable = _cancelRefundable;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AppConfirmDialog(
+        title: 'Cancel reservation?',
+        message: refundable
+            ? 'This booking will be cancelled and you’ll receive a full refund.'
+            : 'This booking will be cancelled. Because you’re within 2 hours of '
+                  'the start time, the payment is not refundable.',
+        cancelLabel: 'Keep',
+        confirmLabel: 'Cancel reservation',
+        confirmDestructive: true,
+        onCancel: () => Navigator.of(dialogContext).pop(false),
+        onConfirm: () => Navigator.of(dialogContext).pop(true),
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+
+    setState(() {
+      _cancelling = true;
+      _actionError = null;
+    });
+    try {
+      final result = await ref
+          .read(stripeCheckoutRemoteProvider)
+          .cancelReservation(reservationId: r.id);
+      ref.invalidate(driverActiveReservationsProvider);
+      ref.invalidate(driverPastReservationsProvider);
+      ref.invalidate(driverActiveTripsProvider);
+      ref.invalidate(driverPastTripsProvider);
+      ref.invalidate(reservationByIdProvider(r.id));
+      ref.invalidate(reservationPaymentProvider(r.id));
+      ref.invalidate(hostActiveReservationsProvider);
+      ref.invalidate(hostPastReservationsProvider);
+      if (!mounted) return;
+      AppMessenger.showSuccess(
+        context,
+        result.refunded
+            ? 'Reservation cancelled. Your refund is on the way.'
+            : 'Reservation cancelled.',
+      );
+      Navigator.of(context).pop();
+    } on StripeCheckoutRemoteException catch (e) {
+      if (mounted) setState(() => _actionError = e.message);
+    } catch (_) {
+      if (mounted) {
+        setState(
+          () => _actionError = 'Could not cancel this reservation. Try again.',
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _cancelling = false);
+    }
   }
 
   @override
@@ -104,12 +179,13 @@ class _ReservationDetailsScreenState
   Widget build(BuildContext context) {
     final hostProfile = ref.watch(profileByUserIdProvider(r.hostId));
     final payAsync = ref.watch(reservationPaymentProvider(r.id));
+    final myReviewAsync = ref.watch(myReviewForReservationProvider(r.id));
 
     if (hostProfile.isLoading) {
-      return Scaffold(
+      return const Scaffold(
         backgroundColor: AppColors.surface,
-        appBar: const AppTopBar(title: 'Reservation details', showBack: true),
-        body: const AppPageStatus.loading(),
+        appBar: AppTopBar(title: 'Reservation details', showBack: true),
+        body: AppPageStatus.loading(),
       );
     }
 
@@ -120,6 +196,13 @@ class _ReservationDetailsScreenState
         ? '@$u'
         : _handleFromDisplayName(hostName);
     final hostAvatar = profileAvatarImageProvider(hostP);
+    final canLeaveReview =
+        r.status == ReservationStatus.completed &&
+        myReviewAsync.maybeWhen(data: (v) => v == null, orElse: () => false);
+    final alreadyReviewed = myReviewAsync.maybeWhen(
+      data: (v) => v != null,
+      orElse: () => false,
+    );
 
     final df = DateFormat('MMM d, y');
     final tf = DateFormat('h:mm a');
@@ -142,7 +225,7 @@ class _ReservationDetailsScreenState
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              _ReservationParkingHeroFrame(
+              ListingParkingHero(
                 listingId: listing?.id,
                 fallbackImageUrl: listing?.heroPhotoUrl ?? '',
               ),
@@ -162,6 +245,12 @@ class _ReservationDetailsScreenState
                       displayName: hostName,
                       handle: hostHandle,
                       avatarImageProvider: hostAvatar,
+                      ratingLabel: hostP == null
+                          ? null
+                          : profileRatingLabel(
+                              rating: hostP.rating,
+                              ratingCount: hostP.ratingCount,
+                            ),
                       actionLabel: 'Chat',
                       onActionPressed: () {
                         final uid = ref.read(currentSessionProvider)?.user.id;
@@ -177,6 +266,15 @@ class _ReservationDetailsScreenState
                         );
                       },
                     ),
+                    if (alreadyReviewed) ...[
+                      const SizedBox(height: AppSpacing.sm),
+                      Text(
+                        'You already left a review for this trip.',
+                        style: AppTypography.caption.copyWith(
+                          color: AppColors.textSecondary,
+                        ),
+                      ),
+                    ],
                     const SizedBox(height: AppSpacing.lg),
                     Text('Location', style: AppTypography.overline),
                     const SizedBox(height: AppSpacing.sm),
@@ -286,157 +384,58 @@ class _ReservationDetailsScreenState
         ),
       ),
       bottomNavigationBar: AppStickyFooter(
-        child: AppPrimaryButton(
-          label: 'Get directions',
-          icon: Icons.explore_outlined,
-          onPressed: () => _openDirections(context),
-        ),
-      ),
-    );
-  }
-}
-
-/// Full-width 4:3 frame; loads [listingPhotosProvider] for spot marker when [listingId] is set
-class _ReservationParkingHeroFrame extends ConsumerWidget {
-  const _ReservationParkingHeroFrame({
-    this.listingId,
-    required this.fallbackImageUrl,
-  });
-
-  final String? listingId;
-  final String fallbackImageUrl;
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final id = listingId?.trim();
-    if (id == null || id.isEmpty) {
-      return _ReservationHeroContent(
-        imageUrl: fallbackImageUrl,
-        markerFraction: null,
-      );
-    }
-
-    final photosAsync = ref.watch(listingPhotosProvider(id));
-    return photosAsync.when(
-      data: (photos) {
-        final sorted = [...photos]
-          ..sort((a, b) => a.sortOrder.compareTo(b.sortOrder));
-        final first = sorted.isNotEmpty ? sorted.first : null;
-        final fromPhoto = first?.photoUrl.trim() ?? '';
-        final url = fromPhoto.isNotEmpty ? fromPhoto : fallbackImageUrl.trim();
-        Offset? marker;
-        if (first != null && first.markerX != null && first.markerY != null) {
-          marker = Offset(first.markerX!, first.markerY!);
-        }
-        return _ReservationHeroContent(imageUrl: url, markerFraction: marker);
-      },
-      loading: () => _ReservationHeroContent(
-        imageUrl: fallbackImageUrl,
-        markerFraction: null,
-      ),
-      error: (_, _) => _ReservationHeroContent(
-        imageUrl: fallbackImageUrl,
-        markerFraction: null,
-      ),
-    );
-  }
-}
-
-class _ReservationHeroContent extends StatelessWidget {
-  const _ReservationHeroContent({
-    required this.imageUrl,
-    required this.markerFraction,
-  });
-
-  final String imageUrl;
-  final Offset? markerFraction;
-
-  @override
-  Widget build(BuildContext context) {
-    final url = imageUrl.trim();
-    final Widget photo;
-    if (url.isEmpty) {
-      photo = Image.asset(
-        ParkdAssets.reservationParkingSpotPng,
-        fit: BoxFit.cover,
-        width: double.infinity,
-        height: double.infinity,
-        errorBuilder: (_, _, _) => ColoredBox(
-          color: AppColors.secondaryBlue.withValues(alpha: 0.35),
-          child: Center(
-            child: Icon(
-              Icons.local_parking_rounded,
-              size: 56,
-              color: AppColors.primaryBlue.withValues(alpha: 0.35),
-            ),
-          ),
-        ),
-      );
-    } else {
-      photo = Image.network(
-        url,
-        key: ValueKey<String>(url),
-        fit: BoxFit.cover,
-        width: double.infinity,
-        height: double.infinity,
-        loadingBuilder: (context, child, progress) {
-          if (progress == null) return child;
-          return ColoredBox(
-            color: AppColors.secondaryBlue.withValues(alpha: 0.15),
-            child: const Center(
-              child: SizedBox(
-                width: 28,
-                height: 28,
-                child: CircularProgressIndicator(strokeWidth: 2),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            if (_actionError != null) ...[
+              AppInlineError(
+                message: _actionError!,
+                onDismiss: () => setState(() => _actionError = null),
               ),
-            ),
-          );
-        },
-        errorBuilder: (_, _, _) => ColoredBox(
-          color: AppColors.secondaryBlue.withValues(alpha: 0.25),
-          child: const Center(
-            child: Icon(
-              Icons.broken_image_outlined,
-              color: AppColors.iconGrey,
-              size: 40,
-            ),
-          ),
-        ),
-      );
-    }
-
-    final withMarker = markerFraction != null
-        ? AppListingPhotoSpotOverlay(
-            markerFraction: markerFraction,
-            child: photo,
-          )
-        : photo;
-
-    return AppListingPhotoFrame(
-      onTap: url.isNotEmpty
-          ? () {
-              Navigator.of(context).push<void>(
-                AppPageRoute<void>(
-                  builder: (_) => AppNetworkImageFullscreenScreen(
-                    imageUrl: url,
-                    markerFraction: markerFraction,
-                  ),
-                ),
-              );
-            }
-          : null,
-      overlay: url.isNotEmpty
-          ? Positioned(
-              right: AppSpacing.sm,
-              bottom: AppSpacing.sm,
-              child: AppScrimIconLabelPill(
-                icon: Icons.open_in_full_rounded,
-                label: 'Expand',
-                scrimColor: AppColors.scrimOnImage,
+              const SizedBox(height: AppSpacing.sm),
+            ],
+            if (canLeaveReview) ...[
+              AppPrimaryButton(
+                label: 'Leave a review',
+                onPressed: _cancelling
+                    ? null
+                    : () {
+                        Navigator.of(context).push<void>(
+                          AppPageRoute<void>(
+                            builder: (_) => LeaveReviewScreen(
+                              reservationId: r.id,
+                              revieweeId: r.hostId,
+                              revieweeDisplayName: hostName,
+                            ),
+                          ),
+                        );
+                      },
               ),
-            )
-          : null,
-      child: withMarker,
+              const SizedBox(height: AppSpacing.sm),
+            ],
+            if (_canCancel) ...[
+              AppSecondaryButton(
+                label: 'Cancel reservation',
+                destructive: true,
+                loading: _cancelling,
+                onPressed: _cancelling ? null : _confirmCancel,
+              ),
+              const SizedBox(height: AppSpacing.sm),
+            ],
+            if (canLeaveReview)
+              AppSecondaryButton(
+                label: 'Get directions',
+                onPressed: _cancelling ? null : () => _openDirections(context),
+              )
+            else
+              AppPrimaryButton(
+                label: 'Get directions',
+                onPressed: _cancelling ? null : () => _openDirections(context),
+              ),
+          ],
+        ),
+      ),
     );
   }
 }

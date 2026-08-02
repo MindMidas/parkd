@@ -9,15 +9,11 @@ import '../../../map/providers/map_providers.dart';
 import '../../../profile/providers/profile_providers.dart';
 import 'create_listing_draft.dart';
 
-/// Single publish flow: listing row → protected Storage upload → marker →
-/// availability rows → publish + terms flags
-/// [listings.availability_mode] is set on insert **before** any availability rows
-/// so DB triggers allow inserts. On any failure after the listing row exists,
-/// the listing is deleted so you do not get half-published rows
+// Single publish flow for listing row, protected Storage upload, and map marker.
 class CreateListingPublish {
   CreateListingPublish._();
 
-  /// Short message for the terms-step snackbar / banner
+  // Short message for the terms-step snackbar / banner
   static String describePublishError(Object e) {
     final raw = e.toString();
     if (raw.contains('23505') ||
@@ -26,6 +22,9 @@ class CreateListingPublish {
       return 'This address is already listed without a distinct spot label. '
           'Add a spot number (e.g. stall B3) if this is another space at the '
           'same location.';
+    }
+    if (raw.contains('LISTING_NOT_READY_TO_PUBLISH')) {
+      return 'Your listing is missing a photo, availability, or terms agreement.';
     }
     if (raw.contains('cannot insert specific slots') ||
         raw.contains('cannot insert weekly slots')) {

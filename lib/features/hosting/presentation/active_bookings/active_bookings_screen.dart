@@ -7,6 +7,7 @@ import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/utils/listing_search.dart';
 import '../../../../core/widgets/widgets.dart';
+import '../../../profile/providers/notifications_providers.dart';
 import '../../../profile/providers/profile_providers.dart';
 import '../../../reservations/providers/reservations_providers.dart';
 import 'booking_messages_screen.dart';
@@ -39,14 +40,30 @@ class _ActiveBookingsScreenState extends ConsumerState<ActiveBookingsScreen> {
     return listings.where((l) => listingMatchesSearchQuery(l, _query)).toList();
   }
 
+  int _unreadForListing(
+    String listingId,
+    List<ReservationRow> reservations,
+    Map<String, int> byReservation,
+  ) {
+    var total = 0;
+    for (final reservation in reservations) {
+      if (reservation.listingId != listingId) continue;
+      total += byReservation[reservation.id] ?? 0;
+    }
+    return total;
+  }
+
   @override
   Widget build(BuildContext context) {
     final listingsAsync = ref.watch(myListingsForCurrentUserProvider);
     final reservationsAsync = ref.watch(hostActiveReservationsProvider);
+    final unreadByReservation = ref.watch(
+      unreadBookingEventCountByReservationProvider,
+    );
 
     return Scaffold(
       backgroundColor: AppColors.surface,
-      appBar: const AppTopBar(title: 'Active Bookings', showBack: true),
+      appBar: const AppTopBar(title: 'Active bookings', showBack: true),
       body: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
@@ -63,7 +80,13 @@ class _ActiveBookingsScreenState extends ConsumerState<ActiveBookingsScreen> {
               onChanged: (value) => setState(() => _query = value),
             ),
           ),
-          Expanded(child: _buildBody(listingsAsync, reservationsAsync)),
+          Expanded(
+            child: _buildBody(
+              listingsAsync,
+              reservationsAsync,
+              unreadByReservation,
+            ),
+          ),
         ],
       ),
     );
@@ -72,6 +95,7 @@ class _ActiveBookingsScreenState extends ConsumerState<ActiveBookingsScreen> {
   Widget _buildBody(
     AsyncValue<List<Listing>> listingsAsync,
     AsyncValue<List<ReservationRow>> reservationsAsync,
+    Map<String, int> unreadByReservation,
   ) {
     if (listingsAsync.isLoading || reservationsAsync.isLoading) {
       return const AppPageStatus.loading();
@@ -86,8 +110,9 @@ class _ActiveBookingsScreenState extends ConsumerState<ActiveBookingsScreen> {
     for (final r in reservations) {
       counts[r.listingId] = (counts[r.listingId] ?? 0) + 1;
     }
-    final withBookings =
-        listings.where((l) => (counts[l.id] ?? 0) > 0).toList();
+    final withBookings = listings
+        .where((l) => (counts[l.id] ?? 0) > 0)
+        .toList();
 
     if (withBookings.isEmpty) {
       return const AppPageStatus.empty(
@@ -118,6 +143,11 @@ class _ActiveBookingsScreenState extends ConsumerState<ActiveBookingsScreen> {
         return _ActiveBookingRow(
           listing: listing,
           bookingCount: counts[listing.id] ?? 0,
+          badgeCount: _unreadForListing(
+            listing.id,
+            reservations,
+            unreadByReservation,
+          ),
           onTap: () {
             Navigator.of(context).push<void>(
               AppPageRoute<void>(
@@ -135,18 +165,21 @@ class _ActiveBookingRow extends StatelessWidget {
   const _ActiveBookingRow({
     required this.listing,
     required this.bookingCount,
+    required this.badgeCount,
     required this.onTap,
   });
 
   final Listing listing;
   final int bookingCount;
+  final int badgeCount;
   final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
     final hero = listing.heroPhotoUrl;
-    final bookingLabel =
-        bookingCount == 1 ? '1 active booking' : '$bookingCount active bookings';
+    final bookingLabel = bookingCount == 1
+        ? '1 active booking'
+        : '$bookingCount active bookings';
     final spot = listing.spotLabel;
     return AppMenuRow(
       leadingType: AppMenuLeadingType.parking,
@@ -156,9 +189,10 @@ class _ActiveBookingRow extends StatelessWidget {
       title: listing.addressLine,
       subtitle: listing.localityLine.isNotEmpty ? listing.localityLine : null,
       tertiary: (spot != null && spot.isNotEmpty)
-          ? '$spot · $bookingLabel'
+          ? '$spot, $bookingLabel'
           : bookingLabel,
       rightKind: AppMenuRightKind.chevron,
+      badgeCount: badgeCount,
       onTap: onTap,
     );
   }

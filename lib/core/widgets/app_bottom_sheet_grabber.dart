@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-/// iOS-style sheet handle — visible pill with breathing room above the title.
+// iOS-style sheet handle.
 class AppBottomSheetGrabber extends StatelessWidget {
   const AppBottomSheetGrabber({super.key});
 

@@ -1,4 +1,4 @@
-/// Mirrors public.conversations
+// Mirrors public.conversations
 class ConversationRow {
   const ConversationRow({
     required this.id,

@@ -41,6 +41,8 @@ export interface PreparedCheckout {
   stripePaymentIntentId: string | null;
   stripeCheckoutSessionId: string | null;
   stripePaymentMethodId: string | null;
+  /** Host Connect Express account when payouts are ready; otherwise null. */
+  hostConnectAccountId: string | null;
 }
 
 export interface PaymentIntentResult {
@@ -62,6 +64,10 @@ export interface CreatePaymentIntentInput {
   confirm: boolean;
   metadata: Record<string, string>;
   idempotencyKey: string;
+  /** Platform fee kept by Parkd when using Connect destination charges. */
+  applicationFeeAmount?: number;
+  /** Connected account that receives the host share. */
+  transferDestination?: string;
 }
 
 export interface CheckoutSessionResult {
@@ -84,6 +90,8 @@ export interface CreateCheckoutSessionInput {
   reservationId: string;
   paymentId: string;
   idempotencyKey: string;
+  applicationFeeAmount?: number;
+  transferDestination?: string;
 }
 
 export interface CheckoutDependencies {
@@ -187,6 +195,7 @@ export function createPaymentIntentHandler(
             reservationId: checkout.reservationId,
             paymentId: checkout.paymentId,
             idempotencyKey: `parkd:checkout-session:${checkout.paymentId}:v1`,
+            ...connectChargeParams(checkout),
           });
           validateCheckoutSession(session, checkout);
           await dependencies.recordCheckoutSession(checkout.paymentId, session.id);
@@ -250,10 +259,14 @@ export function createPaymentIntentHandler(
             payment_id: checkout.paymentId,
             reservation_id: checkout.reservationId,
             application: "parkd",
+            ...(checkout.hostConnectAccountId
+              ? { host_connect_account_id: checkout.hostConnectAccountId }
+              : {}),
           },
           // Stable per trusted payment row. Stripe returns the same object for
           // concurrent/retried requests, preventing duplicate intents.
           idempotencyKey: `parkd:payment:${checkout.paymentId}:v1`,
+          ...connectChargeParams(checkout),
         });
         validateIntent(intent, checkout);
         await dependencies.recordPaymentIntent(checkout.paymentId, intent.id);
@@ -301,6 +314,18 @@ export function createPaymentIntentHandler(
     } catch (error) {
       return errorResponse(req, normalizeStripeFailure(error), requestId);
     }
+  };
+}
+
+function connectChargeParams(checkout: PreparedCheckout): {
+  applicationFeeAmount?: number;
+  transferDestination?: string;
+} {
+  const destination = checkout.hostConnectAccountId?.trim() ?? "";
+  if (!destination) return {};
+  return {
+    applicationFeeAmount: checkout.serviceFeeCents,
+    transferDestination: destination,
   };
 }
 

@@ -34,6 +34,8 @@ class _PasswordRecoveryScreenState
   bool _emailSentOnce = false;
   int _emailResendRemaining = 0;
   Timer? _cooldownTimer;
+  String? _actionError;
+  AutovalidateMode _autovalidateMode = AutovalidateMode.disabled;
 
   @override
   void dispose() {
@@ -71,10 +73,11 @@ class _PasswordRecoveryScreenState
   }
 
   Future<void> _sendEmailRecovery() async {
-    final emailErr = FormValidators.email(_emailCtrl.text);
-    if (emailErr != null) {
-      AppMessenger.showError(context, emailErr);
-      _formKey.currentState?.validate();
+    setState(() {
+      _actionError = null;
+      _autovalidateMode = AutovalidateMode.onUserInteraction;
+    });
+    if (!(_formKey.currentState?.validate() ?? false)) {
       return;
     }
     final email = _emailCtrl.text.trim();
@@ -87,7 +90,10 @@ class _PasswordRecoveryScreenState
             redirectTo: _passwordResetRedirectUrl(),
           );
       if (!mounted) return;
-      setState(() => _emailSentOnce = true);
+      setState(() {
+        _emailSentOnce = true;
+        _actionError = null;
+      });
       _startEmailCooldown();
       AppMessenger.showSuccess(
         context,
@@ -106,7 +112,7 @@ class _PasswordRecoveryScreenState
         });
         _ensureCooldownTicker();
       }
-      AppMessenger.showError(context, userFacingAuthMessage(e));
+      setState(() => _actionError = userFacingAuthMessage(e));
     } finally {
       if (mounted) setState(() => _emailSendBusy = false);
     }
@@ -119,9 +125,11 @@ class _PasswordRecoveryScreenState
         _emailSendBusy) {
       return;
     }
-    final emailErr = FormValidators.email(_emailCtrl.text);
-    if (emailErr != null) {
-      AppMessenger.showError(context, emailErr);
+    setState(() {
+      _actionError = null;
+      _autovalidateMode = AutovalidateMode.onUserInteraction;
+    });
+    if (!(_formKey.currentState?.validate() ?? false)) {
       return;
     }
     final email = _emailCtrl.text.trim();
@@ -134,10 +142,11 @@ class _PasswordRecoveryScreenState
             redirectTo: _passwordResetRedirectUrl(),
           );
       if (!mounted) return;
+      setState(() => _actionError = null);
       _startEmailCooldown();
     } on Exception catch (e) {
       if (!mounted) return;
-      AppMessenger.showError(context, userFacingAuthMessage(e));
+      setState(() => _actionError = userFacingAuthMessage(e));
     } finally {
       if (mounted) setState(() => _emailResendBusy = false);
     }
@@ -183,7 +192,7 @@ class _PasswordRecoveryScreenState
       ),
       body: Form(
         key: _formKey,
-        autovalidateMode: AutovalidateMode.onUserInteraction,
+        autovalidateMode: _autovalidateMode,
         child: Column(
           children: [
             Expanded(
@@ -191,9 +200,7 @@ class _PasswordRecoveryScreenState
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    const AppFormHelperText(
-                      'We’ll email a reset link.',
-                    ),
+                    const AppFormHelperText('We’ll email a reset link.'),
                     const SizedBox(height: AppSpacing.lg),
                     AppTextField(
                       controller: _emailCtrl,
@@ -202,12 +209,32 @@ class _PasswordRecoveryScreenState
                       keyboardType: TextInputType.emailAddress,
                       validator: FormValidators.email,
                       enabled: emailFieldsEnabled,
+                      onChanged: (_) {
+                        if (_actionError != null) {
+                          setState(() => _actionError = null);
+                        }
+                      },
                     ),
                   ],
                 ),
               ),
             ),
-            AppStickyFooter(child: _emailPrimaryButton(context)),
+            AppStickyFooter(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  if (_actionError != null) ...[
+                    AppInlineError(
+                      message: _actionError!,
+                      onDismiss: () => setState(() => _actionError = null),
+                    ),
+                    const SizedBox(height: AppSpacing.sm),
+                  ],
+                  _emailPrimaryButton(context),
+                ],
+              ),
+            ),
           ],
         ),
       ),

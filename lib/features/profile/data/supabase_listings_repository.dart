@@ -168,6 +168,7 @@ class SupabaseListingsRepository implements ListingsRepository {
     bool? termsAccepted,
     DateTime? termsAcceptedAt,
     String? availabilityMode,
+    ListingLocationSharing? locationSharing,
   }) => _listings.updateListing(
     listingId: listingId,
     address: address,
@@ -182,6 +183,7 @@ class SupabaseListingsRepository implements ListingsRepository {
     termsAccepted: termsAccepted,
     termsAcceptedAt: termsAcceptedAt,
     availabilityMode: availabilityMode,
+    locationSharing: locationSharing,
   );
 
   @override

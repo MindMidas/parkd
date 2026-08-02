@@ -1,6 +1,6 @@
 import 'payment_record_status.dart';
 
-/// Mirrors public.payments
+// Mirrors public.payments
 class PaymentRow {
   const PaymentRow({
     required this.id,

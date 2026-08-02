@@ -45,7 +45,7 @@ class _PastBookingsScreenState extends ConsumerState<PastBookingsScreen> {
 
     return Scaffold(
       backgroundColor: AppColors.surface,
-      appBar: const AppTopBar(title: 'Past Bookings', showBack: true),
+      appBar: const AppTopBar(title: 'Past bookings', showBack: true),
       body: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
@@ -85,8 +85,9 @@ class _PastBookingsScreenState extends ConsumerState<PastBookingsScreen> {
     for (final r in reservations) {
       counts[r.listingId] = (counts[r.listingId] ?? 0) + 1;
     }
-    final withBookings =
-        listings.where((l) => (counts[l.id] ?? 0) > 0).toList();
+    final withBookings = listings
+        .where((l) => (counts[l.id] ?? 0) > 0)
+        .toList();
 
     if (withBookings.isEmpty) {
       return const AppPageStatus.empty(
@@ -144,8 +145,9 @@ class _PastBookingRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final hero = listing.heroPhotoUrl;
-    final bookingLabel =
-        bookingCount == 1 ? '1 past booking' : '$bookingCount past bookings';
+    final bookingLabel = bookingCount == 1
+        ? '1 past booking'
+        : '$bookingCount past bookings';
     final spot = listing.spotLabel;
     return AppMenuRow(
       leadingType: AppMenuLeadingType.parking,

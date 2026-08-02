@@ -5,7 +5,7 @@ import '../theme/app_motion.dart';
 import '../theme/app_radius.dart';
 import '../utils/app_feedback.dart';
 
-/// Solid elevated shell for map/list search — quiet focus ring, always opaque.
+// Solid elevated shell for map and list search.
 class AppMapSearchCard extends StatefulWidget {
   const AppMapSearchCard({super.key, required this.child});
 
@@ -32,7 +32,7 @@ class _AppMapSearchCardState extends State<AppMapSearchCard> {
     );
 
     // Material [shape] draws a full continuous border; BoxDecoration + clip
-    // was eating top/bottom edges and leaving blue “ears”.
+    // The outer material prevents clipped top and bottom edges.
     return Focus(
       canRequestFocus: false,
       onFocusChange: _onFocusChange,

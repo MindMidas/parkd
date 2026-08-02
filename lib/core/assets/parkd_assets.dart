@@ -1,4 +1,4 @@
-/// Declared in pubspec.yaml — keep paths in sync
+// Declared in pubspec.yaml — keep paths in sync
 abstract final class ParkdAssets {
   static const loginHouseJpg = 'lib/core/assets/login_house.jpg';
   static const logoPng = 'lib/core/assets/logo.png';

@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../../../core/models/host_earnings_row.dart';
 import '../../../../core/models/host_payment_transaction.dart';
+import '../../../../core/stripe/stripe_checkout_provider.dart';
+import '../../../../core/stripe/stripe_connect_remote.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/theme/app_typography.dart';
@@ -15,7 +18,7 @@ import '../active_bookings/booking_details_screen.dart';
 
 final _paidDateFmt = DateFormat('MMM d, y');
 
-/// Earnings: monthly rollups from `host_earnings` + succeeded `payments` lines
+// Earnings: Connect payouts setup + monthly rollups + paid trip lines.
 class EarningsScreen extends ConsumerStatefulWidget {
   const EarningsScreen({super.key});
 
@@ -26,6 +29,8 @@ class EarningsScreen extends ConsumerStatefulWidget {
 class _EarningsScreenState extends ConsumerState<EarningsScreen> {
   late final TextEditingController _searchController;
   String _txnSearchQuery = '';
+  bool _connectBusy = false;
+  String? _actionError;
 
   @override
   void initState() {
@@ -59,12 +64,93 @@ class _EarningsScreenState extends ConsumerState<EarningsScreen> {
     return false;
   }
 
+  Future<void> _refreshConnect() async {
+    ref.invalidate(stripeConnectStatusProvider);
+  }
+
+  Future<void> _openUrl(String raw) async {
+    final uri = Uri.tryParse(raw);
+    if (uri == null) {
+      setState(() => _actionError = 'Could not open Stripe.');
+      return;
+    }
+    final ok = await launchUrl(uri, mode: LaunchMode.externalApplication);
+    if (!ok && mounted) {
+      setState(() => _actionError = 'Could not open Stripe.');
+    }
+  }
+
+  Future<void> _startOnboarding() async {
+    if (_connectBusy) return;
+    setState(() {
+      _connectBusy = true;
+      _actionError = null;
+    });
+    try {
+      final status = await ref
+          .read(stripeConnectRemoteProvider)
+          .startOnboarding();
+      ref.invalidate(stripeConnectStatusProvider);
+      if (!mounted) return;
+      if (status.payoutsReady) {
+        AppMessenger.showSuccess(context, 'Payouts are ready.');
+        return;
+      }
+      final url = status.url;
+      if (url == null) {
+        setState(
+          () => _actionError =
+              'Stripe did not return an onboarding link. Try again.',
+        );
+        return;
+      }
+      await _openUrl(url);
+    } on StripeConnectRemoteException catch (e) {
+      if (mounted) setState(() => _actionError = e.message);
+    } catch (_) {
+      if (mounted) {
+        setState(() => _actionError = 'Could not start payout setup.');
+      }
+    } finally {
+      if (mounted) setState(() => _connectBusy = false);
+    }
+  }
+
+  Future<void> _openDashboard() async {
+    if (_connectBusy) return;
+    setState(() {
+      _connectBusy = true;
+      _actionError = null;
+    });
+    try {
+      final status = await ref
+          .read(stripeConnectRemoteProvider)
+          .openDashboard();
+      final url = status.url;
+      if (!mounted) return;
+      if (url == null) {
+        setState(() => _actionError = 'Could not open Stripe dashboard.');
+        return;
+      }
+      await _openUrl(url);
+    } on StripeConnectRemoteException catch (e) {
+      if (mounted) setState(() => _actionError = e.message);
+    } catch (_) {
+      if (mounted) {
+        setState(() => _actionError = 'Could not open Stripe dashboard.');
+      }
+    } finally {
+      if (mounted) setState(() => _connectBusy = false);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final monthlyAsync = ref.watch(hostEarningsForCurrentUserProvider);
     final txnsAsync = ref.watch(
       hostSucceededTransactionsForCurrentUserProvider,
     );
+    final connectAsync = ref.watch(stripeConnectStatusProvider);
 
     return Scaffold(
       backgroundColor: AppColors.surface,
@@ -72,10 +158,38 @@ class _EarningsScreenState extends ConsumerState<EarningsScreen> {
       body: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
+          if (_actionError != null)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(
+                AppSpacing.lg,
+                AppSpacing.md,
+                AppSpacing.lg,
+                0,
+              ),
+              child: AppInlineError(
+                message: _actionError!,
+                onDismiss: () => setState(() => _actionError = null),
+              ),
+            ),
+          Padding(
+            padding: EdgeInsets.fromLTRB(
+              AppSpacing.lg,
+              _actionError != null ? AppSpacing.sm : AppSpacing.md,
+              AppSpacing.lg,
+              AppSpacing.sm,
+            ),
+            child: _PayoutsCard(
+              statusAsync: connectAsync,
+              busy: _connectBusy,
+              onRefresh: _refreshConnect,
+              onSetup: _startOnboarding,
+              onDashboard: _openDashboard,
+            ),
+          ),
           Padding(
             padding: const EdgeInsets.fromLTRB(
               AppSpacing.lg,
-              AppSpacing.md,
+              AppSpacing.sm,
               AppSpacing.lg,
               AppSpacing.sm,
             ),
@@ -93,9 +207,7 @@ class _EarningsScreenState extends ConsumerState<EarningsScreen> {
                       const AppFormHelperText(
                         'Up to three recent calendar months: your parking earnings '
                         '(sum of trip prices) grouped by when each reservation '
-                        'starts. Trip count includes confirmed, active, and '
-                        'completed bookings. The list below shows individual paid '
-                        'trips (search applies there only).',
+                        'starts.',
                       ),
                       const SizedBox(height: AppSpacing.md),
                       for (var i = 0; i < top.length; i++) ...[
@@ -132,11 +244,9 @@ class _EarningsScreenState extends ConsumerState<EarningsScreen> {
                     .toList();
                 if (filtered.isEmpty) {
                   return AppPageStatus.empty(
-                    title: txns.isEmpty
-                        ? 'No earnings yet'
-                        : 'No matches',
+                    title: txns.isEmpty ? 'No earnings yet' : 'No matches',
                     message: txns.isEmpty
-                        ? 'Payouts from completed bookings will show up here.'
+                        ? 'Paid bookings will show up here after guests book.'
                         : 'Try a different guest or address.',
                   );
                 }
@@ -158,6 +268,99 @@ class _EarningsScreenState extends ConsumerState<EarningsScreen> {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _PayoutsCard extends StatelessWidget {
+  const _PayoutsCard({
+    required this.statusAsync,
+    required this.busy,
+    required this.onRefresh,
+    required this.onSetup,
+    required this.onDashboard,
+  });
+
+  final AsyncValue<StripeConnectStatus> statusAsync;
+  final bool busy;
+  final VoidCallback onRefresh;
+  final VoidCallback onSetup;
+  final VoidCallback onDashboard;
+
+  @override
+  Widget build(BuildContext context) {
+    return AppDisplayTitledOutlineCard(
+      title: 'Payouts',
+      child: statusAsync.when(
+        loading: () => const Padding(
+          padding: EdgeInsets.symmetric(vertical: AppSpacing.md),
+          child: AppPageStatus.loading(),
+        ),
+        error: (_, _) => Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Text(
+              'Could not load payout status.',
+              style: AppTypography.caption.copyWith(height: 1.4),
+            ),
+            const SizedBox(height: AppSpacing.sm),
+            AppSecondaryButton(
+              label: 'Try again',
+              onPressed: busy ? null : onRefresh,
+            ),
+          ],
+        ),
+        data: (status) {
+          final ready = status.payoutsReady;
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Text(
+                ready
+                    ? 'Stripe payouts are ready. New bookings send your parking '
+                          'earnings to your connected account.'
+                    : 'Connect Stripe so booking earnings can be paid out.',
+                style: AppTypography.caption.copyWith(height: 1.4),
+              ),
+              const SizedBox(height: AppSpacing.sm),
+              Text(
+                ready
+                    ? 'Status: Ready'
+                    : status.connected
+                    ? 'Status: Finish setup in Stripe'
+                    : 'Status: Not connected',
+                style: AppTypography.bodyStrong,
+              ),
+              const SizedBox(height: AppSpacing.md),
+              if (ready) ...[
+                AppPrimaryButton(
+                  label: 'Open Stripe dashboard',
+                  loading: busy,
+                  onPressed: busy ? null : onDashboard,
+                ),
+                const SizedBox(height: AppSpacing.sm),
+                AppSecondaryButton(
+                  label: 'Refresh status',
+                  onPressed: busy ? null : onRefresh,
+                ),
+              ] else ...[
+                AppPrimaryButton(
+                  label: status.connected
+                      ? 'Continue Stripe setup'
+                      : 'Set up payouts',
+                  loading: busy,
+                  onPressed: busy ? null : onSetup,
+                ),
+                const SizedBox(height: AppSpacing.sm),
+                AppSecondaryButton(
+                  label: 'Refresh status',
+                  onPressed: busy ? null : onRefresh,
+                ),
+              ],
+            ],
+          );
+        },
       ),
     );
   }

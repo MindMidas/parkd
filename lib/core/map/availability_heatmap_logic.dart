@@ -5,13 +5,12 @@ import '../models/listing.dart';
 import '../utils/time_step_minutes.dart';
 import 'listing_next_available.dart' show mergeBookingWindows;
 
-/// 5-minute slots per day (24×12 steps)
+// 5-minute slots per day.
 const int kHeatmapSlotsPerDay = (24 * 60) ~/ TimeStepMinutes.step;
 
-/// closed outside host hours / open bookable / booked by confirmed+active (pending does not block)
 enum AvailabilitySlotState { hostClosed, open, booked }
 
-/// host-allowed window in local time
+// host-allowed window in local time
 class OpenInterval {
   const OpenInterval({required this.start, required this.end});
 
@@ -43,7 +42,7 @@ List<OpenInterval> _mergeOpenIntervals(List<OpenInterval> raw) {
   return out;
 }
 
-/// merged host open intervals for [day] (local)
+// merged host open intervals for day (local)
 List<OpenInterval> hostOpenIntervalsForDay(
   DateTime dayLocal,
   Listing listing,
@@ -84,8 +83,7 @@ List<OpenInterval> hostOpenIntervalsForDay(
   return _mergeOpenIntervals(raw);
 }
 
-/// Whether the merged host intervals cover every instant in the requested
-/// range. Adjacent intervals are treated as continuous availability.
+// Whether the merged host intervals cover every instant in the requested
 bool hostOpenUnionCoversRange(
   DateTime windowStart,
   DateTime windowEnd,
@@ -120,7 +118,7 @@ List<BookingTimeWindow> _bookingsForDay(
   return clipped;
 }
 
-/// 5-min grid: hostClosed vs open vs booked
+// 5-min grid: hostClosed vs open vs booked
 List<AvailabilitySlotState> computeFiveMinuteSlotStates({
   required DateTime dayLocal,
   required Listing listing,
@@ -164,7 +162,7 @@ List<AvailabilitySlotState> computeFiveMinuteSlotStates({
   return slots;
 }
 
-/// 5-min → 24 hours (booked wins, then open, else closed)
+// Collapses 5-minute slots into 24 hourly buckets.
 List<AvailabilitySlotState> aggregateFiveMinuteToHourly(
   List<AvailabilitySlotState> fiveMinute,
 ) {
@@ -176,7 +174,7 @@ List<AvailabilitySlotState> aggregateFiveMinuteToHourly(
   });
 }
 
-/// 24 hourly → four 6-hour blocks (same priority)
+// Collapses hourly buckets into four 6-hour blocks.
 List<AvailabilitySlotState> aggregateHourlyToFourBlocks(
   List<AvailabilitySlotState> hourly24,
 ) {
@@ -201,7 +199,7 @@ AvailabilitySlotState aggregateSlotSlice(
   return AvailabilitySlotState.open;
 }
 
-/// legacy bool grid — true only where [open]
+// true only where open
 List<bool> computeFiveMinuteAvailabilityGrid({
   required DateTime dayLocal,
   required Listing listing,

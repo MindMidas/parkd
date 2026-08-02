@@ -2,9 +2,8 @@ import 'package:flutter/material.dart';
 
 import '../theme/app_spacing.dart';
 import '../theme/app_typography.dart';
-import '../utils/display_formatting.dart';
 
-/// Labeled group of hub [AppNavTile]s (Hosting / Reservations / Account).
+// Labeled group of hub AppNavTiles (Hosting / Reservations / Account).
 class AppHubMenuSection extends StatelessWidget {
   const AppHubMenuSection({
     super.key,
@@ -30,10 +29,7 @@ class AppHubMenuSection extends StatelessWidget {
             AppSpacing.lg,
             AppSpacing.xs,
           ),
-          child: Text(
-            formatTitleCaseWords(title),
-            style: AppTypography.sectionTitle,
-          ),
+          child: Text(title, style: AppTypography.sectionTitle),
         ),
         ...children,
       ],

@@ -1,4 +1,4 @@
-// String helpers for UI (dates, durations, money) — keep widgets dumb
+// String helpers for UI dates, durations, and money.
 
 // Title case each whitespace-separated word (nav labels, list rows, buttons)
 String formatTitleCaseWords(String text) {

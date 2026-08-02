@@ -7,11 +7,12 @@ import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/utils/listing_search.dart';
 import '../../../../core/widgets/widgets.dart';
+import '../../../profile/providers/notifications_providers.dart';
 import '../../providers/reservations_providers.dart';
 import '../widgets/driver_reservation_menu_row.dart';
 import 'reservation_details_screen.dart';
 
-/// Driver: trips you booked that are still active (pending / confirmed / active)
+// Driver: trips you booked that are still active (pending / confirmed / active)
 class ActiveReservationsScreen extends ConsumerStatefulWidget {
   const ActiveReservationsScreen({super.key});
 
@@ -47,16 +48,19 @@ class _ActiveReservationsScreenState
   static String _whenLabel(ReservationRow r) {
     final d = DateFormat('MMM d').format(r.startTime.toLocal());
     final t = DateFormat('h:mm a').format(r.startTime.toLocal());
-    return '$d · $t';
+    return '$d, $t';
   }
 
   @override
   Widget build(BuildContext context) {
     final tripsAsync = ref.watch(driverActiveTripsProvider);
+    final unreadByReservation = ref.watch(
+      unreadBookingEventCountByReservationProvider,
+    );
 
     return Scaffold(
       backgroundColor: AppColors.surface,
-      appBar: const AppTopBar(title: 'Active Reservations', showBack: true),
+      appBar: const AppTopBar(title: 'Active reservations', showBack: true),
       body: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
@@ -103,6 +107,7 @@ class _ActiveReservationsScreenState
                     return DriverReservationMenuRow(
                       trip: trip,
                       whenLabel: _whenLabel(trip.reservation),
+                      badgeCount: unreadByReservation[trip.reservation.id] ?? 0,
                       onTap: () {
                         Navigator.of(context).push<void>(
                           AppPageRoute<void>(

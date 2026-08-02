@@ -9,6 +9,8 @@ import 'package:mapbox_maps_flutter/mapbox_maps_flutter.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../../app/main_shell_tab_provider.dart';
+import '../../../app/shell_deep_link_provider.dart';
+import '../../../app/shell_message_navigation.dart';
 import '../../../core/map/map_constants.dart';
 import '../../../core/map/map_geo.dart';
 import '../../../core/map/map_listing_camera.dart';
@@ -33,7 +35,7 @@ import 'map.dart';
 import 'map_filters_sheet.dart';
 import 'map_platform_fallback.dart';
 
-// Explore shell — map plus nested hubs, search, and the listing preview sheet
+// Explore shell with map, nested hubs, search, and listing preview sheet.
 class HomeMapScreen extends ConsumerStatefulWidget {
   const HomeMapScreen({
     super.key,
@@ -68,19 +70,17 @@ class _HomeMapScreenState extends ConsumerState<HomeMapScreen>
   SearchResult? _fallbackSearchCenter;
   ({double lat, double lon, double zoom})? _pendingFlyTo;
 
-  /// Last camera the user cared about (GPS center or a search). Used when the
-  /// map widget is recreated (e.g. switching tabs)
   ({double lat, double lon, double zoom})? _mapCameraTarget;
 
-  /// Snapshot from [MapboxMap.getCameraState] before listing preview (restore when sheet closes)
   ({double lat, double lon, double zoom, double bearing, double pitch})?
   _cameraBeforeListingPreview;
 
-  /// Airbnb-style shaded area while an approximate listing preview is open.
+  // Airbnb-style shaded area while an approximate listing preview is open.
   ({double latitude, double longitude})? _approximatePrivacyHalo;
 
-  /// Listing open in the bottom preview (price-pill selected state).
+  // Listing open in the bottom preview (price-pill selected state).
   String? _selectedListingId;
+  String? _actionError;
 
   bool _isRoughlyDefaultGuelphCamera() {
     final t = _mapCameraTarget;
@@ -179,15 +179,16 @@ class _HomeMapScreenState extends ConsumerState<HomeMapScreen>
   }
 
   Future<void> _flyMapToUserIfServicesEnabled(MapboxMap map) async {
+    setState(() => _actionError = null);
     await configureMapLocationPuck(map, enabled: true);
 
     final serviceOn = await geo.Geolocator.isLocationServiceEnabled();
     if (!serviceOn) {
       await configureMapLocationPuck(map, enabled: false);
       if (!mounted) return;
-      AppMessenger.showError(
-        context,
-        'Turn on Location Services in your device settings to use your position on the map.',
+      setState(
+        () => _actionError =
+            'Turn on Location Services in your device settings to use your position on the map.',
       );
       return;
     }
@@ -312,7 +313,7 @@ class _HomeMapScreenState extends ConsumerState<HomeMapScreen>
                   ),
                   const SizedBox(height: AppSpacing.sm),
                   AppPrimaryButton(
-                    label: 'Open Settings',
+                    label: 'Open settings',
                     onPressed: () => Navigator.pop(ctx, true),
                   ),
                 ],
@@ -352,6 +353,15 @@ class _HomeMapScreenState extends ConsumerState<HomeMapScreen>
         ? widget.initialIndex.clamp(0, MainTab.count - 1)
         : ref.read(mainShellTabIndexProvider).clamp(0, MainTab.count - 1);
     _selectedIndex = resolved;
+    ref.listenManual<ShellMessageDeepLink?>(shellDeepLinkProvider, (
+      previous,
+      next,
+    ) {
+      if (next == null) return;
+      final id = next.reservationId;
+      ref.read(shellDeepLinkProvider.notifier).clear();
+      unawaited(_openShellMessageDeepLink(id));
+    }, fireImmediately: true);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       ref.read(mainShellTabIndexProvider.notifier).setTab(_selectedIndex);
@@ -415,6 +425,32 @@ class _HomeMapScreenState extends ConsumerState<HomeMapScreen>
     ref.invalidate(mapPublishedListingsProvider);
   }
 
+  Future<void> _openShellMessageDeepLink(String reservationId) async {
+    final tab = await prepareReservationMessageStack(
+      ref: ref,
+      reservationId: reservationId,
+    );
+    if (!mounted || tab == null) return;
+
+    setState(() => _selectedIndex = tab);
+    ref.read(mainShellTabIndexProvider.notifier).setTab(tab);
+    _syncTabRoute();
+
+    final navKey = _navigatorKeyForTab(tab);
+    // Let IndexedStack switch paint / attach the nested navigator first.
+    await Future<void>.delayed(Duration.zero);
+    if (!mounted) return;
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      final nav = navKey?.currentState;
+      if (!mounted || nav == null) return;
+      await pushReservationMessageStack(
+        ref: ref,
+        nav: nav,
+        reservationId: reservationId,
+      );
+    });
+  }
+
   Widget _nestedTabNavigator({
     required GlobalKey<NavigatorState> navigatorKey,
     required String routeName,
@@ -433,9 +469,6 @@ class _HomeMapScreenState extends ConsumerState<HomeMapScreen>
     );
   }
 
-  /// Map tab: map + search. Kept in an [IndexedStack] (see [_buildTabBody]) so the
-  /// Mapbox platform view is not disposed when switching bottom tabs — iOS can
-  /// throw `recreating_view` if the native view is recreated while still tearing down
   Widget _buildMapTab() {
     final listingsAsync = ref.watch(mapPublishedListingsProvider);
     final listings = listingsAsync.maybeWhen(
@@ -457,7 +490,7 @@ class _HomeMapScreenState extends ConsumerState<HomeMapScreen>
           hintText: 'Search city or address…',
           showFilterButton: true,
           onFilterTap: _showMapFilterSheet,
-          searchFn: nominatimSearchAddresses,
+          searchFn: searchAddressesForParkd,
           onResultSelected: _onResultTapped,
         ),
         listings: orderedListings,
@@ -504,13 +537,25 @@ class _HomeMapScreenState extends ConsumerState<HomeMapScreen>
           left: AppSpacing.mapSearchOverlayHorizontal,
           right: AppSpacing.mapSearchOverlayHorizontal,
           top: topPad + AppSpacing.sm,
-          child: AppMapAddressSearchPanel(
-            controller: _searchController,
-            hintText: 'Search city or address…',
-            showFilterButton: true,
-            onFilterTap: _showMapFilterSheet,
-            searchFn: nominatimSearchAddresses,
-            onResultSelected: _onResultTapped,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              AppMapAddressSearchPanel(
+                controller: _searchController,
+                hintText: 'Search city or address…',
+                showFilterButton: true,
+                onFilterTap: _showMapFilterSheet,
+                searchFn: searchAddressesForParkd,
+                onResultSelected: _onResultTapped,
+              ),
+              if (_actionError != null) ...[
+                const SizedBox(height: AppSpacing.sm),
+                AppInlineError(
+                  message: _actionError!,
+                  onDismiss: () => setState(() => _actionError = null),
+                ),
+              ],
+            ],
           ),
         ),
         if (listingsAsync.hasError)
@@ -662,7 +707,7 @@ class _HomeMapScreenState extends ConsumerState<HomeMapScreen>
           64 +
           AppSpacing.lg +
           AppSpacing.lg;
-      // Bottom: sheet height from physical bottom — do not add safe-area padding here
+      // Sheet height is measured from the physical bottom.
       // (the sheet fills into the home indicator; extra bottom inset skews center upward)
       final bottomPad = h * previewFraction;
       final focusLat = _approximatePrivacyHalo?.latitude ?? listing.latitude;
@@ -677,11 +722,7 @@ class _HomeMapScreenState extends ConsumerState<HomeMapScreen>
       );
       if (!mounted) return;
       setState(() {
-        _mapCameraTarget = (
-          lat: focusLat,
-          lon: focusLon,
-          zoom: zoom,
-        );
+        _mapCameraTarget = (lat: focusLat, lon: focusLon, zoom: zoom);
       });
       await _syncLocationPuckWithPermission(map);
     }
@@ -735,6 +776,7 @@ class _HomeMapScreenState extends ConsumerState<HomeMapScreen>
   }
 
   Future<void> _onRecenterMapPressed() async {
+    setState(() => _actionError = null);
     final map = _mapbox;
     if (map == null) return;
     await tryCenterMapOnUserLocation(map);
@@ -758,7 +800,7 @@ class _HomeMapScreenState extends ConsumerState<HomeMapScreen>
       setState(() => _fallbackSearchCenter = result);
       return;
     }
-    // Closer than [MapConstants.defaultZoom] so a chosen place feels “zoomed in”
+    // Closer than [MapConstants.defaultZoom] for selected places.
     const zoom = 15.5;
     final map = _mapbox;
     if (map != null) {

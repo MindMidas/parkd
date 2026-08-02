@@ -1,4 +1,4 @@
-// Which slice of /home you're on — stays in sync with AppBottomNav
+// Tracks the active /home tab and stays in sync with AppBottomNav.
 abstract final class MainTab {
   static const int map = 0;
   static const int reservations = 1;
@@ -7,7 +7,7 @@ abstract final class MainTab {
 
   static const int count = 4;
 
-  // Parses ?tab= on /home (legacy profile → account)
+  /// Parses `?tab=` on `/home`.
   static int fromQuery(String? tab) {
     switch (tab) {
       case 'map':
@@ -15,10 +15,8 @@ abstract final class MainTab {
       case 'reservations':
         return reservations;
       case 'hosting':
-      case 'listings':
         return hosting;
       case 'account':
-      case 'profile':
         return account;
       default:
         return map;

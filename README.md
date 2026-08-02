@@ -25,7 +25,11 @@
 </p>
 
 <p align="center">
-  <img src="docs/assets/parkd-app-preview.png" alt="Parkd app login, parking search, and host listing screens" width="100%">
+  <img src="docs/assets/showcase.gif" alt="Parkd app tour — swipe through discover, book, and host screens" width="100%">
+</p>
+
+<p align="center">
+  <sub>Discover → Book → Host</sub>
 </p>
 
 ## Overview
@@ -53,20 +57,13 @@ flutter pub get
 flutter run --dart-define-from-file=dart_defines.local.json
 ```
 
-Fill `dart_defines.local.json` with public client configuration only:
+Put your Supabase, Mapbox, and Stripe (test) keys in `dart_defines.local.json`.
 
-- Supabase URL and anon key
-- Mapbox public token
-- Stripe publishable key (test)
-
-Do not place service-role keys, Stripe secret keys, or other private values in
-Flutter or source control.
-
-## Tests
+## Checks
 
 ```bash
 flutter analyze
-flutter test
+flutter build web --release
 ```
 
 ## Project Map
@@ -74,8 +71,7 @@ flutter test
 | Path | Purpose |
 |---|---|
 | `lib/` | Flutter features, providers, repositories, and shared UI |
-| `test/` | Unit, repository, routing, and widget tests |
-| `supabase/migrations/` | Database schema, RLS, payments |
+| `supabase/migrations/` | Database schema |
 | `supabase/functions/` | Stripe, geocoding, and related APIs |
 
 ## Contributors

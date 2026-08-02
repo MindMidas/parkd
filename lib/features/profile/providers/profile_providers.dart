@@ -93,7 +93,7 @@ final listingAvailabilitySpecificProvider =
           .getAvailabilitySpecific(listingId);
     });
 
-/// Refetch profile everywhere it is shown (account, edit form, chats, trip cards)
+// Refetch profile everywhere it is shown (account, edit form, chats, trip cards)
 void invalidateProfileSurfaces(WidgetRef ref, String userId) {
   ref.invalidate(currentProfileProvider);
   ref.invalidate(profileByUserIdProvider(userId));

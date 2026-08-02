@@ -5,7 +5,7 @@ import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/theme/app_typography.dart';
 import '../../../../core/widgets/widgets.dart';
 
-// Card saved — outcome chrome then pop twice back to the list
+// Card-saved outcome that returns to the card list on close.
 class CardSuccessScreen extends StatelessWidget {
   const CardSuccessScreen({super.key, this.message = 'Card added'});
 
@@ -22,7 +22,6 @@ class CardSuccessScreen extends StatelessWidget {
           title: 'Success',
           message: message,
           buttonLabel: 'Close',
-          primaryButtonIcon: Icons.close_rounded,
           markSize: 64,
           gapAfterMark: AppSpacing.md,
           titleStyle: AppTypography.navTitle,

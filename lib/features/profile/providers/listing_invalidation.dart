@@ -4,8 +4,6 @@ import '../../map/providers/map_providers.dart';
 import '../../reservations/providers/reservations_providers.dart';
 import 'profile_providers.dart';
 
-/// Call after any server-side change to a listing so host lists, map pins, trip
-/// rows, and booking threads pick up new photos, prices, or address text
 void invalidateListingSurfaces(WidgetRef ref, String listingId) {
   ref.invalidate(myListingsForCurrentUserProvider);
   ref.invalidate(listingByIdProvider(listingId));

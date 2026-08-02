@@ -5,10 +5,10 @@ import 'package:flutter/widgets.dart';
 
 import '../models/profile.dart';
 
-/// Prefix for [Profile.avatarUrl] when the image is a local file path (offline / dev)
+// Prefix for Profile.avatarUrl when the image is a local development file.
 const String kProfileAvatarLocalScheme = 'parkd-local:';
 
-/// Builds an [ImageProvider] for a profile [avatarUrl], or null for placeholder
+// Builds an ImageProvider for a profile avatarUrl.
 ImageProvider? profileAvatarImageProvider(Profile? profile) {
   final url = profile?.avatarUrl?.trim();
   if (url == null || url.isEmpty) return null;

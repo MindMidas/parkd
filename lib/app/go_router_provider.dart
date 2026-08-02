@@ -11,9 +11,9 @@ import '../features/map/presentation/home_map_screen.dart';
 import '../features/map/presentation/main_tab.dart';
 import '../features/profile/providers/profile_providers.dart';
 import '../features/reservations/providers/reservations_providers.dart';
-import '../features/reservations/presentation/notification_conversation_route_screen.dart';
 import '../features/legal/presentation/legal_document_screen.dart';
 import '../core/stripe/stripe_checkout_provider.dart';
+import 'shell_deep_link_provider.dart';
 
 final _backendRepositoryLinkProvider = Provider<void>((ref) {
   ref.watch(listingsRepositoryProvider);
@@ -25,7 +25,7 @@ final _backendRepositoryLinkProvider = Provider<void>((ref) {
   ref.watch(stripeCheckoutRemoteProvider);
 });
 
-/// Notifies [GoRouter] when auth/MFA state changes without recreating the router
+// Notifies GoRouter when auth/MFA state changes without recreating the router
 class GoRouterRefreshNotifier extends ChangeNotifier {
   GoRouterRefreshNotifier(Ref ref) {
     ref.listen(currentSessionProvider, (previous, next) => notifyListeners());
@@ -81,9 +81,19 @@ final goRouterProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(
         path: '/reservations/:reservationId/messages',
-        builder: (context, state) => NotificationConversationRouteScreen(
-          reservationId: state.pathParameters['reservationId'] ?? '',
-        ),
+        redirect: (context, state) {
+          final raw = state.pathParameters['reservationId'] ?? '';
+          final id = Uri.decodeComponent(raw).trim();
+          if (id.isNotEmpty) {
+            // Open inside the tab shell so bottom nav + Back stay in-menu.
+            Future.microtask(() {
+              ref
+                  .read(shellDeepLinkProvider.notifier)
+                  .openReservationMessages(id);
+            });
+          }
+          return '/home';
+        },
       ),
       GoRoute(
         path: '/home',

@@ -6,7 +6,7 @@ import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/widgets/widgets.dart';
 import 'create_listing_flow/add_location_screen.dart';
 
-// Wizard entry — hero frame plus CTA into add-location
+// Listing wizard entry with CTA into add-location.
 class CreateListingScreen extends StatelessWidget {
   const CreateListingScreen({super.key});
 
@@ -39,7 +39,7 @@ class CreateListingScreen extends StatelessWidget {
             ),
             AppStickyFooter(
               child: AppPrimaryButton(
-                label: 'Get Started',
+                label: 'Continue',
                 onPressed: () {
                   Navigator.of(context).push(
                     AppPageRoute<void>(

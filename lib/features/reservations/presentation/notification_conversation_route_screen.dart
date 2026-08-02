@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/theme/app_colors.dart';
-import '../../../core/theme/app_typography.dart';
 import '../../../core/widgets/widgets.dart';
 import '../../auth/providers/auth_providers.dart';
 import '../../profile/providers/profile_providers.dart';
@@ -26,10 +25,17 @@ class NotificationConversationRouteScreen extends ConsumerWidget {
     final reservation = ref.watch(reservationByIdProvider(reservationId));
     return reservation.when(
       loading: () => const _RouteLoadingScreen(),
-      error: (_, _) => const _RouteFailureScreen(),
+      error: (_, _) => _RouteFailureScreen(
+        onRetry: () => ref.invalidate(reservationByIdProvider(reservationId)),
+      ),
       data: (row) {
         final userId = ref.watch(currentSessionProvider)?.user.id;
-        if (row == null || userId == null) return const _RouteFailureScreen();
+        if (row == null || userId == null) {
+          return _RouteFailureScreen(
+            onRetry: () =>
+                ref.invalidate(reservationByIdProvider(reservationId)),
+          );
+        }
         final String peerUserId;
         if (userId == row.hostId) {
           peerUserId = row.driverId;
@@ -65,24 +71,26 @@ class _RouteLoadingScreen extends StatelessWidget {
     return const Scaffold(
       backgroundColor: AppColors.surface,
       appBar: AppTopBar(title: 'Messages', showBack: true),
-      body: Center(child: CircularProgressIndicator()),
+      body: AppPageStatus.loading(),
     );
   }
 }
 
 class _RouteFailureScreen extends StatelessWidget {
-  const _RouteFailureScreen();
+  const _RouteFailureScreen({this.onRetry});
+
+  final VoidCallback? onRetry;
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.surface,
       appBar: const AppTopBar(title: 'Messages', showBack: true),
-      body: Center(
-        child: Text(
-          'This conversation is unavailable.',
-          style: AppTypography.bodyMuted,
-        ),
+      body: AppPageStatus.error(
+        title: 'Conversation unavailable',
+        message: 'This conversation could not be opened.',
+        actionLabel: onRetry != null ? 'Try again' : null,
+        onAction: onRetry,
       ),
     );
   }

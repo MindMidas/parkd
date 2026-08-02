@@ -11,7 +11,7 @@ import '../../providers/reservations_providers.dart';
 import '../active_reservations/reservation_details_screen.dart';
 import '../widgets/driver_reservation_menu_row.dart';
 
-/// Driver: completed or cancelled trips you booked
+// Driver: completed or cancelled trips you booked
 class PastReservationsScreen extends ConsumerStatefulWidget {
   const PastReservationsScreen({super.key});
 
@@ -56,7 +56,7 @@ class _PastReservationsScreenState
 
     return Scaffold(
       backgroundColor: AppColors.surface,
-      appBar: const AppTopBar(title: 'Past Reservations', showBack: true),
+      appBar: const AppTopBar(title: 'Past reservations', showBack: true),
       body: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [

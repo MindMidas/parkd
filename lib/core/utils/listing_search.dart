@@ -1,6 +1,6 @@
 import '../models/listing.dart';
 
-/// Case-insensitive match on address, locality, and spot label
+// Case-insensitive match on address, locality, and spot label
 bool listingMatchesSearchQuery(Listing listing, String rawQuery) {
   final q = rawQuery.trim().toLowerCase();
   if (q.isEmpty) return true;

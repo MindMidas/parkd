@@ -1,4 +1,4 @@
-/// Shared corner radii for Parkd chrome (inputs, cards, sheets, pills).
+// Shared corner radii for Parkd chrome (inputs, cards, sheets, pills).
 abstract final class AppRadius {
   static const double sm = 8;
   static const double md = 12;

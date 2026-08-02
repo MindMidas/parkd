@@ -15,7 +15,7 @@ import '../../../../core/widgets/widgets.dart';
 import '../../../hosting/presentation/manage_listings/edit/confirmation_success_screen.dart';
 import '../../providers/profile_providers.dart';
 
-// New pfp → storage upload → avatar_url, then success screen and bounce back
+// Uploads a profile photo to Storage and updates avatar_url.
 class UploadProfilePhotoScreen extends ConsumerStatefulWidget {
   const UploadProfilePhotoScreen({super.key, required this.userId});
 
@@ -33,6 +33,7 @@ class _UploadProfilePhotoScreenState
   XFile? _pickedImage;
   Uint8List? _previewBytes;
   bool _uploading = false;
+  String? _actionError;
 
   bool get _hasPhoto => _pickedImage != null && _previewBytes != null;
 
@@ -42,12 +43,13 @@ class _UploadProfilePhotoScreenState
       Platform.environment.containsKey('SIMULATOR_DEVICE_NAME');
 
   Future<void> _pickImage(ImageSource source) async {
+    setState(() => _actionError = null);
     if (source == ImageSource.camera && _isIosSimulator) {
       if (!mounted) return;
-      AppMessenger.showError(
-        context,
-        'The camera is not available in the iOS Simulator. '
-        'Use Upload photo, or run the app on an iPhone.',
+      setState(
+        () => _actionError =
+            'The camera is not available in the iOS Simulator. '
+            'Use Upload photo, or run the app on an iPhone.',
       );
       return;
     }
@@ -61,16 +63,16 @@ class _UploadProfilePhotoScreenState
       );
     } on PlatformException {
       if (!mounted) return;
-      AppMessenger.showError(
-        context,
-        'Could not open the camera or photo library. Check permissions in Settings.',
+      setState(
+        () => _actionError =
+            'Could not open the camera or photo library. Check permissions in Settings.',
       );
       return;
     } catch (_) {
       if (!mounted) return;
-      AppMessenger.showError(
-        context,
-        'Could not open the camera or photo library. Try again.',
+      setState(
+        () => _actionError =
+            'Could not open the camera or photo library. Try again.',
       );
       return;
     }
@@ -82,9 +84,9 @@ class _UploadProfilePhotoScreenState
       cropSourcePath = await materializeXFileForImageCrop(file);
     } catch (_) {
       if (!mounted) return;
-      AppMessenger.showError(
-        context,
-        'Could not read the selected image. Try another photo.',
+      setState(
+        () => _actionError =
+            'Could not read the selected image. Try another photo.',
       );
       return;
     }
@@ -102,9 +104,9 @@ class _UploadProfilePhotoScreenState
         return true;
       }());
       if (!mounted) return;
-      AppMessenger.showError(
-        context,
-        'Could not open the photo editor. Try another image or restart the app.',
+      setState(
+        () => _actionError =
+            'Could not open the photo editor. Try another image or restart the app.',
       );
       return;
     }
@@ -125,7 +127,10 @@ class _UploadProfilePhotoScreenState
   Future<void> _savePhoto() async {
     final path = _pickedImage?.path;
     if (path == null) return;
-    setState(() => _uploading = true);
+    setState(() {
+      _uploading = true;
+      _actionError = null;
+    });
     try {
       await ref
           .read(profileRepositoryProvider)
@@ -143,10 +148,7 @@ class _UploadProfilePhotoScreenState
       );
     } catch (_) {
       if (!mounted) return;
-      AppMessenger.showError(
-        context,
-        'Could not update your photo. Try again.',
-      );
+      setState(() => _actionError = 'Could not update your photo. Try again.');
     } finally {
       if (mounted) setState(() => _uploading = false);
     }
@@ -201,10 +203,9 @@ class _UploadProfilePhotoScreenState
                           : () => _pickImage(ImageSource.camera),
                     ),
                     const SizedBox(height: AppSpacing.sm),
-                    AppPrimaryButton(
+                    AppSecondaryButton(
                       label: 'Upload photo',
                       icon: Icons.add_photo_alternate_outlined,
-                      iconTrailing: true,
                       applyTitleCase: false,
                       onPressed: _uploading
                           ? null
@@ -215,20 +216,31 @@ class _UploadProfilePhotoScreenState
               ),
             ),
             AppStickyFooter(
-              child: _hasPhoto
-                  ? AppPrimaryButton(
-                      label: 'Save photo',
-                      icon: Icons.check_rounded,
-                      onPressed: _uploading ? null : _savePhoto,
-                      applyTitleCase: false,
-                      loading: _uploading,
-                    )
-                  : const AppPrimaryButton(
-                      label: 'Save photo',
-                      icon: Icons.check_rounded,
-                      onPressed: null,
-                      applyTitleCase: false,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  if (_actionError != null) ...[
+                    AppInlineError(
+                      message: _actionError!,
+                      onDismiss: () => setState(() => _actionError = null),
                     ),
+                    const SizedBox(height: AppSpacing.sm),
+                  ],
+                  _hasPhoto
+                      ? AppPrimaryButton(
+                          label: 'Save photo',
+                          onPressed: _uploading ? null : _savePhoto,
+                          applyTitleCase: false,
+                          loading: _uploading,
+                        )
+                      : const AppPrimaryButton(
+                          label: 'Save photo',
+                          onPressed: null,
+                          applyTitleCase: false,
+                        ),
+                ],
+              ),
             ),
           ],
         ),

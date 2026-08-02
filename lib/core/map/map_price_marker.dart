@@ -7,7 +7,7 @@ import '../models/listing.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_typography.dart';
 
-/// Airbnb-style price pill for Mapbox point annotations (Parkd blue).
+// Airbnb-style price pill for Mapbox point annotations (Parkd blue).
 Future<Uint8List> buildMapPriceMarkerPng({
   required String label,
   required bool selected,
@@ -87,7 +87,7 @@ Future<Uint8List> buildMapPriceMarkerPng({
   return bytes!.buffer.asUint8List();
 }
 
-/// Center badge for the approximate “Where you'll be” halo (Parkd blue).
+// Center badge for the approximate-location halo.
 Future<Uint8List> buildApproximateCenterBadgePng({
   double devicePixelRatio = 3,
 }) async {

@@ -7,7 +7,7 @@ import '../theme/app_spacing.dart';
 import '../theme/app_typography.dart';
 import 'app_bottom_sheet_grabber.dart';
 
-/// Shared Cupertino picker chrome — matches [AppModalSheet] top radius + grabber.
+// Shared Cupertino picker chrome — matches AppModalSheet top radius + grabber.
 class AppPickerSheet extends StatelessWidget {
   const AppPickerSheet({
     super.key,

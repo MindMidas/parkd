@@ -1,5 +1,4 @@
-/// Mirrors public.listing_photos
-/// Schema: supabase/schema.sql
+// Mirrors public.listing_photos
 class ListingPhoto {
   const ListingPhoto({
     required this.id,

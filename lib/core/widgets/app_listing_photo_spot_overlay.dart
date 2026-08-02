@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import '../theme/app_colors.dart';
 import 'app_listing_photo_frame.dart';
 
-// Pin on photo using 0–1 coords (same idea as AppAnnotatePhoto)
+// Pin on photo using fractional coordinates.
 class AppListingPhotoSpotOverlay extends StatelessWidget {
   const AppListingPhotoSpotOverlay({
     super.key,

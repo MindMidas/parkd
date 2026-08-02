@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 
 import 'app_colors.dart';
 
-/// Parkd type scale — bundled **DM Sans** (UI-friendly geometric sans).
+// Parkd type scale using bundled DM Sans.
 abstract final class AppTypography {
   static const String fontFamily = 'DM Sans';
 
@@ -46,7 +46,7 @@ abstract final class AppTypography {
 
   static TextStyle get pickerWheel => body.copyWith(fontSize: 21, height: 1.2);
 
-  /// Emphasized body — medium, not heavy (hub rows, labels).
+  // Emphasized body weight for hub rows and labels.
   static TextStyle get bodyStrong =>
       _base(fontSize: 16, fontWeight: FontWeight.w500, height: 1.4);
 
