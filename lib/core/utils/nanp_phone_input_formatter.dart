@@ -1,6 +1,6 @@
 import 'package:flutter/services.dart';
 
-/// Formats national digits as `(XXX) XXX-XXXX` (max 10 digits). Strips non-digits
+// Formats national digits as `(XXX) XXX-XXXX` (max 10 digits). Strips non-digits
 class NanpPhoneInputFormatter extends TextInputFormatter {
   static String formatDigits(String digits) {
     if (digits.length > 10) {

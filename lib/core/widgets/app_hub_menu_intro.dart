@@ -5,19 +5,12 @@ import '../theme/app_radius.dart';
 import '../theme/app_spacing.dart';
 import '../theme/app_typography.dart';
 
-/// Solid white title bar for hub screens (Hosting / Reservations / Account).
+// Solid white title bar for hub screens (Hosting / Reservations / Account).
 const Color kAppHubTitleBar = AppColors.surface;
 
-/// Quiet lead above hub menus — white surface, no wash / bubbles.
-///
-/// Optional [header] (Account avatar) sits above [lead]. Life comes from
-/// typography + a slim blue accent, not a decorative band.
+// Lead panel above hub menus.
 class AppHubMenuIntro extends StatelessWidget {
-  const AppHubMenuIntro({
-    super.key,
-    required this.lead,
-    this.header,
-  });
+  const AppHubMenuIntro({super.key, required this.lead, this.header});
 
   final String lead;
   final Widget? header;

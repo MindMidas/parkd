@@ -37,10 +37,10 @@ class AppMapboxPreview extends StatefulWidget {
   // Mapbox icon-size for the pin asset
   final double pinIconSize;
 
-  /// Exact/specific location marker (pin asset). Ignored when [showApproximateHalo].
+  // Exact/specific location marker (pin asset). Ignored when showApproximateHalo.
   final bool showPin;
 
-  /// Soft radius + parking badge (Airbnb approximate area).
+  // Soft radius + parking badge (Airbnb approximate area).
   final bool showApproximateHalo;
 
   @override
@@ -71,8 +71,8 @@ class _AppMapboxPreviewState extends State<AppMapboxPreview> {
     }
 
     if (widget.showApproximateHalo) {
-      final areaManager =
-          await mapboxMap.annotations.createPolygonAnnotationManager();
+      final areaManager = await mapboxMap.annotations
+          .createPolygonAnnotationManager();
       final outer = approximateListingAreaRing(
         latitude: widget.latitude,
         longitude: widget.longitude,
@@ -90,8 +90,8 @@ class _AppMapboxPreviewState extends State<AppMapboxPreview> {
         ),
       );
       final badge = await buildApproximateCenterBadgePng();
-      final pointManager =
-          await mapboxMap.annotations.createPointAnnotationManager();
+      final pointManager = await mapboxMap.annotations
+          .createPointAnnotationManager();
       await pointManager.create(
         PointAnnotationOptions(
           geometry: Point(
@@ -163,7 +163,7 @@ class _AppMapboxPreviewState extends State<AppMapboxPreview> {
   }
 }
 
-/// Listing sheet / detail map: halo for general sharing, pin for specific.
+// Listing sheet / detail map: halo for general sharing, pin for specific.
 class AppApproximateLocationMap extends StatelessWidget {
   const AppApproximateLocationMap({
     super.key,

@@ -3,7 +3,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/booking_time_window.dart';
 import '../models/reservation_row.dart';
 
-/// Inserts and reads public.reservations — host_id filled by trigger
+// Inserts and reads public.reservations; host_id is filled by trigger.
 class ReservationsRemote {
   ReservationsRemote(this._client);
 
@@ -30,7 +30,7 @@ class ReservationsRemote {
         .toList();
   }
 
-  /// Past = completed/cancelled in DB, or confirmed/active whose window has ended
+  // Past = completed/cancelled in DB, or confirmed/active whose window has ended
   List<ReservationRow> _mergePastReservationRows(dynamic a, dynamic b) {
     final seen = <String>{};
     final merged = <ReservationRow>[];
@@ -38,7 +38,10 @@ class ReservationsRemote {
       for (final e in rows as List) {
         final m = Map<String, dynamic>.from(e as Map);
         final id = m['id'] as String;
-        if (seen.add(id)) merged.add(ReservationRow.fromJson(m));
+        if (!seen.add(id)) continue;
+        final row = ReservationRow.fromJson(m);
+        if (row.isCheckoutHoldNoise) continue;
+        merged.add(row);
       }
     }
 
@@ -110,7 +113,7 @@ class ReservationsRemote {
     return _mergePastReservationRows(byPastStatus, expiredActive);
   }
 
-  /// Bookings you host for a single listing (active = confirmed/active only)
+  // Bookings you host for a single listing (active = confirmed/active only)
   Future<List<ReservationRow>> fetchForHostListing(
     String hostId,
     String listingId, {
@@ -156,7 +159,7 @@ class ReservationsRemote {
     );
   }
 
-  /// Busy windows for heatmap / slot picker (overlaps [rangeStart, rangeEnd))
+  // Busy windows for heatmap / slot picker (overlaps [rangeStart, rangeEnd))
   Future<List<BookingTimeWindow>> fetchOverlappingBlocksForListing(
     String listingId, {
     required DateTime rangeStart,
@@ -186,7 +189,7 @@ class ReservationsRemote {
     return out;
   }
 
-  /// Busy windows for several public listings in one privacy-safe query.
+  // Busy windows for several public listings in one privacy-safe query.
   Future<Map<String, List<BookingTimeWindow>>>
   fetchOverlappingBlocksForListings(
     List<String> listingIds, {

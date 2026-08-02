@@ -6,7 +6,7 @@ class AppSpacing {
   static const lg = 24.0;
   static const xl = 32.0;
 
-  /// Horizontal inset for [AppMapAddressSearchPanel] and related map overlays
+  // Horizontal inset for AppMapAddressSearchPanel and related map overlays
   static const mapSearchOverlayHorizontal = md;
 
   static const primaryButtonMinHeight = 52.0;

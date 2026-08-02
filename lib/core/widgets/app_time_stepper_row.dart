@@ -6,7 +6,7 @@ import '../theme/app_colors.dart';
 import '../theme/app_spacing.dart';
 import '../theme/app_typography.dart';
 
-// Label + time + −/+ circles; hold to repeat. labelWidth lines up stacked rows
+// Label, time, and step controls for stacked rows.
 class AppTimeStepperRow extends StatelessWidget {
   const AppTimeStepperRow({
     super.key,

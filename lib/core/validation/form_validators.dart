@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import '../utils/password_policy.dart';
 import '../utils/phone_e164.dart';
 
-/// Reusable [FormFieldValidator]s for [TextFormField] / [AppTextField]
+// form field validators
 class FormValidators {
   FormValidators._();
 
@@ -26,7 +26,7 @@ class FormValidators {
     return null;
   }
 
-  /// last name, compound surnames, etc
+  // last name, compound surnames, etc
   static String? familyName(String? value) {
     final v = value?.trim() ?? '';
     if (v.length < 2) {
@@ -35,7 +35,7 @@ class FormValidators {
     return null;
   }
 
-  /// Empty is OK; if the user types something, require at least 2 characters
+  // optional last name
   static String? optionalFamilyName(String? value) {
     final v = value?.trim() ?? '';
     if (v.isEmpty) return null;
@@ -45,7 +45,7 @@ class FormValidators {
     return null;
   }
 
-  /// Phone may be left blank; otherwise must normalize to E.164
+  // blank ok; otherwise E.164
   static String? phoneOptional(String? value) {
     final raw = value ?? '';
     if (raw.trim().isEmpty) return null;
@@ -63,10 +63,10 @@ class FormValidators {
     return null;
   }
 
-  /// `true` when [username] satisfies the same rules as [username] validator
+  // `true` when username satisfies the same rules as username validator
   static bool usernameFormatIsValid(String? value) => username(value) == null;
 
-  /// Rules for signup username checklist (local validation only)
+  // Rules for signup username checklist (local validation only)
   static List<({String label, bool met})> usernameRequirements(String? value) {
     final u = (value ?? '').trim().toLowerCase();
     final lenOk = u.length >= 3 && u.length <= 20;
@@ -103,8 +103,7 @@ class FormValidators {
     return null;
   }
 
-  /// Signup confirmation code from email (`{{ .Token }}` in Supabase)
-  /// GoTrue often sends **6** digits but may send **8** (or similar); we allow 6–10 digits
+  // Signup confirmation code from email (`{{ .Token }}` in Supabase)
   static String? signupEmailOtp(String? value) {
     final v = (value ?? '').trim().replaceAll(RegExp(r'\s'), '');
     if (!RegExp(r'^\d{6,10}$').hasMatch(v)) {
@@ -113,7 +112,7 @@ class FormValidators {
     return null;
   }
 
-  /// 6-digit code from the SMS sent for phone verification
+  // 6-digit code from the SMS sent for phone verification
   static String? signupSmsOtp(String? value) {
     final v = (value ?? '').trim().replaceAll(RegExp(r'\s'), '');
     if (!RegExp(r'^\d{6}$').hasMatch(v)) {
@@ -122,7 +121,7 @@ class FormValidators {
     return null;
   }
 
-  /// 6-digit TOTP from an authenticator app (Supabase MFA)
+  // 6-digit TOTP from an authenticator app (Supabase MFA)
   static String? totpCode(String? value) {
     final v = (value ?? '').trim().replaceAll(RegExp(r'\s'), '');
     if (!RegExp(r'^\d{6}$').hasMatch(v)) {
@@ -131,7 +130,7 @@ class FormValidators {
     return null;
   }
 
-  /// Validates that the field matches [other]’s current text (trimmed)
+  // Validates that the field matches the current trimmed value.
   static String? Function(String?) matchPassword(TextEditingController other) {
     return (String? value) {
       if ((value ?? '').trim() != other.text.trim()) {

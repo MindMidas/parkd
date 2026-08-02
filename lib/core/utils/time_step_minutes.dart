@@ -1,4 +1,4 @@
-/// 5-minute grid for availability steppers (0 = midnight … 23:55)
+// 5-minute grid for availability steppers.
 abstract final class TimeStepMinutes {
   static const step = 5;
   static const maxMinutes = 24 * 60 - step; // 23:55
@@ -19,7 +19,7 @@ abstract final class TimeStepMinutes {
     return next.clamp(0, maxMinutes);
   }
 
-  /// Parses `"HH:mm"` or `"HH:mm:ss"` (24h) to minutes from midnight
+  // Parses `"HH:mm"` or `"HH:mm:ss"` (24h) to minutes from midnight
   static int? tryParseMinutesFromHhMm(String input) {
     final t = input.trim();
     if (t.isEmpty) return null;
@@ -33,7 +33,7 @@ abstract final class TimeStepMinutes {
     return h * 60 + m;
   }
 
-  /// Parses `"9:15 AM"` / `"3:00 PM"` (flexible spacing) to minutes from midnight
+  // Parses `"9:15 AM"` / `"3:00 PM"` (flexible spacing) to minutes from midnight
   static int? tryParseMinutesFromAmPm(String input) {
     final re = RegExp(
       r'^\s*(\d{1,2}):(\d{2})\s*(AM|PM)\s*$',
@@ -51,7 +51,7 @@ abstract final class TimeStepMinutes {
     return h * 60 + min;
   }
 
-  /// If [stored] is already `"h:mm AM/PM"`, returns it; if `"HH:mm"` from DB, formats AM/PM
+  // If stored is already `"h:mm AM/PM"`, returns it; if `"HH:mm"` from DB, formats AM/PM
   static String formatHhMmOrAmPmToDisplay(String stored) {
     final t = stored.trim();
     final u = t.toUpperCase();
@@ -61,7 +61,7 @@ abstract final class TimeStepMinutes {
     return formatAmPm(mins);
   }
 
-  /// `"09:15"` style for Postgres `time` / API payloads
+  // `"09:15"` style for Postgres `time` / API payloads
   static String minutesToHhMm(int totalMinutes) {
     final clamped = totalMinutes.clamp(0, 23 * 60 + 59);
     final h = clamped ~/ 60;

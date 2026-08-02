@@ -11,10 +11,7 @@ enum AppEnvironmentKey {
   final String name;
 }
 
-/// Runtime configuration loader.
-///
-/// All builds provide public runtime configuration through `--dart-define` or
-/// `--dart-define-from-file`. Secret values must never be compiled into Flutter.
+// Runtime configuration loader.
 abstract final class AppEnvironment {
   static const _supabaseUrl = String.fromEnvironment('SUPABASE_URL');
   static const _supabaseAnonKey = String.fromEnvironment('SUPABASE_ANON_KEY');

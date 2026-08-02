@@ -7,7 +7,7 @@ import '../../../core/theme/app_spacing.dart';
 import '../../../core/theme/app_typography.dart';
 import '../../../core/widgets/widgets.dart';
 
-/// Responsive discovery experience used where Mapbox has no native SDK.
+// Responsive discovery experience used where Mapbox has no native SDK.
 class MapPlatformFallback extends StatelessWidget {
   const MapPlatformFallback({
     super.key,
@@ -237,96 +237,96 @@ class _FallbackListingCard extends StatelessWidget {
         child: SizedBox(
           height: 126,
           child: Row(
-              children: [
-                SizedBox(
-                  width: 132,
-                  height: double.infinity,
-                  child: photoUrl != null && photoUrl.isNotEmpty
-                      ? Image.network(
-                          photoUrl,
-                          fit: BoxFit.cover,
-                          errorBuilder: (_, _, _) =>
-                              const _FallbackPhotoPlaceholder(),
-                        )
-                      : const _FallbackPhotoPlaceholder(),
-                ),
-                Expanded(
-                  child: Padding(
-                    padding: const EdgeInsets.all(AppSpacing.sm),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          children: [
+            children: [
+              SizedBox(
+                width: 132,
+                height: double.infinity,
+                child: photoUrl != null && photoUrl.isNotEmpty
+                    ? Image.network(
+                        photoUrl,
+                        fit: BoxFit.cover,
+                        errorBuilder: (_, _, _) =>
+                            const _FallbackPhotoPlaceholder(),
+                      )
+                    : const _FallbackPhotoPlaceholder(),
+              ),
+              Expanded(
+                child: Padding(
+                  padding: const EdgeInsets.all(AppSpacing.sm),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Text(
+                              title,
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                              style: AppTypography.bodyStrong,
+                            ),
+                          ),
+                          const SizedBox(width: AppSpacing.xs),
+                          const Icon(
+                            Icons.chevron_right_rounded,
+                            color: AppColors.iconGrey,
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: AppSpacing.xxs),
+                      Text(
+                        listing.isApproximateLocation
+                            ? (listing.spotLabel ?? 'Approximate area')
+                            : (listing.townCountryLine.isNotEmpty
+                                  ? listing.townCountryLine
+                                  : listing.localityLine),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: AppTypography.caption,
+                      ),
+                      const Spacer(),
+                      Row(
+                        children: [
+                          if (listing.isApproximateLocation)
                             Expanded(
-                              child: Text(
-                                title,
-                                maxLines: 2,
-                                overflow: TextOverflow.ellipsis,
-                                style: AppTypography.bodyStrong,
+                              child: Row(
+                                children: [
+                                  const Icon(
+                                    Icons.privacy_tip_outlined,
+                                    size: 15,
+                                    color: AppColors.primaryBlue,
+                                  ),
+                                  const SizedBox(width: AppSpacing.xxs),
+                                  Expanded(
+                                    child: Text(
+                                      'Approximate location',
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: AppTypography.captionLink,
+                                    ),
+                                  ),
+                                ],
                               ),
-                            ),
+                            )
+                          else
+                            const Spacer(),
+                          if (hourly != null) ...[
                             const SizedBox(width: AppSpacing.xs),
-                            const Icon(
-                              Icons.chevron_right_rounded,
-                              color: AppColors.iconGrey,
+                            Text(
+                              'From \$${hourly.toStringAsFixed(hourly == hourly.roundToDouble() ? 0 : 2)}/hr',
+                              style: AppTypography.captionStrong,
                             ),
                           ],
-                        ),
-                        const SizedBox(height: AppSpacing.xxs),
-                        Text(
-                          listing.isApproximateLocation
-                              ? (listing.spotLabel ?? 'Approximate area')
-                              : (listing.townCountryLine.isNotEmpty
-                                    ? listing.townCountryLine
-                                    : listing.localityLine),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: AppTypography.caption,
-                        ),
-                        const Spacer(),
-                        Row(
-                          children: [
-                            if (listing.isApproximateLocation)
-                              Expanded(
-                                child: Row(
-                                  children: [
-                                    const Icon(
-                                      Icons.privacy_tip_outlined,
-                                      size: 15,
-                                      color: AppColors.primaryBlue,
-                                    ),
-                                    const SizedBox(width: AppSpacing.xxs),
-                                    Expanded(
-                                      child: Text(
-                                        'Approximate location',
-                                        maxLines: 1,
-                                        overflow: TextOverflow.ellipsis,
-                                        style: AppTypography.captionLink,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              )
-                            else
-                              const Spacer(),
-                            if (hourly != null) ...[
-                              const SizedBox(width: AppSpacing.xs),
-                              Text(
-                                'From \$${hourly.toStringAsFixed(hourly == hourly.roundToDouble() ? 0 : 2)}/hr',
-                                style: AppTypography.captionStrong,
-                              ),
-                            ],
-                          ],
-                        ),
-                      ],
-                    ),
+                        ],
+                      ),
+                    ],
                   ),
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
         ),
+      ),
     );
   }
 }

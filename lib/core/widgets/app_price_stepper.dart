@@ -4,7 +4,7 @@ import '../theme/app_colors.dart';
 import '../theme/app_spacing.dart';
 import '../theme/app_typography.dart';
 
-// Label + − / number / + (prices, counts, etc.)
+// Label with decrement and increment controls.
 class AppPriceStepper extends StatelessWidget {
   const AppPriceStepper({
     super.key,

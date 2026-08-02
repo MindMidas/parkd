@@ -6,7 +6,7 @@ import '../../../core/theme/app_spacing.dart';
 import '../../../core/theme/app_typography.dart';
 import '../../../core/widgets/widgets.dart';
 
-/// Picker when an approximate map area contains more than one listing.
+// Picker when an approximate map area contains more than one listing.
 Future<Listing?> showApproximateAreaListingsSheet(
   BuildContext context, {
   required List<Listing> listings,
@@ -39,10 +39,7 @@ Future<Listing?> showApproximateAreaListingsSheet(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  'Parking in this area',
-                  style: AppTypography.sectionTitle,
-                ),
+                Text('Parking in this area', style: AppTypography.sectionTitle),
                 const SizedBox(height: AppSpacing.xxs),
                 Text(
                   '${sorted.length} spots in this area — exact addresses '
@@ -72,10 +69,7 @@ Future<Listing?> showApproximateAreaListingsSheet(
                   trailing: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Text(
-                        priceLabel,
-                        style: AppTypography.captionStrong,
-                      ),
+                      Text(priceLabel, style: AppTypography.captionStrong),
                       const SizedBox(width: AppSpacing.xxs),
                       const Icon(
                         Icons.chevron_right_rounded,

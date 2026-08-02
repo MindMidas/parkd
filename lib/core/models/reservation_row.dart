@@ -1,6 +1,6 @@
 import 'reservation_status.dart';
 
-/// Mirrors public.reservations
+// Mirrors public.reservations
 class ReservationRow {
   const ReservationRow({
     required this.id,
@@ -13,6 +13,7 @@ class ReservationRow {
     required this.serviceFee,
     required this.status,
     this.extendedFromReservationId,
+    this.cancellationReason,
     this.createdAt,
     this.updatedAt,
   });
@@ -27,8 +28,19 @@ class ReservationRow {
   final double serviceFee;
   final ReservationStatus status;
   final String? extendedFromReservationId;
+  final String? cancellationReason;
   final DateTime? createdAt;
   final DateTime? updatedAt;
+
+  // Abandoned / superseded checkout holds must not appear as past trips.
+  bool get isCheckoutHoldNoise {
+    if (status != ReservationStatus.cancelled) return false;
+    final reason = cancellationReason?.trim() ?? '';
+    return reason == 'driver_cancelled_checkout' ||
+        reason == 'checkout_expired' ||
+        reason == 'terms_declined' ||
+        reason == 'driver_superseded_checkout';
+  }
 
   static ReservationRow fromJson(Map<String, dynamic> json) {
     return ReservationRow(
@@ -45,6 +57,7 @@ class ReservationRow {
           ReservationStatus.pending,
       extendedFromReservationId:
           json['extended_from_reservation_id'] as String?,
+      cancellationReason: json['cancellation_reason'] as String?,
       createdAt: json['created_at'] != null
           ? DateTime.parse(json['created_at'] as String)
           : null,

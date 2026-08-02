@@ -44,19 +44,21 @@ class AppSettingsNavTile extends StatelessWidget {
                   child: Text(subtitle!, style: AppTypography.caption),
                 )
               : null,
-          trailing: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              if (badgeCount > 0) ...[
-                AppNotificationBadge(count: badgeCount, compact: true),
-                const SizedBox(width: AppSpacing.xs),
+          trailing: UnconstrainedBox(
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (badgeCount > 0) ...[
+                  AppNotificationBadge(count: badgeCount, compact: true),
+                  const SizedBox(width: AppSpacing.xs),
+                ],
+                const Icon(
+                  Icons.keyboard_arrow_right_rounded,
+                  size: 22,
+                  color: AppColors.iconGrey,
+                ),
               ],
-              const Icon(
-                Icons.keyboard_arrow_right_rounded,
-                size: 22,
-                color: AppColors.iconGrey,
-              ),
-            ],
+            ),
           ),
           onTap: onTap,
         ),

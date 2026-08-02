@@ -117,10 +117,8 @@ class _AllowedMinutesPickerSheetState
   Widget build(BuildContext context) {
     return AppPickerSheet(
       onCancel: () => Navigator.pop(context),
-      onDone: () => Navigator.pop(
-        context,
-        widget.allowedMinutes[_selectedIndex],
-      ),
+      onDone: () =>
+          Navigator.pop(context, widget.allowedMinutes[_selectedIndex]),
       child: SizedBox(
         height: 216,
         child: CupertinoTheme(
@@ -135,10 +133,7 @@ class _AllowedMinutesPickerSheetState
             itemExtent: 40,
             onSelectedItemChanged: (i) => _selectedIndex = i,
             children: widget.allowedMinutes
-                .map(
-                  (m) =>
-                      Center(child: Text(TimeStepMinutes.formatAmPm(m))),
-                )
+                .map((m) => Center(child: Text(TimeStepMinutes.formatAmPm(m))))
                 .toList(),
           ),
         ),

@@ -25,7 +25,7 @@ class AppDividerWide extends StatelessWidget {
   Widget build(BuildContext context) => const AppDivider();
 }
 
-// Divider inset when scroll is full width but content isn’t
+// Divider inset for full-width scroll containers.
 class AppDividerInset extends StatelessWidget {
   const AppDividerInset({super.key, this.horizontal = AppSpacing.lg});
 

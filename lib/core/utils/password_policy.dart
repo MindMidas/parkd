@@ -1,14 +1,12 @@
-/// Sign-up / password-reset rules (align Supabase Auth → Password → minimum length
-/// with [minSignupPasswordLength] when possible)
 const int minSignupPasswordLength = 8;
 const int maxSignupPasswordLength = 256;
 
-/// True if [password] contains at least one non–letter, non-digit character
+// True if password contains at least one non-letter, non-digit character.
 bool signupPasswordHasSpecialCharacter(String password) {
   return RegExp(r'[^A-Za-z0-9]').hasMatch(password);
 }
 
-/// Individual password rules for checklist UI (order matches validation priority)
+// Individual password rules for checklist UI.
 List<({String label, bool met})> signupPasswordRequirements(String password) {
   return [
     (
@@ -25,7 +23,7 @@ List<({String label, bool met})> signupPasswordRequirements(String password) {
   ];
 }
 
-/// Returns `null` if [password] meets policy, otherwise a short user-facing reason
+// Returns null when the password meets policy.
 String? signupPasswordValidationMessage(String password) {
   if (password.length < minSignupPasswordLength) {
     return 'Password must be at least $minSignupPasswordLength characters.';

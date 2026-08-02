@@ -61,8 +61,13 @@ const handler = createPaymentIntentHandler({
     const row = Array.isArray(data) ? data[0] : data;
     if (!row || typeof row !== "object") throw new Error("Checkout RPC returned no row");
     const value = row as Record<string, unknown>;
+    const reservationId = String(value.reservation_id ?? "");
+    const hostConnectAccountId = await loadHostConnectDestination(
+      admin,
+      reservationId,
+    );
     return {
-      reservationId: String(value.reservation_id ?? ""),
+      reservationId,
       paymentId: String(value.payment_id ?? ""),
       subtotalCents: Number(value.subtotal_cents),
       serviceFeeCents: Number(value.service_fee_cents),
@@ -71,6 +76,7 @@ const handler = createPaymentIntentHandler({
       stripePaymentIntentId: nullableString(value.stripe_payment_intent_id),
       stripeCheckoutSessionId: nullableString(value.stripe_checkout_session_id),
       stripePaymentMethodId: nullableString(value.stripe_payment_method_id),
+      hostConnectAccountId,
     };
   },
   getOrCreateCustomer: (userId) => getOrCreateStripeCustomer(stripe, admin, userId),
@@ -90,6 +96,12 @@ const handler = createPaymentIntentHandler({
           confirm: input.confirm,
         }
         : { automatic_payment_methods: { enabled: true } }),
+      ...(input.transferDestination
+        ? {
+          application_fee_amount: input.applicationFeeAmount,
+          transfer_data: { destination: input.transferDestination },
+        }
+        : {}),
     };
     return mapIntent(
       await stripe.paymentIntents.create(parameters, {
@@ -137,7 +149,16 @@ const handler = createPaymentIntentHandler({
             payment_id: input.paymentId,
             reservation_id: input.reservationId,
             application: "parkd",
+            ...(input.transferDestination
+              ? { host_connect_account_id: input.transferDestination }
+              : {}),
           },
+          ...(input.transferDestination
+            ? {
+              application_fee_amount: input.applicationFeeAmount,
+              transfer_data: { destination: input.transferDestination },
+            }
+            : {}),
         },
       },
       { idempotencyKey: input.idempotencyKey },
@@ -158,6 +179,38 @@ Deno.serve(handler);
 
 function nullableString(value: unknown): string | null {
   return typeof value === "string" && value.trim() ? value.trim() : null;
+}
+
+async function loadHostConnectDestination(
+  admin: ReturnType<typeof adminClient>,
+  reservationId: string,
+): Promise<string | null> {
+  if (!reservationId) return null;
+  const { data: reservation, error: reservationError } = await admin
+    .from("reservations")
+    .select("host_id")
+    .eq("id", reservationId)
+    .maybeSingle();
+  if (reservationError) throw reservationError;
+  const hostId = typeof reservation?.host_id === "string" ? reservation.host_id : null;
+  if (!hostId) return null;
+
+  const { data: profile, error: profileError } = await admin
+    .from("profiles")
+    .select(
+      "stripe_connect_account_id, stripe_connect_charges_enabled, stripe_connect_details_submitted",
+    )
+    .eq("id", hostId)
+    .maybeSingle();
+  if (profileError) throw profileError;
+  if (
+    profile?.stripe_connect_charges_enabled !== true ||
+    profile?.stripe_connect_details_submitted !== true
+  ) {
+    return null;
+  }
+  const accountId = nullableString(profile.stripe_connect_account_id);
+  return accountId && /^acct_[A-Za-z0-9]+$/.test(accountId) ? accountId : null;
 }
 
 function mapCheckoutSession(

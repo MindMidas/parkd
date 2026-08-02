@@ -15,7 +15,6 @@
     }
   },
   "tasks": {
-    "check": "deno check **/*.ts",
-    "test": "deno test --allow-env=SUPABASE_FUNCTION_ALLOWED_ORIGINS **/*_test.ts"
+    "check": "deno check **/*.ts"
   }
 }

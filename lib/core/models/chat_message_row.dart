@@ -1,6 +1,6 @@
 import 'message_delivery_status.dart';
 
-/// Mirrors public.messages
+// Mirrors public.messages
 class ChatMessageRow {
   const ChatMessageRow({
     required this.id,

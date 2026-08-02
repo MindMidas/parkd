@@ -5,16 +5,17 @@ import '../../../../core/models/host_listing_booking_thread.dart';
 import '../../../../core/models/listing.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_spacing.dart';
-import '../../../../core/theme/app_typography.dart';
 import '../../../../core/utils/profile_avatar_image_provider.dart';
 import '../../../../core/widgets/widgets.dart';
 import '../../../auth/providers/auth_providers.dart';
+import '../../../profile/providers/notifications_providers.dart';
 import '../../../profile/providers/profile_providers.dart';
 import '../../../reservations/presentation/trip_conversation_screen.dart';
+import '../../../reservations/presentation/widgets/mark_messages_unread_sheet.dart';
 import '../../../reservations/providers/reservations_providers.dart';
 import '../active_bookings/booking_details_screen.dart';
 
-/// Host: past-trip threads for [listing]
+// Host: past-trip threads for listing
 class PastBookingMessagesScreen extends ConsumerStatefulWidget {
   const PastBookingMessagesScreen({super.key, required this.listing});
 
@@ -62,6 +63,10 @@ class _PastBookingMessagesScreenState
     final threadsAsync = ref.watch(
       hostListingPastThreadsProvider(widget.listing.id),
     );
+    final unreadByReservation = ref.watch(
+      unreadBookingEventCountByReservationProvider,
+    );
+    final mutedReservationIds = ref.watch(mutedReservationMessagesProvider);
 
     return Scaffold(
       backgroundColor: AppColors.surface,
@@ -83,28 +88,23 @@ class _PastBookingMessagesScreenState
             ),
           ),
           Expanded(
-            child: threadsAsync.when(
-              loading: () => const Center(child: CircularProgressIndicator()),
-              error: (e, st) => Center(
-                child: Text(
-                  'Could not load conversations.',
-                  textAlign: TextAlign.center,
-                  style: AppTypography.bodyMuted,
-                ),
+            child: AppAsyncBody(
+              value: threadsAsync,
+              isEmpty: (threads) => threads.isEmpty,
+              emptyTitle: 'No conversations yet',
+              emptyMessage: 'No past bookings for this spot.',
+              errorTitle: 'Could not load conversations',
+              onRetry: () => ref.invalidate(
+                hostListingPastThreadsProvider(widget.listing.id),
               ),
               data: (threads) {
                 final filtered = threads
                     .where((t) => _threadMatches(t, _query))
                     .toList();
                 if (filtered.isEmpty) {
-                  return Center(
-                    child: Text(
-                      threads.isEmpty
-                          ? 'No past bookings for this spot.'
-                          : 'No results match your search.',
-                      textAlign: TextAlign.center,
-                      style: AppTypography.bodyMuted,
-                    ),
+                  return const AppPageStatus.empty(
+                    title: 'No matches',
+                    message: 'No results match your search.',
                   );
                 }
                 return ListView.separated(
@@ -131,6 +131,9 @@ class _PastBookingMessagesScreenState
                     final avatar = profileAvatarImageProvider(
                       driverProfile.asData?.value,
                     );
+                    final isMuted = mutedReservationIds.contains(
+                      thread.reservation.id,
+                    );
                     return AppMenuRow(
                       leadingType: AppMenuLeadingType.profile,
                       leadingImageProvider: avatar,
@@ -138,6 +141,9 @@ class _PastBookingMessagesScreenState
                       subtitle: preview,
                       rightKind: AppMenuRightKind.icon,
                       rightIcon: Icons.mail_rounded,
+                      isMuted: isMuted,
+                      badgeCount:
+                          unreadByReservation[thread.reservation.id] ?? 0,
                       onTap: () {
                         final uid = ref.read(currentSessionProvider)?.user.id;
                         if (uid == null) return;
@@ -163,6 +169,12 @@ class _PastBookingMessagesScreenState
                           ),
                         );
                       },
+                      onLongPress: () => showChatNotificationOptionsSheet(
+                        context: context,
+                        ref: ref,
+                        reservationId: thread.reservation.id,
+                        isMuted: isMuted,
+                      ),
                     );
                   },
                 );

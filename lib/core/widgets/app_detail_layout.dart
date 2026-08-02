@@ -55,6 +55,7 @@ class AppPersonInlineCard extends StatelessWidget {
     this.actionIcon = Icons.mail_outline_rounded,
     this.title,
     this.compact = false,
+    this.ratingLabel,
   });
 
   final String displayName;
@@ -66,6 +67,7 @@ class AppPersonInlineCard extends StatelessWidget {
   final IconData actionIcon;
   final String? title;
   final bool compact;
+  final String? ratingLabel;
 
   @override
   Widget build(BuildContext context) {
@@ -90,6 +92,7 @@ class AppPersonInlineCard extends StatelessWidget {
                 fullWidth: false,
               )
             : null);
+    final rating = ratingLabel?.trim();
 
     final row = Row(
       crossAxisAlignment: CrossAxisAlignment.center,
@@ -117,6 +120,17 @@ class AppPersonInlineCard extends StatelessWidget {
                 overflow: TextOverflow.ellipsis,
                 style: AppTypography.caption,
               ),
+              if (rating != null && rating.isNotEmpty) ...[
+                SizedBox(height: AppSpacing.xxs),
+                Text(
+                  rating,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: AppTypography.caption.copyWith(
+                    color: AppColors.primaryBlue,
+                  ),
+                ),
+              ],
             ],
           ),
         ),
@@ -285,8 +299,6 @@ class _AppImageFullscreenView extends StatelessWidget {
   }
 }
 
-/// Listing hero from protected Supabase Storage ([imageUrl]); no stock fallback.
-/// Uses the same 4:3 aspect as listing upload / [AppListingPhotoFrame]
 class AppDetailHeroNetworkImage extends StatelessWidget {
   const AppDetailHeroNetworkImage({
     super.key,
@@ -396,7 +408,7 @@ class AppDetailHeroNetworkImage extends StatelessWidget {
   Widget build(BuildContext context) => _buildImage(context);
 }
 
-/// Full-screen zoomable network image (e.g. listing / reservation hero)
+// Full-screen zoomable network image (e.g. listing / reservation hero)
 class AppNetworkImageFullscreenScreen extends StatelessWidget {
   const AppNetworkImageFullscreenScreen({
     super.key,

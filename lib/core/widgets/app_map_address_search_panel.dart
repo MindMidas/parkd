@@ -25,7 +25,7 @@ class AppMapAddressSearchPanel extends StatefulWidget {
 
   final TextEditingController? controller;
 
-  // Addresses only (not your app’s listing search)
+  // Addresses only, not listing search.
   final Future<List<SearchResult>> Function(String query) searchFn;
 
   final ValueChanged<SearchResult> onResultSelected;
@@ -42,7 +42,7 @@ class _AppMapAddressSearchPanelState extends State<AppMapAddressSearchPanel> {
   late TextEditingController _controller;
   Timer? _debounce;
 
-  // Freeze field text after pick so we don’t re-search the same string
+  // Freeze field text after pick to avoid re-searching the same string.
   String? _committedSearchLabel;
   List<SearchResult> _searchResults = [];
   bool _isSearching = false;

@@ -3,7 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'app_page_status.dart';
 
-/// Maps [AsyncValue] to shared loading/empty/error/data chrome.
+// Maps AsyncValue to shared loading/empty/error/data chrome.
 class AppAsyncBody<T> extends StatelessWidget {
   const AppAsyncBody({
     super.key,

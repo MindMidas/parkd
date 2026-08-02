@@ -7,7 +7,7 @@ import 'app_buttons.dart';
 
 enum AppPageStatusKind { loading, empty, error }
 
-/// Shared loading / empty / error body for list hubs and detail screens.
+// Shared loading / empty / error body for list hubs and detail screens.
 class AppPageStatus extends StatelessWidget {
   const AppPageStatus({
     super.key,
@@ -27,7 +27,7 @@ class AppPageStatus extends StatelessWidget {
       actionLabel = null,
       onAction = null;
 
-  /// Quiet empty copy — muted text, no default icon.
+  // Muted empty-state text without a default icon.
   const AppPageStatus.empty({
     super.key,
     required this.title,
@@ -103,10 +103,7 @@ class AppPageStatus extends StatelessWidget {
               ),
             if (actionLabel != null && onAction != null) ...[
               const SizedBox(height: AppSpacing.md),
-              AppPrimaryButton(
-                label: actionLabel!,
-                onPressed: onAction,
-              ),
+              AppPrimaryButton(label: actionLabel!, onPressed: onAction),
             ],
           ],
         ),

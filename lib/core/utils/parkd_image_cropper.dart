@@ -3,7 +3,6 @@ import 'package:image_cropper/image_cropper.dart';
 
 import '../theme/app_colors.dart';
 
-/// 4:3 listing hero — same aspect as [AppListingPhotoFrame] (see `app_listing_photo_frame.dart`)
 Future<String?> cropListingHeroPhoto({
   required BuildContext context,
   required String sourcePath,
@@ -42,7 +41,7 @@ Future<String?> cropListingHeroPhoto({
   return cropped?.path;
 }
 
-/// Square output; circle overlay on iOS/Android. Shown as a circle in the app UI
+// Square output; circle overlay on iOS/Android. Shown as a circle in the app UI
 Future<String?> cropProfileAvatar({
   required BuildContext context,
   required String sourcePath,

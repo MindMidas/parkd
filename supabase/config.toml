@@ -13,6 +13,12 @@ verify_jwt = true
 [functions.finalize-reservation-payment]
 verify_jwt = true
 
+[functions.cancel-reservation]
+verify_jwt = true
+
+[functions.connect-account]
+verify_jwt = false
+
 [functions.delete-account]
 verify_jwt = true
 

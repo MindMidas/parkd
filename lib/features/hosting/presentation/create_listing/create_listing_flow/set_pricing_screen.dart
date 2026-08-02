@@ -3,7 +3,7 @@ import '../../../../../core/theme/app_spacing.dart';
 import '../../../../../core/widgets/widgets.dart';
 import '../../../../../core/theme/app_colors.dart';
 
-// Hourly/daily step — also reused as modal from availability editors
+// Hourly and daily pricing step, also reused by availability editors.
 class SetPricingScreen extends StatefulWidget {
   const SetPricingScreen({
     super.key,

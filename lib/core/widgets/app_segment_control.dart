@@ -7,18 +7,14 @@ import '../theme/app_typography.dart';
 import '../utils/app_feedback.dart';
 
 class AppSegmentOption<T> {
-  const AppSegmentOption({
-    required this.value,
-    required this.label,
-    this.icon,
-  });
+  const AppSegmentOption({required this.value, required this.label, this.icon});
 
   final T value;
   final String label;
   final IconData? icon;
 }
 
-/// Soft track + selected surface pill (heatmap / card brand / similar).
+// Soft track + selected surface pill (heatmap / card brand / similar).
 class AppSegmentControl<T> extends StatelessWidget {
   const AppSegmentControl({
     super.key,

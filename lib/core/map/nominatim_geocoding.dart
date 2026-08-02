@@ -7,16 +7,12 @@ import '../config/app_environment.dart';
 import '../models/search_result.dart';
 import 'map_constants.dart';
 
-/// Guelph default center — same as [MapConstants].
+// Guelph default center, kept in sync with MapConstants.
 const double kDefaultMapLat = MapConstants.defaultLatitude;
 const double kDefaultMapLon = MapConstants.defaultLongitude;
 const double kDefaultMapZoom = MapConstants.defaultZoom;
 
-/// Searches for addresses near the Parkd map area.
-///
-/// Prefers the authenticated Edge proxy (Nominatim/Photon). If that fails or
-/// returns nothing — common from cloud IPs blocked by OSM — falls back to
-/// Mapbox Geocoding with the app's public token.
+// Searches for addresses near the Parkd map area.
 Future<List<SearchResult>> searchAddressesForParkd(String query) async {
   final q = query.trim();
   if (q.isEmpty) return const [];
@@ -199,11 +195,6 @@ SearchResult? _resultFromRow({
   );
 }
 
-/// Backwards-compatible name used by map call sites.
-Future<List<SearchResult>> nominatimSearchAddresses(String query) =>
-    searchAddressesForParkd(query);
-
-/// Create-listing step: geocoded addresses/places only.
 Future<List<SearchResult>> searchAddressesForCreateListing(String query) =>
     searchAddressesForParkd(query);
 

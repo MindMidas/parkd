@@ -10,10 +10,7 @@ LocalStorage createSupabaseSessionStorage() =>
 GotrueAsyncStorage createSupabasePkceStorage() =>
     const SessionSupabasePkceStorage();
 
-/// Keeps web authentication scoped to the current browser tab.
-///
-/// Session storage survives redirects and refreshes needed by PKCE, but is
-/// discarded when the tab closes instead of persisting indefinitely.
+// Keeps web authentication scoped to the current browser tab.
 class SessionSupabaseSessionStorage extends LocalStorage {
   const SessionSupabaseSessionStorage();
 

@@ -1,6 +1,6 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
 
-/// GoTrue / MFA only — no PostgREST
+// GoTrue and MFA only; no PostgREST access.
 class AuthRemote {
   AuthRemote(this._client);
 
@@ -143,8 +143,7 @@ class AuthRemote {
     return _client.auth.updateUser(UserAttributes(password: newPassword));
   }
 
-  /// Deletes only the caller. The Edge Function verifies the JWT and never
-  /// accepts a user id from the client.
+  // Deletes only the caller. The Edge Function verifies the JWT and never
   Future<void> deleteCurrentAccount() async {
     final response = await _client.functions.invoke(
       'delete-account',

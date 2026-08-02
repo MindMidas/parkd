@@ -5,7 +5,7 @@ import '../theme/app_ink.dart';
 import '../theme/app_radius.dart';
 import '../utils/app_feedback.dart';
 
-/// Circular map control (recenter) — matches search-card soft chrome.
+// Circular map control for recenter actions.
 class AppMapFloatingIconButton extends StatelessWidget {
   const AppMapFloatingIconButton({
     super.key,
@@ -58,11 +58,7 @@ class AppMapFloatingIconButton extends StatelessWidget {
           child: SizedBox(
             width: size,
             height: size,
-            child: Icon(
-              icon,
-              color: AppColors.primaryBlue,
-              size: iconSize,
-            ),
+            child: Icon(icon, color: AppColors.primaryBlue, size: iconSize),
           ),
         ),
       ),
@@ -74,13 +70,9 @@ class AppMapFloatingIconButton extends StatelessWidget {
   }
 }
 
-/// Solid map overlay card (error / status strips) — same soft lift as search.
+// Solid map overlay card for error and status strips.
 class AppMapOverlayCard extends StatelessWidget {
-  const AppMapOverlayCard({
-    super.key,
-    required this.child,
-    this.borderColor,
-  });
+  const AppMapOverlayCard({super.key, required this.child, this.borderColor});
 
   final Widget child;
   final Color? borderColor;

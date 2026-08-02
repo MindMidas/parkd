@@ -8,7 +8,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/profile.dart';
 import '../security/image_upload_policy.dart';
 
-/// `profiles` rows with avatars stored in policy-protected Supabase Storage.
+// `profiles` rows with avatars stored in policy-protected Supabase Storage.
 class ProfilesRemote {
   ProfilesRemote(this._client);
 
@@ -16,7 +16,7 @@ class ProfilesRemote {
 
   static const _avatarsBucket = 'avatars';
 
-  /// Returns null if no row exists for [userId]
+  // Returns null if no row exists for userId
   Future<Profile?> fetchById(String userId) async {
     final currentUserId = _client.auth.currentUser?.id;
     final table = currentUserId == userId ? 'profiles' : 'public_profiles';
@@ -91,7 +91,7 @@ class ProfilesRemote {
         .eq('id', userId);
   }
 
-  /// Infers `image/jpeg` / `image/png` from [localFilePath] (picker path or name)
+  // Infers `image/jpeg` / `image/png` from localFilePath (picker path or name)
   static String inferImageContentType(String localFilePath) {
     final lower = localFilePath.toLowerCase();
     if (lower.endsWith('.png')) return 'image/png';

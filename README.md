@@ -25,7 +25,7 @@
 </p>
 
 <p align="center">
-  <img src="docs/assets/parkd-app-preview.png" alt="Parkd app login, parking search, and host listing screens" width="100%">
+  <img src="docs/assets/showcase/slide_1.png" alt="Parkd app screens showing login, map, listing, and location views" width="100%">
 </p>
 
 ## Overview
@@ -43,6 +43,13 @@ Supabase backend protected by PostgreSQL RLS.
 - Create listings, upload photos, configure availability, and review earnings.
 - Manage profiles, payment methods, and notification preferences.
 
+## More Frames
+
+<p align="center">
+  <img src="docs/assets/showcase/slide_2.png" alt="Parkd app screens showing booking, review, messages, and hosting views" width="100%">
+  <img src="docs/assets/showcase/slide_3.png" alt="Parkd app screens showing location sharing, spot marking, availability, and listing heatmap views" width="100%">
+</p>
+
 ## Quick Start
 
 Install [Flutter 3.41.5](https://docs.flutter.dev/get-started/install), then run:
@@ -53,20 +60,13 @@ flutter pub get
 flutter run --dart-define-from-file=dart_defines.local.json
 ```
 
-Fill `dart_defines.local.json` with public client configuration only:
+Put your Supabase, Mapbox, and Stripe (test) keys in `dart_defines.local.json`.
 
-- Supabase URL and anon key
-- Mapbox public token
-- Stripe publishable key (test)
-
-Do not place service-role keys, Stripe secret keys, or other private values in
-Flutter or source control.
-
-## Tests
+## Checks
 
 ```bash
 flutter analyze
-flutter test
+flutter build web --release
 ```
 
 ## Project Map
@@ -74,11 +74,17 @@ flutter test
 | Path | Purpose |
 |---|---|
 | `lib/` | Flutter features, providers, repositories, and shared UI |
-| `test/` | Unit, repository, routing, and widget tests |
-| `supabase/migrations/` | Database schema, RLS, payments |
+| `supabase/migrations/` | Database schema |
 | `supabase/functions/` | Stripe, geocoding, and related APIs |
 
 ## Contributors
 
-Parkd was created by Paul Mancion, Somtochukwu Umeh, Ashmit Mittal, and Ayomide
-Awofisayo.
+Parkd was created by [Paul Mancion](https://github.com/MindMidas),
+[Somtochukwu Umeh](https://github.com/Augustine-Umeh),
+[Ashmit Mittal](https://github.com/ashmitmittal04), and Ayomide Awofisayo.
+
+## License
+
+Copyright (c) 2026 Parkd contributors. All rights reserved. This source code is
+provided for portfolio and review purposes only. See [LICENSE](LICENSE) for
+details.

@@ -69,10 +69,7 @@ class _FilterToggleRow extends StatelessWidget {
                 ],
               ),
             ),
-            Switch.adaptive(
-              value: value,
-              onChanged: onChanged,
-            ),
+            Switch.adaptive(value: value, onChanged: onChanged),
           ],
         ),
       ),

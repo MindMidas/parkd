@@ -4,7 +4,7 @@ import '../../../../core/theme/app_colors.dart';
 import '../../../../core/widgets/widgets.dart';
 import '../hosting_menu_body.dart';
 
-// Full-screen hosting entry with a back bar (deep links etc) — body is HostingMenuBody
+// Full-screen hosting entry with a back bar.
 class HostingMenuScreen extends StatelessWidget {
   const HostingMenuScreen({super.key});
 

@@ -21,7 +21,7 @@ import '../create_listing_flow_constants.dart';
 
 enum _LocationPhase { search, adjustPin, sharing }
 
-/// Pin the spot, choose Airbnb-style map sharing, then continue the wizard.
+// pin + general/specific sharing, then continue
 class AddLocationScreen extends StatefulWidget {
   const AddLocationScreen({super.key});
 
@@ -218,10 +218,8 @@ class _AddLocationScreenState extends State<AddLocationScreen> {
                 draftPin:
                     _pinLat != null &&
                         _pinLon != null &&
-                        !(
-                          _phase == _LocationPhase.sharing &&
-                          _locationSharing.isGeneral
-                        )
+                        !(_phase == _LocationPhase.sharing &&
+                            _locationSharing.isGeneral)
                     ? (lat: _pinLat!, lon: _pinLon!)
                     : null,
                 approximatePrivacyHalo: guestHalo,
@@ -235,8 +233,8 @@ class _AddLocationScreenState extends State<AddLocationScreen> {
                 onRecenterPressed: () async {
                   final m = _map;
                   if (m == null) return;
-                  // During pin adjust / sharing, recenter on the listing pin —
-                  // not GPS (that felt like the pin “sent you home”).
+                  // During pin adjustment, recenter on the listing pin instead
+                  // of the device location.
                   final lat = _pinLat;
                   final lon = _pinLon;
                   if (_phase != _LocationPhase.search &&
@@ -330,7 +328,7 @@ class _AddLocationScreenState extends State<AddLocationScreen> {
                           _locationSharing == ListingLocationSharing.general
                               ? 'Show only an approximate area (~2–3 short blocks).'
                               : 'Show a pin on the map. Still hides the street '
-                                  'address until booking.',
+                                    'address until booking.',
                           style: AppTypography.caption.copyWith(height: 1.4),
                         ),
                       ],

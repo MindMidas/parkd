@@ -30,6 +30,8 @@ class AppCheckboxRichTextRow extends StatelessWidget {
           height: checkboxSize,
           child: Checkbox(
             value: value,
+            materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+            visualDensity: VisualDensity.compact,
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(6),
             ),
@@ -44,7 +46,12 @@ class AppCheckboxRichTextRow extends StatelessWidget {
           ),
         ),
         const SizedBox(width: AppSpacing.sm),
-        Expanded(child: RichText(text: labelSpan)),
+        Expanded(
+          child: Padding(
+            padding: const EdgeInsets.only(top: 1),
+            child: Text.rich(labelSpan),
+          ),
+        ),
       ],
     );
   }

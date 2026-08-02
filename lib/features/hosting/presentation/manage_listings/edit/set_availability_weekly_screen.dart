@@ -13,7 +13,7 @@ import '../../../../profile/providers/profile_providers.dart';
 import '../../create_listing/create_listing_flow/set_pricing_screen.dart';
 import 'confirmation_success_screen.dart';
 
-// Weekly slot editor — merges Riverpod rows with in-memory drafts until Confirm
+// Weekly slot editor that merges saved rows with in-memory drafts until confirm.
 class _PendingWeeklySlot {
   _PendingWeeklySlot({
     required this.localId,
@@ -30,7 +30,6 @@ class _PendingWeeklySlot {
   double? priceDay;
 }
 
-/// Set availability using weekly schedule: days + start/end time, add slots, list with remove, confirm
 class SetAvailabilityWeeklyScreen extends ConsumerStatefulWidget {
   const SetAvailabilityWeeklyScreen({
     super.key,
@@ -370,9 +369,8 @@ class _SetAvailabilityWeeklyScreenState
         bottom: false,
         child: weeklyAsync.when(
           loading: () => const AppPageStatus.loading(),
-          error: (e, _) => const AppPageStatus.error(
-            title: 'Could not load schedule',
-          ),
+          error: (e, _) =>
+              const AppPageStatus.error(title: 'Could not load schedule'),
           data: (slots) {
             final merged = _mergedRows(slots);
             final canConfirm = _canConfirm(slots);
@@ -440,7 +438,6 @@ class _SetAvailabilityWeeklyScreenState
                 AppStickyFooter(
                   child: AppPrimaryButton(
                     label: 'Confirm',
-                    icon: Icons.check_rounded,
                     onPressed: canConfirm ? () => _onConfirm(slots) : null,
                   ),
                 ),

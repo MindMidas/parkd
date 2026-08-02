@@ -1,8 +1,8 @@
-/// Map search filters applied to Parkd's privacy-safe public listing data.
+// Map search filters applied to Parkd's privacy-safe public listing data.
 class MapFilters {
   const MapFilters({
     this.maxPricePerHour = 50,
-    this.guelphOnly = true,
+    this.guelphOnly = false,
     this.proximityEnabled = false,
     this.proximityRadiusKm = 10,
     this.availabilityFilterEnabled = false,
@@ -15,13 +15,10 @@ class MapFilters {
   final double maxPricePerHour;
   final bool guelphOnly;
 
-  /// Nearby filtering uses the coarse coordinates exposed by the public map
-  /// projection, never a host's exact address or coordinates.
+  // Nearby filtering uses the coarse coordinates exposed by the public map
   final bool proximityEnabled;
   final double proximityRadiusKm;
 
-  /// Optional booking window. A listing must be open for the full window and
-  /// have no overlapping pending, confirmed, or active reservation.
   final bool availabilityFilterEnabled;
   final DateTime? availRangeStart;
   final DateTime? availRangeEnd;

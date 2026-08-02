@@ -173,20 +173,6 @@ abstract final class AppButtonStyleTokens {
       }),
     );
   }
-
-  /// @deprecated Prefer [filledSecondary] — kept for any remaining outline call sites.
-  static ButtonStyle outlined({
-    required Size minimumSize,
-    required bool enabled,
-    required bool destructive,
-  }) {
-    return filledSecondary(
-      minimumSize: minimumSize,
-      padding: symmetricPadding,
-      textStyle: AppTypography.button,
-      destructive: destructive,
-    );
-  }
 }
 
 VoidCallback? _withLightHaptic(BuildContext context, VoidCallback? onPressed) {
@@ -197,12 +183,9 @@ VoidCallback? _withLightHaptic(BuildContext context, VoidCallback? onPressed) {
   };
 }
 
-/// CTA-only press scale (0.97). Not for list rows or chips.
+// CTA-only press scale (0.97). Not for list rows or chips.
 class _CtaPressScale extends StatefulWidget {
-  const _CtaPressScale({
-    required this.enabled,
-    required this.child,
-  });
+  const _CtaPressScale({required this.enabled, required this.child});
 
   final bool enabled;
   final Widget child;
@@ -222,8 +205,9 @@ class _CtaPressScaleState extends State<_CtaPressScale> {
   @override
   Widget build(BuildContext context) {
     final reduceMotion = MediaQuery.disableAnimationsOf(context);
-    final scale =
-        (!reduceMotion && widget.enabled && _pressed) ? AppMotion.pressScale : 1.0;
+    final scale = (!reduceMotion && widget.enabled && _pressed)
+        ? AppMotion.pressScale
+        : 1.0;
     return Listener(
       behavior: HitTestBehavior.deferToChild,
       onPointerDown: widget.enabled ? (_) => _setPressed(true) : null,
@@ -245,7 +229,7 @@ class AppPrimaryButton extends StatelessWidget {
     required this.label,
     required this.onPressed,
     this.icon,
-    this.applyTitleCase = true,
+    this.applyTitleCase = false,
     this.loading = false,
     this.iconTrailing = false,
     this.fullWidth = true,
@@ -277,11 +261,10 @@ class AppPrimaryButton extends StatelessWidget {
     final padding = compact
         ? const EdgeInsets.symmetric(horizontal: 10, vertical: 0)
         : AppButtonStyleTokens.symmetricPadding;
-    final textStyle =
-        compact ? AppTypography.buttonDense : AppTypography.button;
-    final radius = BorderRadius.circular(
-      compact ? AppRadius.sm : AppRadius.md,
-    );
+    final textStyle = compact
+        ? AppTypography.buttonDense
+        : AppTypography.button;
+    final radius = BorderRadius.circular(compact ? AppRadius.sm : AppRadius.md);
     final spinnerSize = compact ? 18.0 : 24.0;
 
     if (loading) {
@@ -329,11 +312,7 @@ class AppPrimaryButton extends StatelessWidget {
               style: textStyle.copyWith(color: AppColors.onPrimary),
             ),
             const SizedBox(width: AppSpacing.sm),
-            Icon(
-              icon,
-              size: compact ? 18 : 22,
-              color: AppColors.onPrimary,
-            ),
+            Icon(icon, size: compact ? 18 : 22, color: AppColors.onPrimary),
           ],
         ),
       );
@@ -352,10 +331,7 @@ class AppPrimaryButton extends StatelessWidget {
       );
     }
 
-    return _CtaPressScale(
-      enabled: hapticOn != null,
-      child: button,
-    );
+    return _CtaPressScale(enabled: hapticOn != null, child: button);
   }
 }
 
@@ -365,7 +341,7 @@ class AppSecondaryButton extends StatelessWidget {
     required this.label,
     required this.onPressed,
     this.icon,
-    this.applyTitleCase = true,
+    this.applyTitleCase = false,
     this.loading = false,
     this.fullWidth = true,
     this.compact = false,
@@ -396,11 +372,10 @@ class AppSecondaryButton extends StatelessWidget {
     final padding = compact
         ? const EdgeInsets.symmetric(horizontal: 10, vertical: 0)
         : AppButtonStyleTokens.symmetricPadding;
-    final textStyle =
-        compact ? AppTypography.buttonDense : AppTypography.button;
-    final radius = BorderRadius.circular(
-      compact ? AppRadius.sm : AppRadius.md,
-    );
+    final textStyle = compact
+        ? AppTypography.buttonDense
+        : AppTypography.button;
+    final radius = BorderRadius.circular(compact ? AppRadius.sm : AppRadius.md);
     final style = AppButtonStyleTokens.filledSecondary(
       minimumSize: minSize,
       padding: padding,
@@ -409,8 +384,7 @@ class AppSecondaryButton extends StatelessWidget {
       visualDensity: compact ? VisualDensity.compact : null,
       destructive: destructive,
     );
-    final progressColor =
-        destructive ? AppColors.error : AppColors.primaryBlue;
+    final progressColor = destructive ? AppColors.error : AppColors.primaryBlue;
     final spinnerSize = compact ? 18.0 : 22.0;
 
     if (loading) {

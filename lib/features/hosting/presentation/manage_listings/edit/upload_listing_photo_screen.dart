@@ -48,6 +48,7 @@ class _UploadListingPhotoScreenState extends State<UploadListingPhotoScreen> {
 
   XFile? _pickedImage;
   TextEditingController? _spotNumberController;
+  String? _actionError;
 
   @override
   void initState() {
@@ -66,19 +67,20 @@ class _UploadListingPhotoScreenState extends State<UploadListingPhotoScreen> {
 
   bool get _hasPhoto => _pickedImage != null;
 
-  /// Simulator has no camera; opening it often fails hard (process exit)
+  // Simulator has no camera; opening it often fails hard (process exit)
   bool get _isIosSimulator =>
       !kIsWeb &&
       Platform.isIOS &&
       Platform.environment.containsKey('SIMULATOR_DEVICE_NAME');
 
   Future<void> _pickImage(ImageSource source) async {
+    setState(() => _actionError = null);
     if (source == ImageSource.camera && _isIosSimulator) {
       if (!mounted) return;
-      AppMessenger.showError(
-        context,
-        'The camera is not available in the iOS Simulator. '
-        'Use Upload photo, or run the app on an iPhone.',
+      setState(
+        () => _actionError =
+            'The camera is not available in the iOS Simulator. '
+            'Use Upload photo, or run the app on an iPhone.',
       );
       return;
     }
@@ -93,16 +95,16 @@ class _UploadListingPhotoScreenState extends State<UploadListingPhotoScreen> {
       );
     } on PlatformException {
       if (!mounted) return;
-      AppMessenger.showError(
-        context,
-        'Could not open the camera or photo library. Check permissions in Settings.',
+      setState(
+        () => _actionError =
+            'Could not open the camera or photo library. Check permissions in Settings.',
       );
       return;
     } catch (_) {
       if (!mounted) return;
-      AppMessenger.showError(
-        context,
-        'Could not open the camera or photo library. Try again.',
+      setState(
+        () => _actionError =
+            'Could not open the camera or photo library. Try again.',
       );
       return;
     }
@@ -114,9 +116,9 @@ class _UploadListingPhotoScreenState extends State<UploadListingPhotoScreen> {
       cropSourcePath = await materializeXFileForImageCrop(file);
     } catch (_) {
       if (!mounted) return;
-      AppMessenger.showError(
-        context,
-        'Could not read the selected image. Try another photo.',
+      setState(
+        () => _actionError =
+            'Could not read the selected image. Try another photo.',
       );
       return;
     }
@@ -134,9 +136,9 @@ class _UploadListingPhotoScreenState extends State<UploadListingPhotoScreen> {
         return true;
       }());
       if (!mounted) return;
-      AppMessenger.showError(
-        context,
-        'Could not open the photo editor. Try another image or restart the app.',
+      setState(
+        () => _actionError =
+            'Could not open the photo editor. Try another image or restart the app.',
       );
       return;
     }
@@ -225,11 +227,7 @@ class _UploadListingPhotoScreenState extends State<UploadListingPhotoScreen> {
                     ),
                     const SizedBox(height: AppSpacing.lg),
                     const AppAnnotatePhotoInstruction(
-                      text:
-                          'Take or upload a clear photo of the parking spot. '
-                          'You will crop it to the standard 4:3 frame, then '
-                          'place the spot marker. Drivers use this image to '
-                          'find the exact location.',
+                      text: 'Add a clear photo of the parking spot.',
                     ),
                     const SizedBox(height: AppSpacing.md),
                     AppPrimaryButton(
@@ -240,10 +238,9 @@ class _UploadListingPhotoScreenState extends State<UploadListingPhotoScreen> {
                       onPressed: () => _pickImage(ImageSource.camera),
                     ),
                     const SizedBox(height: AppSpacing.sm),
-                    AppPrimaryButton(
+                    AppSecondaryButton(
                       label: 'Upload photo',
                       icon: Icons.add_photo_alternate_outlined,
-                      iconTrailing: true,
                       applyTitleCase: false,
                       onPressed: () => _pickImage(ImageSource.gallery),
                     ),
@@ -266,17 +263,28 @@ class _UploadListingPhotoScreenState extends State<UploadListingPhotoScreen> {
               ),
             ),
             AppStickyFooter(
-              child: _hasPhoto
-                  ? AppPrimaryButton(
-                      label: 'Continue',
-                      icon: Icons.arrow_forward_rounded,
-                      onPressed: _onContinue,
-                    )
-                  : const AppPrimaryButton(
-                      label: 'Continue',
-                      icon: Icons.arrow_forward_rounded,
-                      onPressed: null,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  if (_actionError != null) ...[
+                    AppInlineError(
+                      message: _actionError!,
+                      onDismiss: () => setState(() => _actionError = null),
                     ),
+                    const SizedBox(height: AppSpacing.sm),
+                  ],
+                  _hasPhoto
+                      ? AppPrimaryButton(
+                          label: 'Continue',
+                          onPressed: _onContinue,
+                        )
+                      : const AppPrimaryButton(
+                          label: 'Continue',
+                          onPressed: null,
+                        ),
+                ],
+              ),
             ),
           ],
         ),

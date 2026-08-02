@@ -6,7 +6,7 @@ import '../theme/app_radius.dart';
 import '../theme/app_spacing.dart';
 import 'app_bottom_sheet_grabber.dart';
 
-/// Shared modal sheet chrome: solid surface, grabber, optional sticky footer.
+// Shared modal sheet chrome: solid surface, grabber, optional sticky footer.
 class AppModalSheet extends StatelessWidget {
   const AppModalSheet({
     super.key,
@@ -20,7 +20,6 @@ class AppModalSheet extends StatelessWidget {
       AppSpacing.lg,
       AppSpacing.lg,
     ),
-    this.glass = false,
   });
 
   final Widget child;
@@ -28,9 +27,6 @@ class AppModalSheet extends StatelessWidget {
   final double maxHeightFraction;
   final bool showGrabber;
   final EdgeInsetsGeometry padding;
-
-  /// Ignored — kept for call-site compatibility; glass is disabled.
-  final bool glass;
 
   static Future<T?> show<T>({
     required BuildContext context,

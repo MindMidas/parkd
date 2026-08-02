@@ -32,10 +32,7 @@ class NotificationPreferencesScreen extends ConsumerWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(
-                        'Mute in-app banners',
-                        style: AppTypography.body,
-                      ),
+                      Text('Mute in-app banners', style: AppTypography.body),
                       const SizedBox(height: AppSpacing.xxs),
                       Text(
                         'Hide pop-ups while Parkd is open.',

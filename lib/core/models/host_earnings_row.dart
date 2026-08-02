@@ -1,4 +1,4 @@
-/// One row from public.host_earnings view
+// One row from public.host_earnings view
 class HostEarningsRow {
   const HostEarningsRow({
     required this.hostId,

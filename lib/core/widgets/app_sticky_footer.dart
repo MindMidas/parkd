@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_spacing.dart';
 
-/// Sticky bottom CTA strip — solid surface, soft lift (no stacked hairlines).
+// Sticky bottom CTA strip with a solid surface.
 class AppStickyFooter extends StatelessWidget {
   const AppStickyFooter({
     super.key,
@@ -15,17 +15,13 @@ class AppStickyFooter extends StatelessWidget {
       AppSpacing.md,
     ),
     this.showTopBorder = false,
-    this.glass = false,
   });
 
   final Widget child;
   final EdgeInsetsGeometry padding;
 
-  /// Legacy hairline; prefer the soft lift shadow (default off).
+  /// Optional top hairline; default uses a soft lift shadow instead.
   final bool showTopBorder;
-
-  /// Ignored — kept for call-site compatibility; glass is disabled.
-  final bool glass;
 
   @override
   Widget build(BuildContext context) {

@@ -1,6 +1,6 @@
 import '../../../core/models/payment_method_row.dart';
 
-/// Saved cards for checkout and settings
+// Saved cards for checkout and settings
 abstract class PaymentMethodsRepository {
   Future<List<PaymentMethodRow>> listForUser(String userId);
 
