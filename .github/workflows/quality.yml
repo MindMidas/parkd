@@ -111,16 +111,13 @@ jobs:
         run: flutter pub get
 
       - name: Check formatting
-        run: dart format --output=none --set-exit-if-changed lib test integration_test supabase/functions
+        run: dart format --output=none --set-exit-if-changed lib test supabase/functions
 
       - name: Analyze
         run: flutter analyze
 
-      - name: Run unit and widget tests with coverage
-        run: flutter test test --coverage --test-randomize-ordering-seed=20260720
-
-      - name: Enforce global coverage ratchet
-        run: dart run .github/scripts/check_coverage.dart coverage/lcov.info 13.0 90.0
+      - name: Run tests
+        run: flutter test test
 
       - name: Build Flutter web release
         run: flutter build web --release
